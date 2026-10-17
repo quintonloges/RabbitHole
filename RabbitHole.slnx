@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="apps/api/RabbitHole.Api.csproj" />
+  <Project Path="tests/api/RabbitHole.Api.Tests.csproj" />
+</Solution>

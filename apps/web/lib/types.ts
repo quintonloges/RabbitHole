@@ -1,0 +1,15 @@
+export type Topic = { id: string; name: string; description: string; keywords: string; aliases: string; weight: number; pinned: boolean; curiosityOnly: boolean; enabled: boolean };
+export type Source = { id: string; name: string; kind: string; url: string; query: string; topicIds: string[]; enabled: boolean; intervalMinutes: number; resultLimit: number; lastSuccessAt: string | null; lastAttemptAt: string | null; lastError: string | null; failureCount: number; lastImportedCount: number };
+export type ItemState = { saved: boolean; read: boolean; dismissed: boolean; understood: boolean; progress: number; feedback: number; lastOpenedAt?: string | null };
+export type Note = { id: string; itemId: string; body: string; quote?: string | null; locator?: string | null; createdAt: string };
+export type Item = { id: string; kind: string; title: string; author?: string | null; canonicalUrl: string; provider: string; providerId?: string | null; doi?: string | null; arxivId?: string | null; excerpt?: string | null; body?: string | null; textProvenance: string; metadataJson?: string | null; embedUrl?: string | null; importWarning?: string | null; publishedAt?: string | null; ingestedAt: string; documentId?: string | null; sectionId?: string | null; sourceName?: string; state: ItemState; topics: Topic[]; reason?: string | null; evidenceItemIds?: string[]; notes?: Note[]; related?: Item[] };
+export type Edition = { id: string; day: string; items: Item[]; total: number };
+export type HoleSummary = { id: string; title: string; rootTitle?: string | null; nodeCount?: number; lastNodeId?: string | null; updatedAt: string };
+export type HoleNode = { id: string; holeId: string; parentId?: string | null; itemId?: string | null; question?: string | null; rationale?: string | null; item?: Item | null; createdAt: string };
+export type Hole = HoleSummary & { nodes: HoleNode[] };
+export type Book = { id: string; title: string; author?: string | null; fileName: string; status: string; error?: string | null; pageCount: number; createdAt: string };
+export type BookSection = { id: string; documentId: string; itemId: string; title: string; order: number; startPage?: number | null; endPage?: number | null; locator?: string | null };
+export type Prompt = { id: string; itemId: string; itemTitle?: string; question: string; reference?: string | null; provenance: string; dueAt: string; reviews: number; attempts?: { id: string; response: string; rating: string; createdAt: string }[] };
+export type Settings = { editionSize: number; serendipity: number; freshness: number; practiceEnabled: boolean; theme: "system" | "light" | "dark"; aiEnabled: boolean };
+export type Job = { id: string; sourceId: string; status: string; imported: number; error?: string | null; startedAt: string; finishedAt?: string | null };
+export type SystemStatus = { status?: string; counts?: { topics?: number; sources?: number; items?: number; books?: number; holes?: number }; configuration?: { aiConfigured?: boolean; openAlexConfigured?: boolean; youtubeConfigured?: boolean } };

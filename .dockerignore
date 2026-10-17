@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+**/node_modules
+**/.next
+**/bin
+**/obj
+.cache
+data
+backups
+test-results
+playwright-report
+**/uploads

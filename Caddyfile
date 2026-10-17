@@ -1,0 +1,21 @@
+{
+    auto_https off
+    admin off
+}
+:80 {
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        X-Frame-Options SAMEORIGIN
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+    handle /api/* {
+        reverse_proxy api:8080
+    }
+    handle /openapi/* {
+        reverse_proxy api:8080
+    }
+    handle {
+        reverse_proxy web:3000
+    }
+}

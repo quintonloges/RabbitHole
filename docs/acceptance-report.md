@@ -1,10 +1,45 @@
 # RabbitHole acceptance report
 
-Verified on **17 October 2026**, on Windows with Docker Desktop Linux containers. This report describes executed checks, including failures corrected during implementation. No AI credentials were supplied.
+Verified on **17 October 2026**, on Windows with Docker Desktop Linux containers. This report distinguishes the review-remediation checks from the earlier initial-build evidence. No AI credentials were supplied.
+
+## Review remediation
+
+All twelve review findings have permanent regression coverage and fixes:
+
+1. RSS GUIDs have feed-scoped identities. Replacing a subscription's feed creates a new namespace and retains the previous origin.
+2. Bridge records merge all matching identities transactionally, retaining old IDs as aliases and preserving personal data. Failed database writes are rolled back and detached before retryable health is saved; later sources still refresh.
+3. Explicit export projections recursively redact credentials in provider IDs, metadata and encoded nested player URLs without mutating stored records.
+4. Multiple source origins persist for each item; disabling the primary source cannot hide an item supplied by another enabled source.
+5. Explicit topic inclusions and removals are stored independently of automatic assignments and survive refresh and document retry.
+6. Shared keyword classification covers external imports and local text, and edits reclassify the existing catalog.
+7. Interrupted document imports recover by same-file upload or Retry extraction, preserving document/section IDs, notes, progress and edited metadata.
+8. Practice drafts and delayed AI results belong to individual prompts; Not now cannot save another prompt's draft.
+9. Saved/read UI changes reconcile parent caches after successful persistence and retain failure feedback.
+10. OpenAlex watches use chronological, bounded cursor pages with durable checkpoints; search remains relevance ranked.
+11. arXiv abstracts retain the supplied summary as source text, separately from the short excerpt.
+12. Internal metadata timeouts produce honest link-only imports; caller cancellation still propagates.
+
+The source-edit review additionally caught and fixed feed-namespace reuse, stale watch checkpoints after query edits, and overwriting retired origin snapshots. The first combined backend run exposed a legacy explicit topic choice being reset during document retry; that was corrected before the successful full rerun.
+
+| Review-pass command or check | Actual result |
+|---|---|
+| `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore -v:minimal --blame-hang-timeout 60s` | **115 passed, 0 failed, 0 skipped.** Includes 60 additional cases covering all review findings, legacy SQLite upgrades, endpoint behavior and fault injection. Local test-host IPC required execution outside the sandbox. |
+| `npm run test:e2e -- --reporter=line` | **14 passed**, final browser run 41.2 seconds; seven added regressions cover mutation races, draft isolation, late AI results and document recovery. |
+| `dotnet build RabbitHole.slnx -c Release --no-restore -v:minimal` | Passed; backend/test compilation also passed in the complete Release test run. |
+| `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` | Passed. |
+| `npm --prefix apps/web run lint`, `npm --prefix apps/web run typecheck`, `npm --prefix apps/web run build` | All passed. Docker also built the production frontend successfully. |
+| `dotnet ef migrations has-pending-model-changes --project apps/api` | No pending model changes. EF tool 10.0.12 reports its patch-version difference from runtime 10.0.13; generation/checks succeeded. |
+| `./scripts/backup.ps1` | Pre-upgrade database and uploads saved to ignored `backups/20261017-202352`; original API restarted. |
+| `./scripts/verify-restore.ps1 -BackupFolder ./backups/20261017-202352` | Passed in an isolated Docker project: old PostgreSQL backup upgraded, nine real items restored, note search, saved/read/progress, sibling branches, Linux PDF extraction, original-file SHA-256, export and database/API/web restart verified. Only temporary verification volumes were removed. |
+| `docker compose up --build -d --wait` | Passed against the main installation after isolated verification; forward migrations/backfill applied, API/database/web healthy, gateway remains loopback-only. |
+| Pre/post-upgrade export comparison and runtime logs | All nine existing item IDs and original title/author/URL/provider IDs/text/date/document fields retained; existing state, notes, documents/sections, trails, practice and editions unchanged. Backfilled 24 identities and nine origins. Health returned `ok`; inspected logs contained no error-level/unhandled-exception matches. |
+| `git diff --check` | Passed with the repository's normal Windows line-ending configuration. |
+
+Legacy SQLite regression tests construct the original schema, preserve populated user state and references through repeated schema/backfill runs, and check foreign keys, identity indexes, topic overrides, unknown legacy tags and malformed metadata. The PostgreSQL restore check exercises the actual production migrations against a pre-upgrade backup. Official OpenAlex sorting/filtering/paging and arXiv abstract documentation were consulted; this review pass made no new live AI or research-provider smoke request. Earlier live-provider evidence is retained below.
 
 ## Delivered application
 
-The running app is at **http://localhost:3000**. Only the Caddy gateway publishes a host port, bound to `127.0.0.1:3000`. The API, web server and PostgreSQL are healthy. EF's real initial migration creates the relational schema, foreign keys, unique identity indexes and PostgreSQL full-text indexes. Original uploads and PostgreSQL use separate persistent Docker volumes.
+The running app is at **http://localhost:3000**. Only the Caddy gateway publishes a host port, bound to `127.0.0.1:3000`. The API, web server and PostgreSQL are healthy. EF migrations create the relational schema, normalized identity registry, source origins, topic decisions and PostgreSQL full-text indexes. Original uploads and PostgreSQL use separate persistent Docker volumes.
 
 Implemented vertical flows:
 
@@ -20,7 +55,7 @@ Implemented vertical flows:
 
 The main collection contains **nine real provider records and zero test fixtures**. Quanta is enabled daily; the two research watches used for live checks remain disabled after manual refresh. Fresh installations seed editable topics, not fictitious content or automatic source subscriptions.
 
-## Executed checks
+## Initial-build checks (before review remediation)
 
 | Command or check | Actual result |
 |---|---|
@@ -72,6 +107,8 @@ The complete source titles, URLs, dates and source responses are recorded in [pr
 
 ## Remaining limits
 
+- Earlier versions did not retain every source association or overwritten source text. The upgrade preserves what is stored and recovers known provider references; it cannot reconstruct evidence that was already discarded. Reimport/refresh can add available real metadata. Downgrading requires restoring a pre-upgrade database/uploads backup.
+- OpenAlex's initial watch seed is a finite newest page; subsequent windows overlap seven days. Papers indexed later than that may require explicit search, and cursor continuation beyond the first page may require a provider API key.
 - No live AI credentials/local model were provided, so live model compatibility is unverified. Some compatible servers require `AI_TOKEN_PARAMETER=max_tokens`.
 - OCR, DRM removal, captions/media downloads, Semantic Scholar, authenticated global YouTube/SoundCloud search, OPML import and automatic JSON merge-import are not implemented. Supported alternatives are documented in the README; no stub reports these as available.
 - EPUB TOC entries pointing to several fragments in one XHTML document remain one section. PDFs use actual extracted pages/bookmarks and optional manual page ranges; complex layout extraction may be imperfect.

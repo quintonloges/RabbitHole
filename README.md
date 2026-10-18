@@ -78,7 +78,7 @@ $env:NEXT_TELEMETRY_DISABLED = '1'
 npm --prefix apps/web run dev
 ```
 
-Production uses PostgreSQL and forward migrations. SQLite is for tests/development; it uses schema creation rather than production migration history. Never point the test host at your personal database.
+Production uses PostgreSQL and forward migrations. SQLite is for tests/development; an additive schema upgrade preserves older development databases. Both paths transactionally backfill identities, multiple source origins and explicit topic choices before serving traffic. Never point the test host at your personal database.
 
 OpenAPI is served at `/openapi/v1.json`. Health at `/api/healthz` checks the database. See [architecture](docs/architecture.md), [ingestion and privacy](docs/ingestion-and-privacy.md), [provider checks](docs/provider-verification.md) and the [acceptance report](docs/acceptance-report.md) for actual validation and remaining limits.
 
@@ -91,6 +91,8 @@ Use **Settings → Export your data** for portable JSON notes, highlights, topic
 ```
 
 This briefly stops the API while copying a PostgreSQL custom-format dump and the uploads directory into an ignored timestamped `backups/` folder, then restarts it. Keep your private `.env` separately. Backups contain private book text and personal notes; store them accordingly.
+
+Take a backup before upgrading. The catalog upgrade preserves original IDs and resolves merged duplicate links to a surviving item. Restoring the pre-upgrade database and uploads together is the supported way to return to older code; migration downgrades are intentionally blocked because the old model cannot represent the new provenance and aliases.
 
 To restore **into a fresh separate project** without overwriting the current app:
 
@@ -119,6 +121,7 @@ This uses the already built `rabbithole-api` and `rabbithole-web` images on port
 - Daily editions roll over at midnight UTC; publication dates are displayed in UTC so date-only research records retain their source calendar day.
 - EPUB sections follow spine documents. Several TOC fragments within one XHTML document remain one section. Scanned PDFs need the original-file fallback; there is no OCR or DRM removal.
 - OpenAlex/arXiv supply available metadata and abstracts. An access link does not mean a paper's full text was retrieved. Provider citation references link out; they do not automatically import other papers.
+  OpenAlex watches seed one newest page, then process recent publication windows with cursor continuation and a seven-day overlap. Continuation may require `OPENALEX_API_KEY`; failures retain the cursor and appear in source health. Interactive search remains relevance ranked. Papers indexed more than seven days late may require manual search.
 - YouTube channel feeds and known video URLs, and SoundCloud track/playlist URLs, are supported. Authenticated global search, captions, media downloads, Semantic Scholar and OPML import are not implemented.
 - AI has fixture validation and failure coverage, but no live model was tested because no credentials or local model were supplied. Playback availability also remains subject to each media provider; live oEmbed metadata was checked, not uninterrupted playback.
 - The ranking/filter pipeline targets a personal catalog and loads candidates into memory. It has no vector index or automatic correctness grading. Changing source/topic preferences takes effect in a new selection; existing editions remain stable.
@@ -134,7 +137,7 @@ docker compose restart api web
 docker compose down       # Stops containers; keeps data
 ```
 
-If port 3000 is occupied, set `PORT=3002` in `.env`. Provider errors are in Settings; retry after backoff or correct the source. Uploaded files without extracted text remain downloadable; OCR and DRM removal are not provided. If an upload was interrupted by a machine restart, the original remains on the upload volume and its status is visible.
+If port 3000 is occupied, set `PORT=3002` in `.env`. Provider errors are in Settings; retry after backoff or correct the source. Uploaded files without extracted text remain downloadable; OCR and DRM removal are not provided. For an interrupted or failed upload, use **Library → Retry extraction**, or upload the same file again. The existing document/section IDs, notes, edited metadata and reading progress are retained. Reuploading the same file also restores a missing original.
 
 **Destructive reset:** only after taking a backup and deciding to erase this installation, `docker compose down --volumes` deletes the database and uploads. Never use it for routine rebuilds or troubleshooting.
 

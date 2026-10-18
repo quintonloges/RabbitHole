@@ -62,7 +62,11 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     if (db.Database.IsNpgsql()) await db.Database.MigrateAsync();
-    else await db.Database.EnsureCreatedAsync();
+    else
+    {
+        await db.Database.EnsureCreatedAsync();
+        await SqliteCatalogSchema.ApplyAsync(db);
+    }
     if (!await db.Topics.AnyAsync())
     {
         db.Topics.AddRange(
@@ -76,6 +80,7 @@ using (var scope = app.Services.CreateScope())
             new Topic { Name = "Unexpected finds", Description = "Cross-disciplinary detours", Keywords = "curiosity, unexpected", Weight = 2, CuriosityOnly = true });
         await db.SaveChangesAsync();
     }
+    await CatalogUpgrade.ApplyAsync(db);
 }
 
 app.Run();

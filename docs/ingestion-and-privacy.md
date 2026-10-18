@@ -6,6 +6,7 @@ RabbitHole stores one person's collection locally. There are no analytics, accou
 
 - RSS/Atom supplies actual titles, authors, dates, excerpts and full feed text when present. HTML is reduced to plain text. A missing publication date stays unknown. Malformed feeds fail independently.
 - OpenAlex and arXiv search/watch results retain paper metadata and abstracts when available, not invented full text. API budgets/authentication can change; inspect actual health rather than assume availability. RabbitHole acknowledges arXiv for use of its open-access interoperability API.
+  OpenAlex watches use newest-first cursor pages and a seven-day publication-date overlap; the initial seed is a finite newest selection. Cursor continuation beyond the first page requires an API key under the current provider policy. Failed continuation is visible and does not advance the checkpoint. Older delayed indexing is outside that overlap; use explicit research search when needed. See the official [sorting](https://help.openalex.org/api/sorting/), [filtering](https://help.openalex.org/api/filtering/) and [paging](https://help.openalex.org/api/paging/) documentation. arXiv's supplied summary is stored as a bounded provider abstract, separately from its short excerpt.
 - YouTube uses canonical video IDs, official oEmbed metadata and public channel feeds. Video playback is through a supported player, loaded only when requested. Arbitrary captions/transcripts are not fetched. The official captions download API requires owner/editor permissions.
 - SoundCloud uses official oEmbed metadata and an allowlisted widget. Track/playlist import does not promise global track discovery or downloads. Artist/music topic preferences are editable taste terms, not fabricated playable records.
 - Manual websites are metadata/excerpt imports, with robots checks and honest link-only fallback. Full article bodies are not scraped to evade licensing, paywalls or access controls.
@@ -22,6 +23,8 @@ Uploads are limited to 50 MiB. EPUB limits cover entry count, declared expanded 
 ## Secrets, backup and AI
 
 Environment values are not exposed in the frontend, logs or export. Status endpoints expose only whether optional providers are configured. Keep `.env`, uploads and backups out of version control. A backup/export contains personal notes and potentially private copyrighted book text; it is for personal recovery, not publication.
+
+Export uses explicit field projections. Credential parameters are removed from source/item/origin URLs, URL-shaped identifiers, recursive provider metadata, encoded nested player URLs, fragments and userinfo. Malformed or oversized provider metadata is omitted from the export; stored originals are unchanged. Database backups retain original private data and credentials embedded in configured URLs, so protect them separately from the sanitized interchange export.
 
 AI sends only explicitly selected bounded passages and a user response to the configured endpoint. Set a trusted local endpoint and `AI_ALLOW_LOCAL=true` to use a local compatible service. Local AI networking is intentionally separate from arbitrary public-web fetching. No source text can cause the model to execute application actions. Model prose is still fallible; structural validation and actual references are not a guarantee of factual correctness.
 

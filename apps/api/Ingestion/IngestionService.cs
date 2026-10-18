@@ -1,16 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using RabbitHole.Data;
 using RabbitHole.Domain;
+using RabbitHole.Features;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Collections.Concurrent;
-using System.Text.Json.Nodes;
 
 namespace RabbitHole.Ingestion;
 
 public sealed record FetchBatch(IReadOnlyList<NormalizedItem> Items, string? ETag = null, string? LastModified = null,
-    bool NotModified = false, string? DiscoveredFeedUrl = null);
+    bool NotModified = false, string? DiscoveredFeedUrl = null, ResearchWatchProgress? ResearchProgress = null);
+
+public sealed record ResearchWatchProgress(string? Cursor, DateTimeOffset? FromDate,
+    DateTimeOffset? WindowStartedAt, DateTimeOffset? CheckpointAt);
 
 public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IConfiguration config,
     ILogger<IngestionService> logger)
@@ -20,6 +23,17 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
     private static readonly SemaphoreSlim AcademicRateLock = new(1, 1);
     private static readonly Dictionary<string, DateTimeOffset> LastAcademicRequest = new();
     private string? OpenAlexKey => config["OpenAlex:ApiKey"] ?? config["OPENALEX_API_KEY"];
+
+    public static async Task<IDisposable> AcquireSourceLockAsync(Guid id, CancellationToken ct)
+    {
+        var gate = SourceLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        return new SourceLease(gate);
+    }
+    private sealed class SourceLease(SemaphoreSlim gate) : IDisposable
+    {
+        public void Dispose() => gate.Release();
+    }
 
     private static async Task PaceAcademicAsync(string provider, CancellationToken ct)
     {
@@ -67,10 +81,20 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                 {
                     var query = source.Query.Trim();
                     if (query.Length is < 2 or > 200) throw new ArgumentException("OpenAlex source needs a 2–200 character query.");
+                    var initialSample = source.ResearchCheckpointAt is null && source.ResearchCursor is null;
+                    var windowStartedAt = source.ResearchWindowStartedAt ?? DateTimeOffset.UtcNow;
+                    // Revisit an inclusive week to catch papers indexed after their publication date.
+                    var fromDate = source.ResearchFromDate ?? source.ResearchCheckpointAt?.AddDays(-7);
                     await PaceAcademicAsync("openalex", ct);
-                    var response = await fetcher.FetchAsync(new RemoteRequest(ProviderAdapters.OpenAlexSearchUrl(query,
-                        source.ResultLimit, OpenAlexKey), ProviderAdapters.JsonTypes), ct);
-                    return new FetchBatch(ProviderAdapters.ParseOpenAlex(response.Text));
+                    var response = await fetcher.FetchAsync(new RemoteRequest(ProviderAdapters.OpenAlexWatchUrl(query,
+                        source.ResultLimit, OpenAlexKey, fromDate, source.ResearchCursor), ProviderAdapters.JsonTypes), ct);
+                    var page = ProviderAdapters.ParseOpenAlexPage(response.Text);
+                    // Seed a finite newest selection, then page subsequent windows over separate refreshes.
+                    var hasMore = !initialSample && page.ResultCount > 0 && page.NextCursor is not null;
+                    var progress = hasMore
+                        ? new ResearchWatchProgress(page.NextCursor, fromDate, windowStartedAt, source.ResearchCheckpointAt)
+                        : new ResearchWatchProgress(null, null, null, windowStartedAt);
+                    return new FetchBatch(page.Items, ResearchProgress: progress);
                 }
             case "arxiv":
                 {
@@ -99,6 +123,11 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         await sourceLock.WaitAsync(ct);
         try
         {
+            // The source may have waited behind another refresh, or a prior failed upsert
+            // may have detached this caller's context. Always start with durable progress.
+            if (db.Entry(source).State == EntityState.Detached) db.Attach(source);
+            await db.Entry(source).ReloadAsync(ct);
+            if (db.Entry(source).State == EntityState.Detached) throw new KeyNotFoundException("Source no longer exists.");
             var job = new IngestionJob { SourceId = source.Id };
             db.Jobs.Add(job);
             source.LastAttemptAt = DateTimeOffset.UtcNow;
@@ -112,6 +141,14 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                     var (_, created) = await UpsertAsync(normalized, source.Id, source.TopicIds, ct);
                     if (created) imported++;
                 }
+                ct.ThrowIfCancellationRequested();
+                if (batch.ResearchProgress is { } progress)
+                {
+                    source.ResearchCursor = progress.Cursor;
+                    source.ResearchFromDate = progress.FromDate;
+                    source.ResearchWindowStartedAt = progress.WindowStartedAt;
+                    source.ResearchCheckpointAt = progress.CheckpointAt;
+                }
                 if (batch.DiscoveredFeedUrl is not null) source.Url = batch.DiscoveredFeedUrl;
                 source.ETag = batch.ETag ?? source.ETag;
                 source.LastModified = batch.LastModified ?? source.LastModified;
@@ -119,22 +156,29 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                 source.LastImportedCount = imported;
                 source.LastError = null;
                 source.FailureCount = 0;
-                source.NextSyncAt = DateTimeOffset.UtcNow.AddMinutes(Math.Clamp(source.IntervalMinutes, 15, 10080));
+                source.NextSyncAt = DateTimeOffset.UtcNow.AddMinutes(batch.ResearchProgress?.Cursor is not null
+                    ? 1 : Math.Clamp(source.IntervalMinutes, 15, 10080));
                 job.Imported = imported;
                 job.Status = "completed";
+                job.FinishedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(ct);
             }
             catch (Exception error) when (error is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 logger.LogWarning("Source {SourceId} refresh failed: {Type}", source.Id, error.GetType().Name);
+                await RestoreRefreshTrackingAsync(source, job);
                 source.FailureCount = Math.Min(source.FailureCount + 1, 12);
                 source.LastError = PublicError(error);
                 source.NextSyncAt = DateTimeOffset.UtcNow.AddMinutes(Math.Min(1440,
                     Math.Max(source.IntervalMinutes, 15) * Math.Pow(2, Math.Min(source.FailureCount, 5))));
                 job.Status = "failed";
                 job.Error = source.LastError;
+                job.FinishedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(CancellationToken.None);
             }
             catch (OperationCanceledException)
             {
+                await RestoreRefreshTrackingAsync(source, job);
                 source.LastError = "Refresh interrupted; it can be retried.";
                 source.NextSyncAt = DateTimeOffset.UtcNow.AddMinutes(1);
                 job.Status = "interrupted";
@@ -143,11 +187,20 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                 await db.SaveChangesAsync(CancellationToken.None);
                 throw;
             }
-            job.FinishedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync(ct);
             return job;
         }
         finally { sourceLock.Release(); }
+    }
+
+    private async Task RestoreRefreshTrackingAsync(Source source, IngestionJob job)
+    {
+        // A rolled-back SaveChanges does not reset EF's tracked entities. Discard those
+        // mutations before saving health; otherwise the same constraint failure repeats.
+        db.ChangeTracker.Clear();
+        db.Attach(source);
+        await db.Entry(source).ReloadAsync(CancellationToken.None);
+        db.Attach(job);
+        await db.Entry(job).ReloadAsync(CancellationToken.None);
     }
 
     public async Task<(ContentItem Item, bool Created)> UpsertAsync(NormalizedItem item, Guid? sourceId,
@@ -158,27 +211,44 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         {
             if (!ProviderAdapters.TryPublicLink(item.CanonicalUrl, out var canonical))
                 throw new FormatException("Imported item has no valid public URL.");
-            var existing = await db.Items.FirstOrDefaultAsync(x =>
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var doi = ProviderAdapters.NormalizeDoi(item.Doi);
+            var sourceVersion = sourceId is Guid id && await db.Sources.FindAsync([id], ct) is { } source ? source.IdentityVersion : 0;
+            var identities = ItemCatalog.Identities(canonical, item.Provider, item.ProviderId, doi, item.ArxivId, sourceId, sourceVersion);
+            var keys = identities.Select(x => x.Key).ToList();
+            var matchedIds = await db.ItemIdentities.Where(x => keys.Contains(x.Key)).Select(x => x.ItemId).ToListAsync(ct);
+            var globalProvider = item.Provider is "openalex" or "arxiv" or "youtube" or "soundcloud";
+            // Legacy-field fallback also supports records created outside ingestion (fixtures,
+            // older imports). The identity registry becomes authoritative after backfill.
+            var matches = await db.Items.Where(x => matchedIds.Contains(x.Id) ||
                 x.CanonicalUrl == canonical ||
-                (item.ProviderId != null && x.Provider == item.Provider && x.ProviderId == item.ProviderId) ||
-                (item.Doi != null && x.Doi == item.Doi) ||
-                (item.ArxivId != null && x.ArxivId == item.ArxivId), ct);
-            var created = existing is null;
-            if (existing is null)
+                (item.ProviderId != null && x.Provider == item.Provider && x.ProviderId == item.ProviderId &&
+                    (globalProvider || (sourceVersion == 0 && sourceId != null && x.SourceId == sourceId && !db.ItemIdentities.Any(identity => identity.ItemId == x.Id)))) ||
+                (doi != null && x.Doi == doi) ||
+                (item.ArxivId != null && x.ArxivId == item.ArxivId)).ToListAsync(ct);
+            foreach (var match in matches)
+            {
+                if (!await db.ItemIdentities.AnyAsync(x => x.ItemId == match.Id, ct))
+                    await ItemCatalog.RegisterAsync(db, match, CatalogUpgrade.RecordIdentities(match), ct);
+                await ItemCatalog.AttachSourceAsync(db, match, match.SourceId, ct);
+            }
+            var created = matches.Count == 0;
+            ContentItem existing;
+            if (created)
             {
                 existing = new ContentItem
                 {
                     CanonicalUrl = canonical,
                     Provider = item.Provider,
                     ProviderId = item.ProviderId,
-                    Doi = item.Doi,
+                    Doi = doi,
                     ArxivId = item.ArxivId,
                     SourceId = sourceId,
-                    TopicIds = topics.Distinct().ToList(),
                     ClassificationOrigin = sourceId is null ? "manual" : "source"
                 };
                 db.Items.Add(existing);
             }
+            else existing = await ItemCatalog.MergeAsync(db, matches, ct);
             if (created || item.Warning is null || existing.Title.Length == 0)
                 existing.Title = ProviderAdapters.Plain(item.Title, 400);
             if (created || item.Kind != "article") existing.Kind = item.Kind;
@@ -191,17 +261,24 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
             existing.ImageUrl = item.ImageUrl ?? existing.ImageUrl;
             if (item.EmbedUrl is not null && ProviderAdapters.IsApprovedEmbed(item.EmbedUrl))
                 existing.EmbedUrl = item.EmbedUrl;
-            existing.MetadataJson = MergeMetadata(existing.MetadataJson, item.MetadataJson,
+            existing.MetadataJson = ItemCatalog.MergeMetadata(existing.MetadataJson, item.MetadataJson,
                 existing.Provider, existing.ProviderId, item.Provider, item.ProviderId);
-            existing.Doi ??= item.Doi;
+            existing.Doi ??= doi;
             existing.ArxivId ??= item.ArxivId;
             existing.PublishedAt ??= item.PublishedAt;
             if (created || item.Warning is null) existing.ImportWarning = item.Warning;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
-            if (sourceId is not null && existing.SourceId is null) existing.SourceId = sourceId;
-            if (topics.Count > 0) existing.TopicIds = existing.TopicIds.Union(topics).ToList();
+            await ItemCatalog.AttachSourceAsync(db, existing, sourceId, ct);
+            await ItemCatalog.RegisterAsync(db, existing, identities, ct);
+            await TopicClassification.AssignAsync(db, existing, topics, ct);
             await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
             return (existing, created);
+        }
+        catch
+        {
+            db.ChangeTracker.Clear();
+            throw;
         }
         finally { UpsertLock.Release(); }
     }
@@ -249,7 +326,7 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
             }
             else item.Warning = "Link only: the site's robots rules do not permit metadata retrieval.";
         }
-        catch (Exception error) when (error is not OperationCanceledException)
+        catch (Exception error) when (error is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             item.Warning = "Link only: " + PublicError(error);
         }
@@ -347,30 +424,4 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         _ => "The provider is temporarily unavailable."
     };
 
-    private static string? MergeMetadata(string? previous, string? current,
-        string oldProvider, string? oldId, string newProvider, string? newId)
-    {
-        JsonObject root;
-        try { root = JsonNode.Parse(previous ?? "{}") as JsonObject ?? new JsonObject(); }
-        catch (JsonException) { root = new JsonObject(); }
-        try
-        {
-            if (JsonNode.Parse(current ?? "{}") is JsonObject incoming)
-                foreach (var property in incoming)
-                    if (!root.ContainsKey(property.Key)) root[property.Key] = property.Value?.DeepClone();
-        }
-        catch (JsonException) { }
-        var existingRefs = root["providerReferences"] as JsonArray;
-        var refs = existingRefs ?? new JsonArray();
-        void add(string provider, string? id)
-        {
-            if (string.IsNullOrWhiteSpace(id)) return;
-            if (refs.Any(x => x?["provider"]?.GetValue<string>() == provider && x?["id"]?.GetValue<string>() == id)) return;
-            refs.Add(new JsonObject { ["provider"] = provider, ["id"] = id });
-        }
-        add(oldProvider, oldId);
-        add(newProvider, newId);
-        if (existingRefs is null && refs.Count > 0) root["providerReferences"] = refs;
-        return root.Count == 0 ? null : root.ToJsonString();
-    }
 }

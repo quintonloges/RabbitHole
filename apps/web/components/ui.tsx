@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Bookmark, BookOpen, Check, CircleHelp, RotateCcw, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { api, json, publicationDate, safeExternal } from "@/lib/api";
 import type { Item, ItemState } from "@/lib/types";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function Notice({ error, onRetry }: { error?: string | null; onRetry?: () => void }) { return error ? <div role="alert" className="error" style={{ marginBottom: 18 }}>{error} {onRetry && <button className="btn small" onClick={onRetry} style={{ marginLeft: 10 }}><RotateCcw size={13}/> Retry</button>}</div> : null; }
 export function Empty({ icon = <BookOpen size={22}/>, title, body, action }: { icon?: React.ReactNode; title: string; body: string; action?: React.ReactNode }) { return <div className="empty"><div className="empty-icon">{icon}</div><h2>{title}</h2><p>{body}</p>{action}</div>; }
@@ -13,17 +13,29 @@ export function SourceLine({ item }: { item: Item }) { return <span className="m
 export function StateActions({ item, onChange, compact = false }: { item: Item; onChange?: (item: Item) => void; compact?: boolean }) {
   const [current, setCurrent] = useState(item);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { setCurrent(item); }, [item]);
+  const [pending, setPending] = useState(false);
+  const inFlight = useRef(false);
+  useEffect(() => { if (!inFlight.current) setCurrent(item); }, [item]);
   async function change(patch: Partial<ItemState>) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setPending(true);
     const prior = current;
     const next = { ...current, state: { ...current.state, ...patch } };
-    setCurrent(next); onChange?.(next); setError(null);
-    try { await api(`/items/${item.id}/state`, json("PATCH", patch)); }
-    catch (cause) { setCurrent(prior); onChange?.(prior); setError(cause instanceof Error ? cause.message : "Could not save change."); }
+    setCurrent(next); setError(null);
+    try {
+      const state = await api<ItemState>(`/items/${item.id}/state`, json("PATCH", patch));
+      const committed = { ...next, state: { ...next.state, ...state } };
+      setCurrent(committed);
+      // Notify parents only after persistence, so reloads cannot read the pre-mutation state.
+      onChange?.(committed);
+    }
+    catch (cause) { setCurrent(prior); setError(cause instanceof Error ? cause.message : "Could not save change."); }
+    finally { inFlight.current = false; setPending(false); }
   }
   return <span className="action-row" onClick={event => event.stopPropagation()}>
-    {compact ? <><button className={`icon-button ${current.state.saved ? "active" : ""}`} aria-label={current.state.saved ? "Remove from library" : "Save to library"} title={current.state.saved ? "Remove from library" : "Save to library"} onClick={() => void change({ saved: !current.state.saved })}><Bookmark size={17} fill={current.state.saved ? "currentColor" : "none"}/></button><button className={`icon-button ${current.state.read ? "active" : ""}`} aria-label={current.state.read ? "Mark unread" : "Mark read"} title="Mark read" onClick={() => void change({ read: !current.state.read })}><Check size={16}/></button><button className="icon-button" aria-label="Pass on this item" title="Pass on this item" onClick={() => void change({ dismissed: true })}><X size={16}/></button></>
-      : <><button className={`btn small ${current.state.saved ? "accent" : ""}`} onClick={() => void change({ saved: !current.state.saved })}><Bookmark size={14}/>{current.state.saved ? "Saved" : "Save"}</button><button className="btn small" onClick={() => void change({ read: !current.state.read })}><Check size={14}/>{current.state.read ? "Read" : "Mark read"}</button><button className={`btn small ${current.state.understood ? "accent" : ""}`} onClick={() => void change({ understood: !current.state.understood })}><Check size={14}/>{current.state.understood ? "Understood" : "I understand this"}</button><button className={`btn small ${current.state.feedback === 1 ? "accent" : ""}`} onClick={() => void change({ feedback: current.state.feedback === 1 ? 0 : 1 })}><ThumbsUp size={14}/>More like this</button><button className={`btn small ${current.state.feedback === -1 ? "accent" : ""}`} onClick={() => void change({ feedback: current.state.feedback === -1 ? 0 : -1 })}><ThumbsDown size={14}/>Less like this</button></>}
+    {compact ? <><button disabled={pending} className={`icon-button ${current.state.saved ? "active" : ""}`} aria-label={current.state.saved ? "Remove from library" : "Save to library"} title={current.state.saved ? "Remove from library" : "Save to library"} onClick={() => void change({ saved: !current.state.saved })}><Bookmark size={17} fill={current.state.saved ? "currentColor" : "none"}/></button><button disabled={pending} className={`icon-button ${current.state.read ? "active" : ""}`} aria-label={current.state.read ? "Mark unread" : "Mark read"} title="Mark read" onClick={() => void change({ read: !current.state.read })}><Check size={16}/></button><button disabled={pending} className="icon-button" aria-label="Pass on this item" title="Pass on this item" onClick={() => void change({ dismissed: true })}><X size={16}/></button></>
+      : <><button disabled={pending} className={`btn small ${current.state.saved ? "accent" : ""}`} onClick={() => void change({ saved: !current.state.saved })}><Bookmark size={14}/>{current.state.saved ? "Saved" : "Save"}</button><button disabled={pending} className="btn small" onClick={() => void change({ read: !current.state.read })}><Check size={14}/>{current.state.read ? "Read" : "Mark read"}</button><button disabled={pending} className={`btn small ${current.state.understood ? "accent" : ""}`} onClick={() => void change({ understood: !current.state.understood })}><Check size={14}/>{current.state.understood ? "Understood" : "I understand this"}</button><button disabled={pending} className={`btn small ${current.state.feedback === 1 ? "accent" : ""}`} onClick={() => void change({ feedback: current.state.feedback === 1 ? 0 : 1 })}><ThumbsUp size={14}/>More like this</button><button disabled={pending} className={`btn small ${current.state.feedback === -1 ? "accent" : ""}`} onClick={() => void change({ feedback: current.state.feedback === -1 ? 0 : -1 })}><ThumbsDown size={14}/>Less like this</button></>}
     {error && <span className="subtle" role="alert">{error}</span>}
   </span>;
 }

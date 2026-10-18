@@ -16,6 +16,7 @@ public class Topic
 public class Source
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public int IdentityVersion { get; set; }
     public string Name { get; set; } = "";
     public string Kind { get; set; } = "rss";
     public string Url { get; set; } = "";
@@ -32,12 +33,18 @@ public class Source
     public int LastImportedCount { get; set; }
     public string? ETag { get; set; }
     public string? LastModified { get; set; }
+    public string? ResearchCursor { get; set; }
+    public DateTimeOffset? ResearchFromDate { get; set; }
+    public DateTimeOffset? ResearchWindowStartedAt { get; set; }
+    public DateTimeOffset? ResearchCheckpointAt { get; set; }
 }
 
 public class ContentItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid? SourceId { get; set; }
+    // Merged records remain as historical snapshots; existing links resolve to the survivor.
+    public Guid? MergedIntoId { get; set; }
     public string Kind { get; set; } = "article";
     public string Title { get; set; } = "";
     public string? Author { get; set; }
@@ -60,6 +67,41 @@ public class ContentItem
     public string ClassificationOrigin { get; set; } = "source-keywords";
     public Guid? DocumentId { get; set; }
     public Guid? SectionId { get; set; }
+}
+
+public class ItemIdentity
+{
+    public string Key { get; set; } = "";
+    public Guid ItemId { get; set; }
+    public string Kind { get; set; } = "";
+    public string Scope { get; set; } = "";
+    public string Value { get; set; } = "";
+}
+
+public class ItemSource
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ItemId { get; set; }
+    public Guid? SourceId { get; set; }
+    // Keep provenance after the subscription is removed.
+    public Guid SourceKey { get; set; }
+    public int SourceVersion { get; set; }
+    public string Name { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public string Url { get; set; } = "";
+    public List<Guid> TopicIds { get; set; } = [];
+    public DateTimeOffset LastSeenAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class ItemTopic
+{
+    public Guid ItemId { get; set; }
+    public Guid TopicId { get; set; }
+    public bool SourceAssigned { get; set; }
+    public bool KeywordMatched { get; set; }
+    public bool LegacyAssigned { get; set; }
+    public bool? UserOverride { get; set; }
+    public DateTimeOffset? UserUpdatedAt { get; set; }
 }
 
 public class ItemState

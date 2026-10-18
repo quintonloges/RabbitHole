@@ -78,6 +78,7 @@ public static class CoreEndpoints
         var topic = new Topic { Name = name, Description = String(body, "description") ?? "", Keywords = String(body, "keywords") ?? "", Aliases = String(body, "aliases") ?? "", Weight = Integer(body, "weight") ?? 3, Pinned = Bool(body, "pinned") ?? false, CuriosityOnly = Bool(body, "curiosityOnly") ?? false, Enabled = Bool(body, "enabled") ?? true };
         db.Topics.Add(topic);
         await db.SaveChangesAsync(ct);
+        await TopicClassification.ReclassifyAsync(db, ct);
         return Results.Created($"/api/topics/{topic.Id}", topic);
     }
     private static async Task<IResult> UpdateTopic(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
@@ -95,6 +96,7 @@ public static class CoreEndpoints
         if (Has(body, "curiosityOnly")) topic.CuriosityOnly = Bool(body, "curiosityOnly") ?? topic.CuriosityOnly;
         if (Has(body, "enabled")) topic.Enabled = Bool(body, "enabled") ?? topic.Enabled;
         await db.SaveChangesAsync(ct);
+        await TopicClassification.ReclassifyAsync(db, ct);
         return Results.Ok(topic);
     }
     private static async Task<IResult> DeleteTopic(Guid id, AppDbContext db, CancellationToken ct)
@@ -111,7 +113,7 @@ public static class CoreEndpoints
     private static async Task<IResult> ListItems(HttpRequest request, AppDbContext db, CancellationToken ct)
     {
         var query = db.Items.AsNoTracking().AsQueryable();
-        if (Guid.TryParse(request.Query["sourceId"], out var sourceId)) query = query.Where(i => i.SourceId == sourceId);
+        if (Guid.TryParse(request.Query["sourceId"], out var sourceId)) query = query.Where(i => i.SourceId == sourceId || db.ItemSources.Any(s => s.ItemId == i.Id && s.SourceKey == sourceId));
         if (request.Query.TryGetValue("kind", out var kind) && !string.IsNullOrWhiteSpace(kind)) query = query.Where(i => i.Kind == kind.ToString());
         var all = (await query.ToListAsync(ct)).OrderByDescending(i => i.IngestedAt).ToList();
         if (Guid.TryParse(request.Query["topicId"], out var topicId)) all = all.Where(i => i.TopicIds.Contains(topicId)).ToList();
@@ -133,8 +135,9 @@ public static class CoreEndpoints
     }
     private static async Task<IResult> GetItem(Guid id, AppDbContext db, Ranking ranking, CancellationToken ct)
     {
-        var item = await db.Items.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct);
+        var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Bad("Item does not exist.", 404);
+        id = item.Id;
         var dto = (await ItemDto.BuildAsync(db, [item], ct, includeBody: true))[0];
         dto.Notes = (await db.Notes.AsNoTracking().Where(n => n.ItemId == id).ToListAsync(ct)).OrderBy(n => n.CreatedAt).ToList();
         var related = await ranking.RelatedAsync(item, 8, ct);
@@ -143,7 +146,7 @@ public static class CoreEndpoints
     }
     private static async Task<IResult> UpdateItem(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
     {
-        var item = await db.Items.FindAsync([id], ct);
+        var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Bad("Item does not exist.", 404);
         if (!TextOrNull(body, "author")) return Bad("author must be text or null.");
         if (Has(body, "title")) { var title = String(body, "title")?.Trim(); if (string.IsNullOrWhiteSpace(title)) return Bad("Title is required."); item.Title = title; }
@@ -152,16 +155,18 @@ public static class CoreEndpoints
         {
             var ids = Guids(body, "topicIds");
             if (ids == null || await db.Topics.CountAsync(t => ids.Contains(t.Id), ct) != ids.Count) return Bad("Every topic ID must refer to an existing topic.");
-            item.TopicIds = ids;
-            item.ClassificationOrigin = "user";
+            await TopicClassification.SetUserTopicsAsync(db, item, ids, ct);
         }
+        else await TopicClassification.AssignAsync(db, item, [], ct);
         item.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return Results.Ok((await ItemDto.BuildAsync(db, [item], ct, includeBody: true))[0]);
     }
     private static async Task<IResult> UpdateState(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
     {
-        if (!await db.Items.AnyAsync(i => i.Id == id, ct)) return Bad("Item does not exist.", 404);
+        var item = await ItemCatalog.ResolveAsync(db, id, ct);
+        if (item is null) return Bad("Item does not exist.", 404);
+        id = item.Id;
         var state = await db.States.FindAsync([id], ct);
         if (state == null) { state = new ItemState { ItemId = id }; db.States.Add(state); }
         var now = DateTimeOffset.UtcNow;
@@ -177,8 +182,9 @@ public static class CoreEndpoints
     }
     private static async Task<IResult> AddNote(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
     {
-        var item = await db.Items.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct);
+        var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Bad("Item does not exist.", 404);
+        id = item.Id;
         var text = String(body, "body")?.Trim();
         if (string.IsNullOrWhiteSpace(text) || text.Length > 20000) return Bad("Note body must be between 1 and 20,000 characters.");
         if (Has(body, "quote") && body.GetProperty("quote").ValueKind is not (JsonValueKind.String or JsonValueKind.Null)) return Bad("quote must be text or null.");
@@ -233,7 +239,7 @@ public static class CoreEndpoints
     }
     private static async Task<IResult> Related(Guid id, AppDbContext db, Ranking ranking, CancellationToken ct)
     {
-        var item = await db.Items.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct);
+        var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Bad("Item does not exist.", 404);
         var related = await ranking.RelatedAsync(item, 20, ct);
         return Results.Ok(await ItemDto.BuildAsync(db, related.Select(r => r.Item), ct, related.ToDictionary(r => r.Item.Id, r => (r.Reason, r.Evidence))));
@@ -283,7 +289,11 @@ public static class CoreEndpoints
         }
         matches = matches.DistinctBy(i => i.Id).ToList();
         if (kind.Length > 0) matches = matches.Where(i => i.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (Guid.TryParse(sourceText, out var sourceId)) matches = matches.Where(i => i.SourceId == sourceId).ToList();
+        if (Guid.TryParse(sourceText, out var sourceId))
+        {
+            var sourceItems = await db.ItemSources.Where(x => x.SourceKey == sourceId).Select(x => x.ItemId).ToListAsync(ct);
+            matches = matches.Where(i => i.SourceId == sourceId || sourceItems.Contains(i.Id)).ToList();
+        }
         if (Guid.TryParse(topicText, out var topicId)) matches = matches.Where(i => i.TopicIds.Contains(topicId)).ToList();
         if (DateOnly.TryParseExact(afterText, dateFormat, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var publishedAfter)) matches = matches.Where(i => i.PublishedAt.HasValue && DateOnly.FromDateTime(i.PublishedAt.Value.UtcDateTime) >= publishedAfter).ToList();
         if (DateOnly.TryParseExact(beforeText, dateFormat, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var publishedBefore)) matches = matches.Where(i => i.PublishedAt.HasValue && DateOnly.FromDateTime(i.PublishedAt.Value.UtcDateTime) <= publishedBefore).ToList();
@@ -317,7 +327,8 @@ public static class CoreEndpoints
             var settings = await SettingsService.ReadAsync(db, ct);
             if (entries.Count == 0 || more)
             {
-                var selected = await ranking.SelectAsync(Math.Clamp(settings.EditionSize, 5, 100), day + (more ? $":{entries.Count}" : ""), entries.Select(e => e.ItemId).ToHashSet(), ct);
+                var excluded = await ItemCatalog.ResolveIdsAsync(db, entries.Select(e => e.ItemId), ct);
+                var selected = await ranking.SelectAsync(Math.Clamp(settings.EditionSize, 5, 100), day + (more ? $":{entries.Count}" : ""), excluded.Values.ToHashSet(), ct);
                 foreach (var choice in selected)
                 {
                     var entry = new FeedEntry { EditionId = edition.Id, ItemId = choice.Item.Id, Position = entries.Count, Reason = choice.Reason, EvidenceItemIds = choice.Evidence };
@@ -325,11 +336,14 @@ public static class CoreEndpoints
                 }
                 await db.SaveChangesAsync(ct);
             }
-            var ids = entries.Select(e => e.ItemId).ToList();
+            var resolved = await ItemCatalog.ResolveIdsAsync(db, entries.Select(e => e.ItemId), ct);
+            var ids = resolved.Values.Distinct().ToList();
             var items = await db.Items.AsNoTracking().Where(i => ids.Contains(i.Id)).ToListAsync(ct);
             var byId = items.ToDictionary(i => i.Id);
-            var ordered = entries.Where(e => byId.ContainsKey(e.ItemId)).Select(e => byId[e.ItemId]).ToList();
-            var reasons = entries.ToDictionary(e => e.ItemId, e => (e.Reason, e.EvidenceItemIds));
+            var visible = entries.Where(e => resolved.ContainsKey(e.ItemId) && byId.ContainsKey(resolved[e.ItemId]))
+                .DistinctBy(e => resolved[e.ItemId]).ToList();
+            var ordered = visible.Select(e => byId[resolved[e.ItemId]]).ToList();
+            var reasons = visible.ToDictionary(e => resolved[e.ItemId], e => (e.Reason, e.EvidenceItemIds));
             return Results.Ok(new { edition.Id, edition.Day, items = await ItemDto.BuildAsync(db, ordered, ct, reasons), total = ordered.Count });
         }
         finally { EditionLock.Release(); }
@@ -358,7 +372,7 @@ public static class CoreEndpoints
         var question = String(body, "question")?.Trim();
         if (itemId == null && string.IsNullOrWhiteSpace(question)) return Bad("An existing item or your own question is required.");
         ContentItem? item = null;
-        if (itemId.HasValue) { item = await db.Items.AsNoTracking().FirstOrDefaultAsync(i => i.Id == itemId, ct); if (item == null) return Bad("Item does not exist.", 404); }
+        if (itemId.HasValue) { item = await ItemCatalog.ResolveAsync(db, itemId.Value, ct); if (item == null) return Bad("Item does not exist.", 404); itemId = item.Id; }
         var title = String(body, "title")?.Trim();
         if (string.IsNullOrWhiteSpace(title)) title = item?.Title ?? question!;
         if (title.Length > 200 || question?.Length > 2000) return Bad("Title or question is too long.");
@@ -388,7 +402,12 @@ public static class CoreEndpoints
         var itemId = Guid.TryParse(String(body, "itemId"), out var parsed) ? parsed : (Guid?)null;
         var question = String(body, "question")?.Trim();
         if (itemId == null && string.IsNullOrWhiteSpace(question)) return Bad("An existing item or your own question is required.");
-        if (itemId != null && !await db.Items.AnyAsync(i => i.Id == itemId, ct)) return Bad("Item does not exist.", 404);
+        if (itemId is Guid requestedId)
+        {
+            var item = await ItemCatalog.ResolveAsync(db, requestedId, ct);
+            if (item is null) return Bad("Item does not exist.", 404);
+            itemId = item.Id;
+        }
         if (question?.Length > 2000) return Bad("Question is too long.");
         var rationale = String(body, "rationale")?.Trim() ?? "Chosen by you";
         if (rationale.Length > 500) return Bad("Rationale is too long.");
@@ -445,8 +464,9 @@ public static class CoreEndpoints
     private static async Task<IResult> CreatePrompt(JsonElement body, AppDbContext db, CancellationToken ct)
     {
         if (!Guid.TryParse(String(body, "itemId"), out var itemId)) return Bad("An existing item ID is required.");
-        var item = await db.Items.AsNoTracking().FirstOrDefaultAsync(i => i.Id == itemId, ct);
+        var item = await ItemCatalog.ResolveAsync(db, itemId, ct);
         if (item == null) return Bad("Item does not exist.", 404);
+        itemId = item.Id;
         var kind = String(body, "kind") ?? "reflection";
         if (Has(body, "kind") && body.GetProperty("kind").ValueKind != JsonValueKind.String) return Bad("Practice kind must be text.");
         if (kind is not ("reflection" or "recall" or "compare" or "reasoning" or "architecture")) return Bad("Practice kind must be reflection, recall, compare, reasoning, or architecture.");
@@ -508,38 +528,46 @@ public static class CoreEndpoints
     }
     private static async Task<IResult> Export(AppDbContext db, CancellationToken ct)
     {
-        var sources = (await db.Sources.AsNoTracking().ToListAsync(ct)).Select(s => new { s.Id, s.Name, s.Kind, url = RedactUrl(s.Url), s.Query, s.TopicIds, s.Enabled, s.IntervalMinutes, s.ResultLimit, s.LastSuccessAt, s.LastAttemptAt, s.NextSyncAt, s.FailureCount, s.LastImportedCount }).ToList();
+        var sources = (await db.Sources.AsNoTracking().ToListAsync(ct)).Select(s => new { s.Id, s.IdentityVersion, s.Name, s.Kind, url = ExportSanitizer.RedactUrl(s.Url), s.Query, s.TopicIds, s.Enabled, s.IntervalMinutes, s.ResultLimit, s.LastSuccessAt, s.LastAttemptAt, s.NextSyncAt, s.FailureCount, s.LastImportedCount }).ToList();
         var documents = (await db.Documents.AsNoTracking().ToListAsync(ct)).Select(d => new { d.Id, d.Title, d.Author, d.FileName, d.MimeType, d.SizeBytes, d.Sha256, d.Status, d.PageCount, d.CreatedAt }).ToList();
-        var items = await db.Items.AsNoTracking().ToListAsync(ct);
-        foreach (var item in items)
+        // Explicit export contracts prevent new persistence fields from accidentally exposing credentials.
+        var items = (await db.Items.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct)).Select(i => new
         {
-            item.CanonicalUrl = RedactUrl(item.CanonicalUrl);
-            if (item.ImageUrl != null) item.ImageUrl = RedactUrl(item.ImageUrl);
-            if (item.EmbedUrl != null) item.EmbedUrl = RedactUrl(item.EmbedUrl);
-        }
-        var export = new { exportedAt = DateTimeOffset.UtcNow, topics = await db.Topics.AsNoTracking().ToListAsync(ct), sources, items, states = await db.States.AsNoTracking().ToListAsync(ct), notes = await db.Notes.AsNoTracking().ToListAsync(ct), documents, sections = await db.Sections.AsNoTracking().ToListAsync(ct), holes = await db.Holes.AsNoTracking().ToListAsync(ct), nodes = await db.Nodes.AsNoTracking().ToListAsync(ct), prompts = await db.Prompts.AsNoTracking().ToListAsync(ct), attempts = await db.Attempts.AsNoTracking().ToListAsync(ct), editions = await db.Editions.AsNoTracking().ToListAsync(ct), entries = await db.Entries.AsNoTracking().ToListAsync(ct), settings = await SettingsService.ReadAsync(db, ct) };
+            i.Id,
+            i.SourceId,
+            i.MergedIntoId,
+            i.Kind,
+            i.Title,
+            i.Author,
+            canonicalUrl = ExportSanitizer.RedactUrl(i.CanonicalUrl),
+            i.Provider,
+            providerId = ExportSanitizer.RedactIdentifier(i.ProviderId),
+            i.Doi,
+            i.ArxivId,
+            i.Excerpt,
+            i.Body,
+            i.TextProvenance,
+            imageUrl = i.ImageUrl is null ? null : ExportSanitizer.RedactUrl(i.ImageUrl),
+            embedUrl = i.EmbedUrl is null ? null : ExportSanitizer.RedactUrl(i.EmbedUrl),
+            metadataJson = ExportSanitizer.RedactMetadata(i.MetadataJson),
+            i.ImportWarning,
+            i.PublishedAt,
+            i.IngestedAt,
+            i.UpdatedAt,
+            i.TopicIds,
+            i.ClassificationOrigin,
+            i.DocumentId,
+            i.SectionId
+        }).ToList();
+        var identities = (await db.ItemIdentities.AsNoTracking().ToListAsync(ct)).Select(x => new
+        { x.Key, x.ItemId, x.Kind, scope = ExportSanitizer.RedactIdentifier(x.Scope), value = ExportSanitizer.RedactIdentifier(x.Value) }).ToList();
+        var itemSources = (await db.ItemSources.AsNoTracking().ToListAsync(ct)).Select(x => new
+        { x.Id, x.ItemId, x.SourceId, x.SourceKey, x.SourceVersion, x.Name, x.Kind, url = ExportSanitizer.RedactUrl(x.Url), x.TopicIds, x.LastSeenAt }).ToList();
+        var export = new { version = 2, exportedAt = DateTimeOffset.UtcNow, topics = await db.Topics.AsNoTracking().ToListAsync(ct), sources, items, identities, itemSources, itemTopics = await db.ItemTopics.AsNoTracking().ToListAsync(ct), states = await db.States.AsNoTracking().ToListAsync(ct), notes = await db.Notes.AsNoTracking().ToListAsync(ct), documents, sections = await db.Sections.AsNoTracking().ToListAsync(ct), holes = await db.Holes.AsNoTracking().ToListAsync(ct), nodes = await db.Nodes.AsNoTracking().ToListAsync(ct), prompts = await db.Prompts.AsNoTracking().ToListAsync(ct), attempts = await db.Attempts.AsNoTracking().ToListAsync(ct), editions = await db.Editions.AsNoTracking().ToListAsync(ct), entries = await db.Entries.AsNoTracking().ToListAsync(ct), settings = await SettingsService.ReadAsync(db, ct) };
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         options.Converters.Add(new UtcDateTimeOffsetConverter());
         var bytes = JsonSerializer.SerializeToUtf8Bytes(export, options);
         return Results.File(bytes, "application/json", $"rabbithole-export-{DateTimeOffset.UtcNow:yyyy-MM-dd}.json");
     }
 
-    private static string RedactUrl(string url)
-    {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return "[invalid URL]";
-        if (uri.Scheme is not ("http" or "https")) return url;
-        var safe = new UriBuilder(uri) { UserName = "", Password = "" };
-        if (!string.IsNullOrEmpty(safe.Query))
-        {
-            var parts = safe.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
-            safe.Query = string.Join("&", parts.Select(part =>
-            {
-                var index = part.IndexOf('=');
-                var key = index < 0 ? part : part[..index];
-                var decoded = Uri.UnescapeDataString(key).ToLowerInvariant();
-                return decoded.Contains("key") || decoded.Contains("token") || decoded.Contains("secret") || decoded.Contains("password") || decoded.Contains("auth") || decoded.Contains("signature") || decoded.Contains("credential") || decoded is "sig" or "client_id" ? key + "=[redacted]" : part;
-            }));
-        }
-        return safe.Uri.ToString();
-    }
 }

@@ -26,6 +26,8 @@ public sealed class NormalizedItem
     public string? Warning { get; set; }
 }
 
+public sealed record OpenAlexPage(IReadOnlyList<NormalizedItem> Items, string? NextCursor, int ResultCount);
+
 public static class ProviderAdapters
 {
     private static readonly string[] XmlTypes = ["application/rss+xml", "application/atom+xml", "application/xml", "text/xml", "text/plain"];
@@ -37,6 +39,17 @@ public static class ProviderAdapters
     {
         var url = $"https://api.openalex.org/works?search={Uri.EscapeDataString(query)}&per_page={Math.Clamp(limit, 1, 25)}";
         if (!string.IsNullOrWhiteSpace(key)) url += "&api_key=" + Uri.EscapeDataString(key);
+        return new Uri(url);
+    }
+
+    // Watches follow publication dates; interactive search retains the provider's relevance order.
+    public static Uri OpenAlexWatchUrl(string query, int limit, string? key,
+        DateTimeOffset? fromPublicationDate = null, string? cursor = null)
+    {
+        var url = OpenAlexSearchUrl(query, limit, key).AbsoluteUri + "&sort=publication_date:desc";
+        if (fromPublicationDate is { } from)
+            url += "&filter=from_publication_date:" + from.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        url += "&cursor=" + Uri.EscapeDataString(string.IsNullOrWhiteSpace(cursor) ? "*" : cursor);
         return new Uri(url);
     }
     public static Uri ArxivSearchUrl(string query, int limit) =>
@@ -87,7 +100,9 @@ public static class ProviderAdapters
                 Value(entry, "pubDate") ?? Value(entry, "date");
             var description = Value(entry, "summary") ?? Value(entry, "description") ?? Value(entry, "content");
             var suppliedContent = Value(entry, "encoded") ?? (atom ? Value(entry, "content") : null);
-            var bodyText = suppliedContent is null ? null : Plain(suppliedContent, 100_000);
+            // arXiv's Atom summary is the supplied abstract, not just a feed teaser.
+            var bodySource = provider == "arxiv" ? Value(entry, "summary") ?? suppliedContent : suppliedContent;
+            var bodyText = bodySource is null ? null : Plain(bodySource, 100_000);
             if (string.IsNullOrWhiteSpace(bodyText)) bodyText = null;
             var enclosure = entry.Elements().FirstOrDefault(x => x.Name.LocalName == "enclosure" &&
                 ((string?)x.Attribute("type"))?.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) == true);
@@ -101,7 +116,7 @@ public static class ProviderAdapters
                 Author = Plain(Value(entry, "creator") ?? Value(entry, "author") ?? "", 200),
                 Excerpt = Plain(description ?? "", 1200),
                 Body = bodyText,
-                TextProvenance = bodyText is null ? "metadata" : "feed-content",
+                TextProvenance = bodyText is null ? "metadata" : provider == "arxiv" ? "provider-abstract" : "feed-content",
                 ImageUrl = TryPublicLink(image ?? "", out var safeImage) ? safeImage : null,
                 PublishedAt = ParseDate(date),
                 Kind = provider == "arxiv" ? "paper" : provider == "youtube" ? "video"
@@ -140,7 +155,22 @@ public static class ProviderAdapters
     public static IReadOnlyList<NormalizedItem> ParseOpenAlex(string json)
     {
         using var doc = JsonDocument.Parse(json);
+        return ParseOpenAlexRoot(doc.RootElement);
+    }
+
+    public static OpenAlexPage ParseOpenAlexPage(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("results", out var results) ||
+            results.ValueKind != JsonValueKind.Array)
+            throw new FormatException("OpenAlex response has no results array.");
+        var cursor = root.TryGetProperty("meta", out var meta) ? String(meta, "next_cursor") : null;
+        return new OpenAlexPage(ParseOpenAlexRoot(root), string.IsNullOrWhiteSpace(cursor) ? null : cursor, results.GetArrayLength());
+    }
+
+    private static IReadOnlyList<NormalizedItem> ParseOpenAlexRoot(JsonElement root)
+    {
         if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("results", out var results))
             return results.EnumerateArray().Take(25).Select(ParseOpenAlexWork).Where(x => x is not null).Cast<NormalizedItem>().ToArray();
         var single = ParseOpenAlexWork(root);

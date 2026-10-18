@@ -11,6 +11,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Topic> Topics => Set<Topic>();
     public DbSet<Source> Sources => Set<Source>();
     public DbSet<ContentItem> Items => Set<ContentItem>();
+    public DbSet<ItemIdentity> ItemIdentities => Set<ItemIdentity>();
+    public DbSet<ItemSource> ItemSources => Set<ItemSource>();
+    public DbSet<ItemTopic> ItemTopics => Set<ItemTopic>();
     public DbSet<ItemState> States => Set<ItemState>();
     public DbSet<Note> Notes => Set<Note>();
     public DbSet<LibraryDocument> Documents => Set<LibraryDocument>();
@@ -29,6 +32,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     {
         builder.Entity<ItemState>().HasKey(x => x.ItemId);
         builder.Entity<AppSetting>().HasKey(x => x.Key);
+        builder.Entity<ItemIdentity>().HasKey(x => x.Key);
+        builder.Entity<ItemTopic>().HasKey(x => new { x.ItemId, x.TopicId });
         foreach (var entity in builder.Model.GetEntityTypes())
         {
             foreach (var property in entity.GetProperties().Where(p => p.ClrType == typeof(List<Guid>)))
@@ -48,10 +53,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<Source>().HasIndex(x => x.NextSyncAt);
         builder.Entity<ContentItem>().HasOne<Source>().WithMany().HasForeignKey(x => x.SourceId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<ContentItem>().HasOne<LibraryDocument>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Restrict);
-        builder.Entity<ContentItem>().HasIndex(x => x.CanonicalUrl).IsUnique();
-        builder.Entity<ContentItem>().HasIndex(x => new { x.Provider, x.ProviderId }).IsUnique();
-        builder.Entity<ContentItem>().HasIndex(x => x.Doi).IsUnique();
-        builder.Entity<ContentItem>().HasIndex(x => x.ArxivId).IsUnique();
+        builder.Entity<ContentItem>().HasQueryFilter(x => x.MergedIntoId == null);
+        builder.Entity<ContentItem>().HasOne<ContentItem>().WithMany().HasForeignKey(x => x.MergedIntoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ContentItem>().HasIndex(x => x.CanonicalUrl);
+        builder.Entity<ContentItem>().HasIndex(x => new { x.Provider, x.ProviderId });
+        builder.Entity<ContentItem>().HasIndex(x => x.Doi);
+        builder.Entity<ContentItem>().HasIndex(x => x.ArxivId);
+        builder.Entity<ItemIdentity>().Property(x => x.Key).HasMaxLength(64);
+        builder.Entity<ItemIdentity>().HasOne<ContentItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ItemSource>().HasIndex(x => new { x.ItemId, x.SourceKey, x.SourceVersion }).IsUnique();
+        builder.Entity<ItemSource>().HasOne<ContentItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ItemSource>().HasOne<Source>().WithMany().HasForeignKey(x => x.SourceId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<ItemTopic>().HasOne<ContentItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ItemTopic>().HasOne<Topic>().WithMany().HasForeignKey(x => x.TopicId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ContentItem>().HasIndex(x => x.PublishedAt);
         builder.Entity<ContentItem>().HasIndex(x => x.SourceId);
         builder.Entity<ContentItem>().HasIndex(x => x.DocumentId);

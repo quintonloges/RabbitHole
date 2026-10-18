@@ -17,7 +17,7 @@ namespace RabbitHole.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -119,6 +119,9 @@ namespace RabbitHole.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("MergedIntoId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("MetadataJson")
                         .HasColumnType("text");
 
@@ -155,23 +158,21 @@ namespace RabbitHole.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ArxivId")
-                        .IsUnique();
+                    b.HasIndex("ArxivId");
 
-                    b.HasIndex("CanonicalUrl")
-                        .IsUnique();
+                    b.HasIndex("CanonicalUrl");
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("Doi")
-                        .IsUnique();
+                    b.HasIndex("Doi");
+
+                    b.HasIndex("MergedIntoId");
 
                     b.HasIndex("PublishedAt");
 
                     b.HasIndex("SourceId");
 
-                    b.HasIndex("Provider", "ProviderId")
-                        .IsUnique();
+                    b.HasIndex("Provider", "ProviderId");
 
                     b.ToTable("Items");
                 });
@@ -306,6 +307,81 @@ namespace RabbitHole.Data.Migrations
                     b.ToTable("Jobs");
                 });
 
+            modelBuilder.Entity("RabbitHole.Domain.ItemIdentity", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("ItemId");
+
+                    b.ToTable("ItemIdentities");
+                });
+
+            modelBuilder.Entity("RabbitHole.Domain.ItemSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SourceKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SourceVersion")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<string>("TopicIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceId");
+
+                    b.HasIndex("ItemId", "SourceKey", "SourceVersion")
+                        .IsUnique();
+
+                    b.ToTable("ItemSources");
+                });
+
             modelBuilder.Entity("RabbitHole.Domain.ItemState", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -341,6 +417,36 @@ namespace RabbitHole.Data.Migrations
                     b.HasKey("ItemId");
 
                     b.ToTable("States");
+                });
+
+            modelBuilder.Entity("RabbitHole.Domain.ItemTopic", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TopicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("KeywordMatched")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("LegacyAssigned")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SourceAssigned")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("UserOverride")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("UserUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ItemId", "TopicId");
+
+                    b.HasIndex("TopicId");
+
+                    b.ToTable("ItemTopics");
                 });
 
             modelBuilder.Entity("RabbitHole.Domain.LibraryDocument", b =>
@@ -582,6 +688,9 @@ namespace RabbitHole.Data.Migrations
                     b.Property<int>("FailureCount")
                         .HasColumnType("integer");
 
+                    b.Property<int>("IdentityVersion")
+                        .HasColumnType("integer");
+
                     b.Property<int>("IntervalMinutes")
                         .HasColumnType("integer");
 
@@ -614,6 +723,18 @@ namespace RabbitHole.Data.Migrations
                     b.Property<string>("Query")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ResearchCheckpointAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResearchCursor")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ResearchFromDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ResearchWindowStartedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("ResultLimit")
                         .HasColumnType("integer");
@@ -691,6 +812,11 @@ namespace RabbitHole.Data.Migrations
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("RabbitHole.Domain.ContentItem", null)
+                        .WithMany()
+                        .HasForeignKey("MergedIntoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("RabbitHole.Domain.Source", null)
                         .WithMany()
                         .HasForeignKey("SourceId")
@@ -736,11 +862,49 @@ namespace RabbitHole.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RabbitHole.Domain.ItemIdentity", b =>
+                {
+                    b.HasOne("RabbitHole.Domain.ContentItem", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RabbitHole.Domain.ItemSource", b =>
+                {
+                    b.HasOne("RabbitHole.Domain.ContentItem", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RabbitHole.Domain.Source", null)
+                        .WithMany()
+                        .HasForeignKey("SourceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("RabbitHole.Domain.ItemState", b =>
                 {
                     b.HasOne("RabbitHole.Domain.ContentItem", null)
                         .WithOne()
                         .HasForeignKey("RabbitHole.Domain.ItemState", "ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RabbitHole.Domain.ItemTopic", b =>
+                {
+                    b.HasOne("RabbitHole.Domain.ContentItem", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RabbitHole.Domain.Topic", null)
+                        .WithMany()
+                        .HasForeignKey("TopicId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -13,6 +13,7 @@ public sealed class Ranking(AppDbContext db)
         var items = await db.Items.AsNoTracking().ToListAsync(ct);
         var states = await db.States.AsNoTracking().ToDictionaryAsync(s => s.ItemId, ct);
         var sources = await db.Sources.AsNoTracking().ToDictionaryAsync(s => s.Id, ct);
+        var memberships = (await db.ItemSources.AsNoTracking().ToListAsync(ct)).ToLookup(x => x.ItemId);
         var history = items.Where(i => states.TryGetValue(i.Id, out var s) && (s.Read || s.Saved || s.Feedback != 0)).OrderByDescending(i => states[i.Id].ReadAt ?? states[i.Id].SavedAt ?? states[i.Id].LastOpenedAt ?? DateTimeOffset.MinValue).Take(80).ToList();
         var activeHoleItemIds = (await db.Nodes.AsNoTracking().Where(n => n.ItemId != null).ToListAsync(ct)).OrderByDescending(n => n.CreatedAt).Take(30).Select(n => n.ItemId!.Value).ToList();
         var activeHoleItems = items.Where(i => activeHoleItemIds.Contains(i.Id)).ToList();
@@ -30,7 +31,10 @@ public sealed class Ranking(AppDbContext db)
         foreach (var item in items)
         {
             if (excluded.Contains(item.Id) || (states.TryGetValue(item.Id, out var state) && (state.Dismissed || state.Read))) continue;
-            if (item.SourceId.HasValue && sources.TryGetValue(item.SourceId.Value, out var source) && !source.Enabled) continue;
+            var liveSources = memberships[item.Id].Where(x => x.SourceId.HasValue && sources.ContainsKey(x.SourceId.Value))
+                .Select(x => sources[x.SourceId!.Value]).ToList();
+            if (liveSources.Count == 0 && item.SourceId is Guid sourceId && sources.TryGetValue(sourceId, out var primary)) liveSources.Add(primary);
+            if (liveSources.Count > 0 && liveSources.All(x => !x.Enabled)) continue;
             var itemTopics = topics.Where(t => item.TopicIds.Contains(t.Id)).ToList();
             var interest = itemTopics.Count == 0 ? 0.45 : itemTopics.Max(t => t.CuriosityOnly ? Math.Min(0.55, t.Weight / 10.0) : t.Weight / 5.0) + (itemTopics.Any(t => t.Pinned && !t.CuriosityOnly) ? 0.5 : 0);
             var preference = itemTopics.Where(t => !t.CuriosityOnly).Select(t => Math.Clamp(explicitTopicSignal.GetValueOrDefault(t.Id), -0.4, 0.4)).DefaultIfEmpty(0).Max();

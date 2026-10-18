@@ -49,8 +49,9 @@ public static partial class AiEndpoints
         routes.MapPost("/api/items/{id:guid}/ai", Generate);
         routes.MapGet("/api/items/{id:guid}/lesson", async (Guid id, AppDbContext db, Ranking ranking, CancellationToken ct) =>
         {
-            var item = await db.Items.FindAsync([id], ct);
+            var item = await ItemCatalog.ResolveAsync(db, id, ct);
             if (item == null) return Results.NotFound();
+            id = item.Id;
             var related = (await db.Items.AsNoTracking().Where(i => i.Id != id).ToListAsync(ct))
                 .Where(i => i.TopicIds.Intersect(item.TopicIds).Any()).OrderByDescending(i => i.TopicIds.Intersect(item.TopicIds).Count()).Take(3).ToList();
             related.Insert(0, item);
@@ -71,16 +72,17 @@ public static partial class AiEndpoints
             return Results.Problem("Choose a supported action and a response of at most 4,000 characters.", statusCode: 400);
         if (!(await SettingsService.ReadAsync(db, ct)).AiEnabled || !Configured(config))
             return Results.Problem("AI is not enabled/configured. Original text, related items, notes and reflection practice remain available.", statusCode: 409);
-        var item = await db.Items.FindAsync([id], ct);
+        var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Results.NotFound();
+        id = item.Id;
         var evidence = new List<AiEvidence> { Evidence(item) };
         if (evidence[0].Text.Trim().Length < 100)
             return Results.Problem("There is not enough available source text to ground this action. Open the original or add a personal document.", statusCode: 422);
         if (request.RelatedItemId is { } relatedId && relatedId != id)
         {
-            var related = await db.Items.FindAsync([relatedId], ct);
+            var related = await ItemCatalog.ResolveAsync(db, relatedId, ct);
             if (related == null) return Results.Problem("The related source was not found in your catalog.", statusCode: 400);
-            evidence.Add(Evidence(related));
+            if (related.Id != item.Id) evidence.Add(Evidence(related));
         }
         if (request.Action == "connections" && evidence.Count < 2)
             return Results.Problem("Choose a second real source for a connection explanation.", statusCode: 400);

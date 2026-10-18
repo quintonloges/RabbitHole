@@ -41,25 +41,51 @@ public static class IngestionEndpoints
         });
         group.MapPatch("/sources/{id:guid}", async (Guid id, SourceInput input, AppDbContext db, CancellationToken ct) =>
         {
+            using var sourceLock = await IngestionService.AcquireSourceLockAsync(id, ct);
             var source = await db.Sources.FindAsync([id], ct);
             if (source is null) return Results.NotFound();
             var error = Validate(input, source);
             if (error is not null) return Results.Problem(error, statusCode: 400);
+            var resetWatch = (input.Kind is not null && input.Kind != source.Kind) ||
+                (input.Query is not null && input.Query.Trim() != source.Query) ||
+                (input.ResultLimit is not null && input.ResultLimit != source.ResultLimit);
+            var replaceOrigin = (input.Kind is not null && input.Kind != source.Kind) ||
+                (input.Url is not null && input.Url.Trim() != source.Url) ||
+                (input.Query is not null && input.Query.Trim() != source.Query);
+            if (replaceOrigin)
+            {
+                // Preserve prior origin snapshots and feed-local IDs when a subscription changes identity.
+                foreach (var item in await db.Items.IgnoreQueryFilters().Where(x => x.SourceId == id).ToListAsync(ct))
+                { if (item.MergedIntoId is null) await ItemCatalog.AttachSourceAsync(db, item, id, ct); item.SourceId = null; }
+                foreach (var link in await db.ItemSources.Where(x => x.SourceId == id).ToListAsync(ct)) link.SourceId = null;
+                foreach (var link in db.ItemSources.Local.Where(x => x.SourceId == id)) link.SourceId = null;
+                source.IdentityVersion = checked(source.IdentityVersion + 1);
+            }
             Apply(source, input);
             if (source.TopicIds.Count > 0 && await db.Topics.CountAsync(x => source.TopicIds.Contains(x.Id), ct) != source.TopicIds.Count)
                 return Results.Problem("One or more topics do not exist.", statusCode: 400);
             source.NextSyncAt = DateTimeOffset.UtcNow;
             source.ETag = null;
             source.LastModified = null;
+            if (resetWatch || replaceOrigin)
+            {
+                source.ResearchCursor = null; source.ResearchFromDate = null;
+                source.ResearchWindowStartedAt = null; source.ResearchCheckpointAt = null;
+            }
+            foreach (var link in (await db.ItemSources.Where(x => x.SourceId == id).ToListAsync(ct)).Where(x => x.SourceId == id))
+            { link.Name = source.Name; link.Kind = source.Kind; link.Url = source.Url; link.TopicIds = source.TopicIds.ToList(); }
             await db.SaveChangesAsync(ct);
+            await TopicClassification.ReclassifyAsync(db, ct);
             return Results.Ok(source);
         });
         group.MapDelete("/sources/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>
         {
+            using var sourceLock = await IngestionService.AcquireSourceLockAsync(id, ct);
             var source = await db.Sources.FindAsync([id], ct);
             if (source is null) return Results.NotFound();
             // Retain imported items and user state when unsubscribing.
-            var items = await db.Items.Where(x => x.SourceId == id).ToListAsync(ct);
+            var items = await db.Items.IgnoreQueryFilters().Where(x => x.SourceId == id).ToListAsync(ct);
+            foreach (var item in items.Where(x => x.MergedIntoId == null)) await ItemCatalog.AttachSourceAsync(db, item, id, ct);
             foreach (var item in items) item.SourceId = null;
             var jobs = await db.Jobs.Where(x => x.SourceId == id).ToListAsync(ct);
             db.Jobs.RemoveRange(jobs);
@@ -172,7 +198,6 @@ public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<Ingesti
                 {
                     using var scope = scopes.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    var ingestion = scope.ServiceProvider.GetRequiredService<IngestionService>();
                     var stale = (await db.Jobs.Where(x => x.Status == "running").ToListAsync(stoppingToken))
                         .Where(x => x.StartedAt < DateTimeOffset.UtcNow.AddMinutes(-2)).Take(20).ToList();
                     foreach (var job in stale)
@@ -185,7 +210,17 @@ public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<Ingesti
                     var due = (await db.Sources.Where(x => x.Enabled).ToListAsync(stoppingToken))
                         .Where(x => x.NextSyncAt <= DateTimeOffset.UtcNow)
                         .OrderBy(x => x.NextSyncAt).Take(3).ToList();
-                    foreach (var source in due) await ingestion.RefreshAsync(source, stoppingToken);
+                    foreach (var dueSource in due)
+                    {
+                        // Give each provider its own unit of work, including after a database error.
+                        using var sourceScope = scopes.CreateScope();
+                        var sourceDb = sourceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                        var source = await sourceDb.Sources.FindAsync([dueSource.Id], stoppingToken);
+                        if (source is null || !source.Enabled) continue;
+                        try { await sourceScope.ServiceProvider.GetRequiredService<IngestionService>().RefreshAsync(source, stoppingToken); }
+                        catch (Exception error) when (error is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
+                        { logger.LogWarning("Source {SourceId} could not record refresh status: {Type}", source.Id, error.GetType().Name); }
+                    }
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
                 { logger.LogWarning(error, "Ingestion worker cycle failed"); }

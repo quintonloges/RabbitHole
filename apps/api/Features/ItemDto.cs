@@ -9,6 +9,7 @@ public sealed class ItemDto : ContentItem
     public ItemState State { get; set; } = new();
     public List<Topic> Topics { get; set; } = [];
     public string SourceName { get; set; } = "";
+    public List<ItemSource> Sources { get; set; } = [];
     public string? Reason { get; set; }
     public List<Guid> EvidenceItemIds { get; set; } = [];
     public List<Note>? Notes { get; set; }
@@ -22,6 +23,7 @@ public sealed class ItemDto : ContentItem
         var states = await db.States.AsNoTracking().Where(s => ids.Contains(s.ItemId)).ToDictionaryAsync(s => s.ItemId, ct);
         var sources = await db.Sources.AsNoTracking().Where(s => sourceIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, ct);
         var topics = await db.Topics.AsNoTracking().ToListAsync(ct);
+        var memberships = (await db.ItemSources.AsNoTracking().Where(x => ids.Contains(x.ItemId)).ToListAsync(ct)).ToLookup(x => x.ItemId);
         return list.Select(i =>
         {
             var dto = new ItemDto
@@ -52,7 +54,9 @@ public sealed class ItemDto : ContentItem
                 SectionId = i.SectionId,
                 State = states.GetValueOrDefault(i.Id) ?? new ItemState { ItemId = i.Id },
                 Topics = topics.Where(t => i.TopicIds.Contains(t.Id)).ToList(),
-                SourceName = i.SourceId.HasValue && sources.TryGetValue(i.SourceId.Value, out var source) ? source.Name : i.Provider
+                Sources = memberships[i.Id].ToList(),
+                SourceName = memberships[i.Id].Any() ? string.Join(", ", memberships[i.Id].Select(x => x.Name).Distinct()) :
+                    i.SourceId.HasValue && sources.TryGetValue(i.SourceId.Value, out var source) ? source.Name : i.Provider
             };
             if (reasons != null && reasons.TryGetValue(i.Id, out var reason))
             {

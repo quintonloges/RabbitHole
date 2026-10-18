@@ -24,7 +24,22 @@ On macOS/Linux, use `cp .env.example .env` before the same Compose command. No h
 5. **Search** queries the local catalog and your notes. **Search research** requests real provider results; import selected results to keep them. Individual YouTube and SoundCloud URLs can be imported here.
 6. **Practice** starts off. Enable it when you choose, pick a source and a prompt kind, write a response, reveal its passage and self-rate. Opening or reading never awards understanding or recall automatically.
 
-The initial collection is empty. Deterministic fixtures live only under `tests/`; they are never inserted into the real database.
+Fresh installations start empty. Deterministic fixtures live only under `tests/`; they are never inserted into the real database. The existing local instance was explicitly populated in October 2026; see the [feed curation report](docs/feed-curation-report.md) for actual counts, verified sources, editorial findings, and limitations.
+
+## Optional curated sources and reading pack
+
+With the app running and Python 3 installed, preview or explicitly apply the editable packs:
+
+```powershell
+python scripts/apply-source-pack.py
+python scripts/apply-source-pack.py --apply
+python scripts/import-reading-pack.py
+python scripts/import-reading-pack.py --apply
+```
+
+The default is a read-only plan. Applying [curated-source-pack.json](config/curated-source-pack.json) verifies and refreshes new sources before enabling them. It preserves matching existing subscriptions, topic preferences, and personal state. Applying [curated-reading-pack.json](config/curated-reading-pack.json) imports only missing selected real links/papers through the normal API. Neither pack runs automatically at startup. Failed sources stay disabled and errors appear in the run report and source health.
+
+Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts accept `--base http://127.0.0.1:3000/api` and `--report PATH`. They use only Python's standard library. Pack edits do not overwrite existing user configuration; use **Settings** for that. After imports, choose **New selection** on Discover.
 
 ## Configuration
 
@@ -34,7 +49,7 @@ The app works without any API key: RSS/Atom, public arXiv, low-volume OpenAlex w
 |---|---|
 | `PORT` | Loopback gateway port, default `3000` |
 | `POSTGRES_PASSWORD` | Local database credential; set before the first database initialization. Changing it later requires changing the database user's password too. |
-| `OPENALEX_API_KEY` | Optional OpenAlex account key for an authorized request budget |
+| `OPENALEX_API_KEY` | Optional OpenAlex key for a larger budget and cursor continuation; absent keys use bounded newest-page watch samples |
 | `AI_BASE_URL` | Optional OpenAI-compatible base URL ending in `/v1`, for example `https://api.openai.com/v1` |
 | `AI_MODEL` | Explicit model name supported by your configured provider |
 | `AI_API_KEY` | Server-only provider credential |
@@ -121,7 +136,7 @@ This uses the already built `rabbithole-api` and `rabbithole-web` images on port
 - Daily editions roll over at midnight UTC; publication dates are displayed in UTC so date-only research records retain their source calendar day.
 - EPUB sections follow spine documents. Several TOC fragments within one XHTML document remain one section. Scanned PDFs need the original-file fallback; there is no OCR or DRM removal.
 - OpenAlex/arXiv supply available metadata and abstracts. An access link does not mean a paper's full text was retrieved. Provider citation references link out; they do not automatically import other papers.
-  OpenAlex watches seed one newest page, then process recent publication windows with cursor continuation and a seven-day overlap. Continuation may require `OPENALEX_API_KEY`; failures retain the cursor and appear in source health. Interactive search remains relevance ranked. Papers indexed more than seven days late may require manual search.
+  OpenAlex watches search titles/abstracts, or titles only with a `title:` prefix. They seed a bounded newest page from the last two years, then revisit a seven-day overlap. Without `OPENALEX_API_KEY`, each refresh samples only the first page and can miss papers in busy queries. With a key, fixed-window cursor continuation persists across restarts; failed pages retain progress and report errors. Interactive search remains relevance ranked. Papers indexed more than seven days late may require manual search.
 - YouTube channel feeds and known video URLs, and SoundCloud track/playlist URLs, are supported. Authenticated global search, captions, media downloads, Semantic Scholar and OPML import are not implemented.
 - AI has fixture validation and failure coverage, but no live model was tested because no credentials or local model were supplied. Playback availability also remains subject to each media provider; live oEmbed metadata was checked, not uninterrupted playback.
 - The ranking/filter pipeline targets a personal catalog and loads candidates into memory. It has no vector index or automatic correctness grading. Changing source/topic preferences takes effect in a new selection; existing editions remain stable.

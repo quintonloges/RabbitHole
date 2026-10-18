@@ -1,5 +1,25 @@
 # RabbitHole acceptance report
 
+## Personal feed curation — 17 October 2026
+
+The later population pass left the actual local PostgreSQL instance with **261 real records, 23 healthy active sources, 221 Discover-eligible records, and two saved branching trails**. All nine original item objects, the original reading state, eight topics, settings, and three original subscription preferences were preserved. See [feed-curation-report.md](feed-curation-report.md) for the 45-record editorial audit, source endpoints, exact schedules/counts, seven three-level recommendation walks, and provider restrictions. Earlier sections below describe the earlier nine-record acceptance baseline.
+
+Actual final checks in this pass:
+
+- Backend: `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore -v:minimal --blame-hang-timeout 60s` — **130 passed**, none failed/skipped.
+- `dotnet format apps/api/RabbitHole.Api.csproj --verify-no-changes --no-restore` — passed.
+- `npm --prefix apps/web run lint`, `npm --prefix apps/web run typecheck`, and `npm --prefix apps/web run build` — passed.
+- `npm run test:e2e` — **14 passed** in 40.2 seconds, on an isolated fixture database; includes responsive/mobile checks.
+- `docker compose up --build -d --wait` — full production build/start passed. The final API-only rebuild also passed.
+- `docker compose restart db api web`, then `docker compose up -d --wait` — all services healthy; pre/post exported persistent rows and source preferences equal. Only `127.0.0.1:3000` is published.
+- Repeat refreshes of all 22 newly activated sources completed with **zero new records** (261 before/after); source and reading pack reapplication preserved all matches.
+- Zero duplicate nonempty canonical URL/DOI/arXiv identity values; no test-fixture titles in production.
+- Live browser: populated Discover, saved-trail backtracking/siblings, correct unknown-date/source notes, actual SoundCloud/YouTube players, and Settings keyless-watch guidance inspected. Audible playback was not asserted.
+
+No AI/OpenAlex/YouTube API credentials were configured. OpenAlex watches now explicitly sample the first page without a key and can miss busy-query results; authenticated cursor continuation remains tested. New arXiv watches, a DNS-blocked Variety of Sound feed, and an empty psi query remain disabled. The unavailable 2023 AI-consciousness paper is documented rather than claimed imported. Four newly imported low-fit records were passed on, while all retained data remains searchable.
+
+## Earlier acceptance baseline
+
 Verified on **17 October 2026**, on Windows with Docker Desktop Linux containers. This report distinguishes the review-remediation checks from the earlier initial-build evidence. No AI credentials were supplied.
 
 ## Review remediation

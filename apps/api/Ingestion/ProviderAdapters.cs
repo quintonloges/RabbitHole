@@ -44,16 +44,26 @@ public static class ProviderAdapters
 
     // Watches follow publication dates; interactive search retains the provider's relevance order.
     public static Uri OpenAlexWatchUrl(string query, int limit, string? key,
-        DateTimeOffset? fromPublicationDate = null, string? cursor = null)
+        DateTimeOffset? fromPublicationDate = null, string? cursor = null, DateTimeOffset? throughPublicationDate = null)
     {
-        var url = OpenAlexSearchUrl(query, limit, key).AbsoluteUri + "&sort=publication_date:desc";
-        if (fromPublicationDate is { } from)
-            url += "&filter=from_publication_date:" + from.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var titleOnly = query.StartsWith("title:", StringComparison.OrdinalIgnoreCase);
+        if (titleOnly) query = query[6..].Trim();
+        var url = OpenAlexSearchUrl(query, limit, key).AbsoluteUri.Replace("?search=", titleOnly ? "?search.title=" : "?search.title_and_abstract=", StringComparison.Ordinal)
+            + "&sort=publication_date:desc";
+        var filters = new List<string>();
+        if (fromPublicationDate is { } from) filters.Add("from_publication_date:" + from.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        if (throughPublicationDate is { } through) filters.Add("to_publication_date:" + through.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        if (filters.Count > 0) url += "&filter=" + string.Join(',', filters);
         url += "&cursor=" + Uri.EscapeDataString(string.IsNullOrWhiteSpace(cursor) ? "*" : cursor);
         return new Uri(url);
     }
-    public static Uri ArxivSearchUrl(string query, int limit) =>
-        new($"https://export.arxiv.org/api/query?search_query=all:{Uri.EscapeDataString(query)}&start=0&max_results={Math.Clamp(limit, 1, 25)}&sortBy=submittedDate&sortOrder=descending");
+    public static Uri ArxivSearchUrl(string query, int limit)
+    {
+        // Preserve documented field/Boolean queries; ordinary searches keep the all-fields default.
+        var structured = Regex.IsMatch(query, @"\b(?:ti|au|abs|co|jr|cat|rn|id|all|submittedDate|lastUpdatedDate):", RegexOptions.IgnoreCase);
+        var expression = structured ? query : "all:" + query;
+        return new($"https://export.arxiv.org/api/query?search_query={Uri.EscapeDataString(expression)}&start=0&max_results={Math.Clamp(limit, 1, 25)}&sortBy=submittedDate&sortOrder=descending");
+    }
 
     public static IReadOnlyList<NormalizedItem> ParseFeed(string xml, string provider = "rss")
     {
@@ -113,7 +123,8 @@ public static class ProviderAdapters
                 ProviderId = Value(entry, "guid") ?? Value(entry, "id"),
                 CanonicalUrl = canonical,
                 Title = Plain(rawTitle, 400),
-                Author = Plain(Value(entry, "creator") ?? Value(entry, "author") ?? "", 200),
+                Author = Plain(Value(entry, "creator") ?? string.Join(", ", entry.Elements().Where(x => x.Name.LocalName == "author").Take(8).Select(x => Value(x, "name") ?? x.Value))
+                    + (entry.Elements().Count(x => x.Name.LocalName == "author") > 8 ? ", et al." : ""), 400),
                 Excerpt = Plain(description ?? "", 1200),
                 Body = bodyText,
                 TextProvenance = bodyText is null ? "metadata" : provider == "arxiv" ? "provider-abstract" : "feed-content",
@@ -386,19 +397,25 @@ public static class ProviderAdapters
         return results.Distinct().Take(5).ToArray();
     }
 
-    public static (string? Title, string? Description) HtmlMetadata(string html)
+    public static (string? Title, string? Description, string? Author, DateTimeOffset? PublishedAt) HtmlMetadata(string html)
     {
         string? meta(string key) => Regex.Matches(html, @"<meta\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Singleline)
             .Select(x => x.Value).Where(x => Regex.IsMatch(x, """\b(property|name)\s*=\s*['"]""" + Regex.Escape(key) + """['"]""", RegexOptions.IgnoreCase))
             .Select(x => Regex.Match(x, """\bcontent\s*=\s*(['"])(.*?)\1""", RegexOptions.IgnoreCase | RegexOptions.Singleline).Groups[2].Value)
             .FirstOrDefault(x => x.Length > 0);
         var title = meta("og:title") ?? Regex.Match(html, @"<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline).Groups[1].Value;
-        return (Plain(title, 400), Plain(meta("description") ?? meta("og:description") ?? "", 1200));
+        var author = meta("author") ?? meta("citation_author") ?? meta("dc.creator");
+        // Never use modification time, HTTP Last-Modified, or retrieval time as publication time.
+        var published = meta("article:published_time") ?? meta("citation_publication_date") ?? meta("dc.date.issued");
+        return (Plain(title, 400), Plain(meta("description") ?? meta("og:description") ?? "", 1200),
+            string.IsNullOrWhiteSpace(author) ? null : Plain(author, 200), ParseDate(published));
     }
 
     public static string Plain(string html, int max)
     {
-        var noTags = Regex.Replace(html, "<[^>]+>", " ");
+        var visible = Regex.Replace(html, @"<(script|style)\b[^>]*>.*?</\1\s*>", " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        visible = Regex.Replace(visible, @"<!--.*?-->", " ", RegexOptions.Singleline);
+        var noTags = Regex.Replace(visible, "<[^>]+>", " ");
         var text = Regex.Replace(System.Net.WebUtility.HtmlDecode(noTags), @"\s+", " ").Trim();
         return text.Length > max ? text[..max] : text;
     }

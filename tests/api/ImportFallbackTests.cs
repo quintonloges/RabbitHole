@@ -50,4 +50,28 @@ public class ImportFallbackTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.ImportUrlAsync("https://example.org/cancelled", null, cancellation.Token));
         Assert.Empty(await db.Items.ToListAsync());
     }
+
+    [Fact]
+    public async Task Selected_feed_entry_preserves_real_metadata_without_subscribing_or_importing_other_entries()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync();
+        var fetcher = new Fetcher(request => new RemoteResponse(200, request.Url, "application/rss+xml", Encoding.UTF8.GetBytes("""
+            <rss><channel><item><title>TEST real title</title><link>https://example.org/selected</link><author>Ada</author><pubDate>Fri, 16 Oct 2026 12:00:00 GMT</pubDate><description>Supplied excerpt</description></item>
+            <item><title>TEST unselected</title><link>https://example.org/unselected</link></item></channel></rss>
+            """), null, null));
+        var service = new IngestionService(db, fetcher, new ConfigurationBuilder().Build(), NullLogger<IngestionService>.Instance);
+        var item = await service.ImportUrlAsync("https://example.org/selected", "Caller cannot replace feed text", default, "https://example.org/feed");
+        Assert.Equal("TEST real title", item.Title);
+        Assert.Equal("Ada", item.Author);
+        Assert.Equal("Supplied excerpt", item.Excerpt);
+        Assert.Equal(2026, item.PublishedAt!.Value.Year);
+        Assert.Contains("importedFromFeed", item.MetadataJson!);
+        Assert.Empty(await db.Sources.ToListAsync());
+        Assert.Equal(item.Id, (await service.ImportUrlAsync("https://example.org/selected", null, default, "https://example.org/feed")).Id);
+        Assert.Single(await db.Items.ToListAsync());
+        await Assert.ThrowsAsync<RemoteFetchException>(() => service.ImportUrlAsync("https://example.org/not-in-feed", null, default, "https://example.org/feed"));
+        Assert.Single(await db.Items.ToListAsync());
+    }
 }

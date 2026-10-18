@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "requiresExplicitApply": true,
+  "description": "Human-editable opt-in source pack. Never loaded automatically on startup. Existing subscriptions and user preferences are preserved by the installer.",
+  "sources": [
+    {
+      "name": "Google Research",
+      "kind": "rss",
+      "url": "https://research.google/blog/rss/",
+      "query": "",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Original research with concrete methods, including embodied and scientific agents.",
+      "intervalMinutes": 1440,
+      "resultLimit": 8,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:37.6864170+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Google DeepMind",
+      "kind": "rss",
+      "url": "https://deepmind.google/blog/rss.xml",
+      "query": "",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "First-party frontier models, robotics and interpretability; occasional release announcements.",
+      "intervalMinutes": 1440,
+      "resultLimit": 8,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:37.2682440+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Hugging Face",
+      "kind": "rss",
+      "url": "https://huggingface.co/blog/feed.xml",
+      "query": "",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Open models, inference engineering and reproducible tooling.",
+      "intervalMinutes": 1440,
+      "resultLimit": 8,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:37.8000730+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Berkeley AI Research",
+      "kind": "rss",
+      "url": "https://bair.berkeley.edu/blog/feed.xml",
+      "query": "",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Researcher-written technical explanations with useful older work in the finite feed.",
+      "intervalMinutes": 2880,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:51:25.9437520+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Simon Willison",
+      "kind": "rss",
+      "url": "https://simonwillison.net/atom/everything/",
+      "query": "",
+      "topics": [
+        "Software engineering"
+      ],
+      "reason": "Working engineer experiments, agent tooling and unusual web techniques; includes short link posts.",
+      "intervalMinutes": 1440,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:40.1779840+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Felix Rieseberg",
+      "kind": "rss",
+      "url": "https://felixrieseberg.com/rss/",
+      "query": "",
+      "topics": [
+        "Software engineering"
+      ],
+      "reason": "Experienced Electron engineer; agent-era essays and practical older engineering notes.",
+      "intervalMinutes": 2880,
+      "resultLimit": 8,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:36.8700100+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "The Splintered Mind",
+      "kind": "rss",
+      "url": "https://eschwitz.substack.com/feed",
+      "query": "",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Eric Schwitzgebel on consciousness, AI rights, thought experiments and philosophical uncertainty.",
+      "intervalMinutes": 2880,
+      "resultLimit": 12,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:41.1848650+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Essentia Foundation",
+      "kind": "rss",
+      "url": "https://www.essentiafoundation.org/feed/",
+      "query": "",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Analytic idealism and non-materialist philosophy, represented in the authors own terms.",
+      "intervalMinutes": 2880,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:36.6854280+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Aeon",
+      "kind": "rss",
+      "url": "https://aeon.co/feed.rss",
+      "query": "",
+      "topics": [
+        "Unexpected finds"
+      ],
+      "reason": "Long-form philosophy, anthropology and unusual history for broad discovery.",
+      "intervalMinutes": 1440,
+      "resultLimit": 12,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:35.1103640+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "The Black Vault UFOs",
+      "kind": "rss",
+      "url": "https://www.theblackvault.com/documentarchive/category/the-fringe/ufo-phenomena/feed/",
+      "query": "",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Focused UFO/UAP category with FOIA documents and original provenance, avoiding unrelated agency files.",
+      "intervalMinutes": 2880,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:40.9902760+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "The Debrief",
+      "kind": "rss",
+      "url": "https://thedebrief.org/feed/",
+      "query": "",
+      "topics": [
+        "Speculative history & mysteries",
+        "Science & psychology"
+      ],
+      "reason": "Archaeological mysteries, unusual science, UAP reporting and adjacent subjects.",
+      "intervalMinutes": 1440,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:41.0961590+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Journal of Scientific Exploration",
+      "kind": "rss",
+      "url": "https://journalofscientificexploration.org/index.php/jse/gateway/plugin/WebFeedGatewayPlugin/atom",
+      "query": "",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Original anomalous-research journal issue feed; article abstracts and issue/editorial entries.",
+      "intervalMinutes": 10080,
+      "resultLimit": 12,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:38.8630800+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Institute of Noetic Sciences",
+      "kind": "rss",
+      "url": "https://noetic.org/feed/",
+      "query": "",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Psi, precognition, reincarnation and consciousness research; occasional institute events.",
+      "intervalMinutes": 2880,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:38.1440150+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Martin Fowler",
+      "kind": "rss",
+      "url": "https://martinfowler.com/feed.atom",
+      "query": "",
+      "topics": [
+        "Software engineering"
+      ],
+      "reason": "Architecture, design tradeoffs and practitioner essays; some conference/presentation material.",
+      "intervalMinutes": 2880,
+      "resultLimit": 8,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:51:27.9598880+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": ".NET Blog",
+      "kind": "rss",
+      "url": "https://devblogs.microsoft.com/dotnet/feed/",
+      "query": "",
+      "topics": [
+        "Software engineering"
+      ],
+      "reason": "First-party .NET engineering, reliability, tooling and release details.",
+      "intervalMinutes": 1440,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:34.5751360+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Attack Technique",
+      "kind": "rss",
+      "url": "https://www.attackmagazine.com/technique/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Production and synthesis techniques rather than the general promotional/news feed.",
+      "intervalMinutes": 2880,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:35.2076750+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "Variety of Sound",
+      "kind": "rss",
+      "url": "https://varietyofsound.wordpress.com/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery",
+        "Software engineering"
+      ],
+      "reason": "Audio DSP developer essays on saturation, noise and digital sound; occasional plugin release posts.",
+      "intervalMinutes": 10080,
+      "resultLimit": 10,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "status": "feed parsed in host probe, but production fetch blocked reserved/private DNS result",
+        "at": "2026-10-18T02:30:48Z"
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "EarLevel Engineering",
+      "kind": "rss",
+      "url": "https://www.earlevel.com/main/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery",
+        "Software engineering"
+      ],
+      "reason": "EarLevel Engineering / Nigel Redmon: substantial evergreen DSP, aliasing, filters and amplitude modulation.",
+      "intervalMinutes": 10080,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-18T02:51:27.0598610+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. Dormant since January 2023; deliberately included as evergreen DSP."
+    },
+    {
+      "name": "Quanta Magazine",
+      "kind": "rss",
+      "url": "https://www.quantamagazine.org/feed/",
+      "query": "",
+      "topics": [
+        "Science & psychology"
+      ],
+      "reason": "Long-form science and mathematics; preserve the existing subscription and its limits.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-17T21:18:54.3407470+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Feed-supplied text only; link to publisher for remaining content. "
+    },
+    {
+      "name": "AI consciousness — focused titles",
+      "kind": "arxiv",
+      "url": "",
+      "query": "ti:\"machine consciousness\" OR ti:\"AI consciousness\" OR ti:\"artificial consciousness\"",
+      "topics": [
+        "Consciousness & philosophy",
+        "Frontier AI"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "status": "failed live refresh: timeout / HTTP 429; left disabled",
+        "at": "2026-10-18T02:30:48Z"
+      },
+      "limitation": "Metadata/abstract only. Field/category query; newest six matches; acknowledge arXiv API."
+    },
+    {
+      "name": "Embodied robotics and world models",
+      "kind": "arxiv",
+      "url": "",
+      "query": "cat:cs.RO AND (ti:\"world model\" OR ti:embodied)",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "status": "failed live refresh: timeout / HTTP 429; left disabled",
+        "at": "2026-10-18T02:30:48Z"
+      },
+      "limitation": "Metadata/abstract only. Field/category query; newest six matches; acknowledge arXiv API."
+    },
+    {
+      "name": "Hard problem and qualia",
+      "kind": "openalex",
+      "url": "",
+      "query": "\"hard problem\" AND consciousness",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-17T22:29:19.231172-04:00",
+        "status": "Initial import succeeded; disabled after relevance audit",
+        "enabledInAuditedInstance": false
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Integrated information and global workspace",
+      "kind": "openalex",
+      "url": "",
+      "query": "\"integrated information theory\" OR \"global workspace theory\"",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-17T22:29:47.013236-04:00",
+        "status": "Initial import succeeded; disabled after relevance audit",
+        "enabledInAuditedInstance": false
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Panpsychism and analytic idealism",
+      "kind": "openalex",
+      "url": "",
+      "query": "panpsychism OR \"analytic idealism\"",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-17T22:29:47.905651-04:00",
+        "status": "Initial import succeeded; disabled after relevance audit",
+        "enabledInAuditedInstance": false
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Near-death experience research",
+      "kind": "openalex",
+      "url": "",
+      "query": "\"near death experience\" AND consciousness",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-17T22:29:49.139382-04:00",
+        "status": "Initial import succeeded; disabled after relevance audit",
+        "enabledInAuditedInstance": false
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Psi experiments and remote viewing",
+      "kind": "openalex",
+      "url": "",
+      "query": "parapsychology OR ganzfeld OR \"remote viewing\"",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-17T22:30:16.613882-04:00",
+        "status": "Initial import succeeded; disabled after relevance audit",
+        "enabledInAuditedInstance": false
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Younger Dryas impact research",
+      "kind": "openalex",
+      "url": "",
+      "query": "\"Younger Dryas\" AND (impact OR catastrophe)",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Specific research intent using provider phrase/Boolean syntax; preserve unconventional hypotheses without ideological scoring.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-17T22:30:17.664092-04:00",
+        "status": "Initial import succeeded; disabled after relevance audit",
+        "enabledInAuditedInstance": false
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "OpenAI News",
+      "kind": "rss",
+      "url": "https://openai.com/news/rss.xml",
+      "query": "",
+      "topics": [],
+      "reason": "Live feed is dominated by customer/product announcements; selected original research imported individually.",
+      "intervalMinutes": 2880,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "optional",
+      "lastVerification": {
+        "at": "2026-10-17T22:22:22.267753-04:00",
+        "status": "parsed but not activated",
+        "records": 100
+      },
+      "limitation": "Live feed is dominated by customer/product announcements; selected original research imported individually."
+    },
+    {
+      "name": "Daily Nous",
+      "kind": "rss",
+      "url": "https://dailynous.com/feed/",
+      "query": "",
+      "topics": [],
+      "reason": "Recent feed largely professional announcements; existing philosophy sources fit this profile more closely.",
+      "intervalMinutes": 2880,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "optional",
+      "lastVerification": {
+        "at": "2026-10-17T22:22:23.102813-04:00",
+        "status": "parsed but not activated",
+        "records": 10
+      },
+      "limitation": "Recent feed largely professional announcements; existing philosophy sources fit this profile more closely."
+    },
+    {
+      "name": "MusicTech",
+      "kind": "rss",
+      "url": "https://musictech.com/feed/",
+      "query": "",
+      "topics": [],
+      "reason": "Recent general feed dominated by deals and products; selected specific production resources instead.",
+      "intervalMinutes": 2880,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "optional",
+      "lastVerification": {
+        "at": "2026-10-17T22:23:32.732919-04:00",
+        "status": "parsed but not activated",
+        "records": 10
+      },
+      "limitation": "Recent general feed dominated by deals and products; selected specific production resources instead."
+    },
+    {
+      "name": "The Daily Grail",
+      "kind": "rss",
+      "url": "https://www.dailygrail.com/feed/",
+      "query": "",
+      "topics": [],
+      "reason": "Recent feed mostly daily link roundups; selected substantive essays individually.",
+      "intervalMinutes": 2880,
+      "resultLimit": 6,
+      "enabledDefault": false,
+      "importance": "optional",
+      "lastVerification": {
+        "at": "2026-10-17T22:22:23.542519-04:00",
+        "status": "parsed but not activated",
+        "records": 10
+      },
+      "limitation": "Recent feed mostly daily link roundups; selected substantive essays individually."
+    },
+    {
+      "name": "IIT and global workspace — title watch",
+      "kind": "openalex",
+      "url": "",
+      "query": "title:(\"integrated information theory\" OR \"global workspace\") NOT \"E8 Intelligence Research\"",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Focused query reviewed against real title/abstract metadata. Replaces broad full-text matches. The repeated E8 extracted-note series is excluded to avoid near-identical serial summaries; this is a transparent, editable title exclusion, not a viewpoint or credibility rule.",
+      "intervalMinutes": 10080,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "topical specificity",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:37.9976590+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Panpsychism and idealism — title watch",
+      "kind": "openalex",
+      "url": "",
+      "query": "title:(panpsychism OR \"analytic idealism\") NOT \"E8 Intelligence Research\"",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Focused query reviewed against real title/abstract metadata. Replaces broad full-text matches. The repeated E8 extracted-note series is excluded to avoid near-identical serial summaries; this is a transparent, editable title exclusion, not a viewpoint or credibility rule.",
+      "intervalMinutes": 10080,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "topical specificity",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:40.0836680+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Near-death experiences — title watch",
+      "kind": "openalex",
+      "url": "",
+      "query": "title:\"near death experience\"",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Focused query reviewed against real title/abstract metadata. Replaces broad full-text matches. ",
+      "intervalMinutes": 10080,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "topical specificity",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:39.1358630+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Psi experiments — title watch",
+      "kind": "openalex",
+      "url": "",
+      "query": "title:(\"extrasensory perception\" OR telepathy OR \"remote viewing\") AND (experiment OR preregistered OR \"meta analysis\")",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Focused query reviewed against real title/abstract metadata. Replaces broad full-text matches. ",
+      "intervalMinutes": 10080,
+      "resultLimit": 5,
+      "enabledDefault": false,
+      "importance": "topical specificity",
+      "lastVerification": {
+        "at": "2026-10-18T02:38:37Z",
+        "status": "No parseable records in two-year title window; not activated",
+        "records": 0
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Younger Dryas impacts — title watch",
+      "kind": "openalex",
+      "url": "",
+      "query": "title:\"Younger Dryas\" AND (impact OR catastrophe)",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Focused query reviewed against real title/abstract metadata. Replaces broad full-text matches. ",
+      "intervalMinutes": 10080,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "topical specificity",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:41.3572240+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Embodied robot learning — abstract watch",
+      "kind": "openalex",
+      "url": "",
+      "query": "\"embodied intelligence\" AND robotics",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Focused query reviewed against real title/abstract metadata. Replaces broad full-text matches. ",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "importance": "topical specificity",
+      "lastVerification": {
+        "at": "2026-10-18T02:50:36.1855370+00:00",
+        "status": "Imported actual records; refresh completed",
+        "enabledInAuditedInstance": true
+      },
+      "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    }
+  ]
+}

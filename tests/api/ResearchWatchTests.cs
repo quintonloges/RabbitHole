@@ -58,7 +58,11 @@ public class ResearchWatchTests
             var query = QueryHelpers.ParseQuery(request.Url.Query);
             Assert.Equal("publication_date:desc", query["sort"].ToString());
             Assert.Equal("*", query["cursor"].ToString());
-            Assert.False(query.ContainsKey("filter"));
+            Assert.StartsWith("from_publication_date:", query["filter"].ToString());
+            Assert.Equal("consciousness", query["search.title_and_abstract"].ToString());
+            Assert.False(query.ContainsKey("search"));
+            var from = DateTimeOffset.Parse(query["filter"].ToString().Split(',')[0].Split(':')[1]);
+            Assert.InRange(from, before.AddYears(-2).AddDays(-1), before.AddYears(-2).AddDays(1));
             return Page(request, "historical-backlog", 100);
         });
         var job = await store.Service(fetcher).RefreshAsync(source, default);
@@ -69,6 +73,41 @@ public class ResearchWatchTests
         Assert.Null(source.ResearchFromDate);
         Assert.Null(source.ResearchWindowStartedAt);
         Assert.Single(await store.Db.Items.ToListAsync());
+        Assert.True(source.NextSyncAt > DateTimeOffset.UtcNow.AddMinutes(200));
+    }
+
+    [Fact]
+    public async Task KeylessWatchSamplesFirstPageAndRecoversPendingCursorWithoutClaimingFullCoverage()
+    {
+        await using var store = new Store();
+        var source = Source();
+        source.ResearchCheckpointAt = DateTimeOffset.UtcNow.AddDays(-3);
+        source.ResearchCursor = "requires-authentication";
+        source.ResearchFromDate = DateTimeOffset.UtcNow.AddDays(-20);
+        source.ResearchWindowStartedAt = DateTimeOffset.UtcNow.AddDays(-2);
+        store.Db.Sources.Add(source); await store.Db.SaveChangesAsync();
+        var calls = 0;
+        var fetcher = new Fetcher(request =>
+        {
+            calls++;
+            var query = QueryHelpers.ParseQuery(request.Url.Query);
+            Assert.Equal("*", query["cursor"].ToString());
+            Assert.False(query.ContainsKey("api_key"));
+            return Page(request, "requires-authentication", 100, 101);
+        });
+        var service = new IngestionService(store.Db, fetcher, new ConfigurationBuilder().Build(), NullLogger<IngestionService>.Instance);
+        var before = DateTimeOffset.UtcNow;
+        var first = await service.RefreshAsync(source, default);
+        var repeated = await service.RefreshAsync(source, default);
+        Assert.Equal("completed", first.Status);
+        Assert.Equal("completed", repeated.Status);
+        Assert.Equal(2, calls);
+        Assert.Equal(0, repeated.Imported);
+        Assert.Equal(2, await store.Db.Items.CountAsync());
+        Assert.Null(source.ResearchCursor);
+        Assert.Null(source.ResearchFromDate);
+        Assert.Null(source.ResearchWindowStartedAt);
+        Assert.InRange(source.ResearchCheckpointAt!.Value, before, DateTimeOffset.UtcNow);
         Assert.True(source.NextSyncAt > DateTimeOffset.UtcNow.AddMinutes(200));
     }
 
@@ -84,7 +123,7 @@ public class ResearchWatchTests
         {
             var query = QueryHelpers.ParseQuery(request.Url.Query);
             Assert.Equal("publication_date:desc", query["sort"].ToString());
-            Assert.Equal("from_publication_date:2026-10-05", query["filter"].ToString());
+            Assert.StartsWith("from_publication_date:2026-10-05,to_publication_date:", query["filter"].ToString());
             calls++;
             Assert.Equal(calls == 1 ? "*" : "next+/=", query["cursor"].ToString());
             return calls == 1 ? Page(request, "next+/=", 100, 101) : Page(request, null, 101, 102);

@@ -1,0 +1,256 @@
+{
+  "version": 1,
+  "requiresExplicitApply": true,
+  "description": "Selected original articles, historical material, classic papers and official media players. URLs were researched on 17 October 2026. Import retrieves real provider metadata; missing publication dates remain unknown. No continuous monitor is implied.",
+  "items": [
+    {
+      "label": "Facing Up to the Problem of Consciousness",
+      "url": "https://consc.net/papers/facing.html",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "David Chalmers' original 1995 essay; original author copy. The page lacks machine-readable publication metadata, so the app may show unknown date.",
+      "verifiedAuthor": "David J. Chalmers"
+    },
+    {
+      "label": "What Is It Like to Be a Bat?",
+      "provider": "openalex",
+      "providerId": "W2072267104",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Thomas Nagel's original 1974 article, not a later reprint."
+    },
+    {
+      "label": "Epiphenomenal Qualia",
+      "provider": "openalex",
+      "providerId": "W4248621836",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Frank Jackson's original 1982 knowledge argument."
+    },
+    {
+      "label": "Information transmission under conditions of sensory shielding",
+      "provider": "openalex",
+      "providerId": "W2026586820",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Russell Targ and Harold Puthoff's original 1974 experiment report."
+    },
+    {
+      "label": "Large Pt anomaly in the Greenland ice core points to a cataclysm at the onset of Younger Dryas",
+      "provider": "openalex",
+      "providerId": "W2076597914",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "2013 primary paper on a measured anomaly and the authors' catastrophe interpretation."
+    },
+    {
+      "label": "Abu Hureyra, Syria, Part 3: Comet airbursts triggered major climate change 12,800 years ago that initiated the transition to agriculture",
+      "provider": "openalex",
+      "providerId": "W4387293536",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Original alternative-catastrophe argument, attributed to its authors."
+    },
+    {
+      "label": "Attention Is All You Need",
+      "provider": "arxiv",
+      "providerId": "1706.03762",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "2017 original Transformer paper; source publication and revision dates remain distinct."
+    },
+    {
+      "label": "A global workspace in language models",
+      "url": "https://www.anthropic.com/research/global-workspace",
+      "topics": [
+        "Frontier AI",
+        "Consciousness & philosophy"
+      ],
+      "reason": "Original interpretability work connecting functional access and workspace theory; no claim that this establishes phenomenal consciousness."
+    },
+    {
+      "label": "Exploring model welfare",
+      "url": "https://www.anthropic.com/research/exploring-model-welfare",
+      "topics": [
+        "Frontier AI",
+        "Consciousness & philosophy"
+      ],
+      "reason": "First-party research agenda for model experience and moral consideration."
+    },
+    {
+      "label": "Emergent introspective awareness in LLMs",
+      "url": "https://www.anthropic.com/research/introspection",
+      "topics": [
+        "Frontier AI",
+        "Consciousness & philosophy"
+      ],
+      "reason": "Original experiments on models reporting internal states."
+    },
+    {
+      "label": "A model guide for the GPT-6 family",
+      "url": "https://openai.com/index/practical-guide-building-gpt-6",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Specific technical guidance selected from the verified feed, avoiding the customer-story bulk.",
+      "feedUrl": "https://openai.com/news/rss.xml"
+    },
+    {
+      "label": "Better prompt caching for GPT-6",
+      "url": "https://openai.com/index/better-prompt-caching-for-gpt-6",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Concrete inference/application engineering update from the verified original feed.",
+      "feedUrl": "https://openai.com/news/rss.xml"
+    },
+    {
+      "label": "How Third Moment Research runs 10,000 agents for 36+ hours",
+      "url": "https://openai.com/index/third-moment-research",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "One selected applied agent case study with concrete engineering scale; explicitly a vendor-hosted account.",
+      "feedUrl": "https://openai.com/news/rss.xml"
+    },
+    {
+      "label": "The flood story — Sumerian text translation (ETCSL 1.7.4)",
+      "url": "https://etcsl.orinst.ox.ac.uk/cgi-bin/etcsl.cgi?text=t.1.7.4",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Electronic Text Corpus of Sumerian Literature translation of an ancient flood narrative. Ancient composition is not the webpage publication date."
+    },
+    {
+      "label": "Project BLUE BOOK — Unidentified Flying Objects",
+      "url": "https://www.archives.gov/research/military/air-force/ufos",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Archive finding aid for original UFO investigations and historical case records."
+    },
+    {
+      "label": "Remote Viewing — Psi Encyclopedia",
+      "url": "https://psi-encyclopedia.spr.ac.uk/articles/remote-viewing/",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Specialist history of SRI, PEAR and Mobius experiments with linked original references."
+    },
+    {
+      "label": "Near-Death Experiences (Overview) — Psi Encyclopedia",
+      "url": "https://psi-encyclopedia.spr.ac.uk/articles/near-death-experience/",
+      "topics": [
+        "Parapsychology",
+        "Consciousness & philosophy"
+      ],
+      "reason": "Dedicated overview of anomalous experience and survival research."
+    },
+    {
+      "label": "Reincarnation: An Introduction — Psi Encyclopedia",
+      "url": "https://psi-encyclopedia.spr.ac.uk/articles/reincarnation-overview/",
+      "topics": [
+        "Parapsychology",
+        "Speculative history & mysteries"
+      ],
+      "reason": "Research, historical traditions and case-study pathways."
+    },
+    {
+      "label": "Dorothy Eady/Omm Sety (reincarnation case)",
+      "url": "https://psi-encyclopedia.spr.ac.uk/articles/dorothy-eadyomm-sety-reincarnation-case/",
+      "topics": [
+        "Parapsychology",
+        "Speculative history & mysteries"
+      ],
+      "reason": "A specific bridge between reported past-life memory and ancient Egypt."
+    },
+    {
+      "label": "FL STUDIO | Sytrus",
+      "url": "https://www.image-line.com/fl-studio-news/sytrus-tutorial",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Official FM, RM, additive and subtractive synthesis walkthrough."
+    },
+    {
+      "label": "Tips for Riddim Sound Design & Introduction to Vital w/ INFEKT",
+      "url": "https://www.youtube.com/watch?v=D-n9zU730Sc",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Artist-specific sound-design interview/tutorial; official YouTube oEmbed verifies creator and title."
+    },
+    {
+      "label": "Bitwig 1-Minute Patch: Reese Bass / Rave Lead",
+      "url": "https://www.youtube.com/watch?v=R_l2rsSdWgw",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Video embedded by Bitwig in its official 1-Minute Patch page."
+    },
+    {
+      "label": "Bitwig 1-Minute Patch: The Smallest Generative Patch",
+      "url": "https://www.youtube.com/watch?v=tHhctmNHMio",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Official Bitwig page links this Grid demonstration."
+    },
+    {
+      "label": "INFEKT - SECTOR 9",
+      "url": "https://soundcloud.com/infektdubstep/infekt-sector-9",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Early INFEKT artist upload (2014 page evidence), official oEmbed/player only. oEmbed supplies no date."
+    },
+    {
+      "label": "INFEKT - SWITCH [OUT NOW ON BASSLIEBE]",
+      "url": "https://soundcloud.com/infektdubstep/infekt-switch-clip",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Early artist-uploaded riddim clip, exact title and creator checked by oEmbed."
+    },
+    {
+      "label": "INFEKT - PROJECTILE [REMASTER]",
+      "url": "https://soundcloud.com/infektdubstep/infekt-projectile-clip",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Original artist's early material; a clip/remaster rather than an invented full playable track."
+    },
+    {
+      "label": "Blockz (2025) (Pl8list Exclusive)",
+      "url": "https://soundcloud.com/subfiltronik/blockz-2025-pl8list-exclusive",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Verified Subfiltronik artist upload; a recent counterpart to early INFEKT, not global SoundCloud search."
+    }
+  ],
+  "unavailableSelections": [
+    {
+      "label": "Consciousness in Artificial Intelligence: Insights from the Science of Consciousness",
+      "provider": "arxiv",
+      "providerId": "2308.08708",
+      "topics": [
+        "Consciousness & philosophy",
+        "Frontier AI"
+      ],
+      "reason": "2023 multi-theory AI consciousness report; original arXiv abstract and attribution.",
+      "limitation": "The arXiv API returned HTTP 502 on both attempts. Not imported; retry manually when available."
+    }
+  ]
+}

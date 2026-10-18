@@ -46,7 +46,7 @@ public class ProviderRegressionTests
         var url = ProviderAdapters.OpenAlexWatchUrl("mind & consciousness", 200, "test key",
             new DateTimeOffset(2026, 10, 15, 21, 0, 0, TimeSpan.Zero), "next+/cursor=");
         var query = QueryHelpers.ParseQuery(url.Query);
-        Assert.Equal("mind & consciousness", query["search"].ToString());
+        Assert.Equal("mind & consciousness", query["search.title_and_abstract"].ToString());
         Assert.Equal("publication_date:desc", query["sort"].ToString());
         Assert.Equal("from_publication_date:2026-10-15", query["filter"].ToString());
         Assert.Equal("next+/cursor=", query["cursor"].ToString());

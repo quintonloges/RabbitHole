@@ -1,5 +1,15 @@
 # Provider verification (17 October 2026)
 
+## Expanded personal collection
+
+The current live result is **23 active verified sources and 261 retained real items**, superseding the smaller baseline described below. See [feed-curation-report.md](feed-curation-report.md) for every active endpoint/query, last successful retrieval, next due time, linked count, selected individual imports, audit findings, and disabled-source failures. The reusable opt-in configuration is [curated-source-pack.json](../config/curated-source-pack.json).
+
+Live OpenAlex first-page requests succeeded without a key, while cursor continuation returned HTTP 401, consistent with its [current authentication documentation](https://help.openalex.org/api/authentication/). The app now runs an explicitly bounded newest-page sample when no key is present. Title/abstract scoping and the `title:` option follow [official search documentation](https://help.openalex.org/api/searching/). Five focused watches subsequently refreshed successfully with zero new duplicates. Exact original dates remain provider values.
+
+The new focused arXiv watches returned timeouts/429 and remain disabled; the selected Butlin 2023 report returned 502. One landmark arXiv paper imported successfully before those failures. Variety of Sound parsed externally but was rejected by production DNS safety checks. No safety bypass was used. Both real artist SoundCloud and instructional YouTube players loaded in the local reader; no download/transcript access or audible playback is claimed.
+
+## Earlier initial verification
+
 RabbitHole does not automatically subscribe to external sources. The user-selectable feed presets were checked with live `curl.exe -IL --max-time 15` requests on 17 October 2026:
 
 | URL | Live response | Preset |

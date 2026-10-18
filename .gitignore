@@ -12,6 +12,7 @@
 test-results/
 playwright-report/
 **/*.tsbuildinfo
+**/__pycache__/
 *.log
 *.db
 *.db-shm

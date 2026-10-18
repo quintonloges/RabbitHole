@@ -82,15 +82,19 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                     var query = source.Query.Trim();
                     if (query.Length is < 2 or > 200) throw new ArgumentException("OpenAlex source needs a 2–200 character query.");
                     var initialSample = source.ResearchCheckpointAt is null && source.ResearchCursor is null;
-                    var windowStartedAt = source.ResearchWindowStartedAt ?? DateTimeOffset.UtcNow;
+                    var canPage = !string.IsNullOrWhiteSpace(OpenAlexKey);
+                    var windowStartedAt = (canPage ? source.ResearchWindowStartedAt : null) ?? DateTimeOffset.UtcNow;
                     // Revisit an inclusive week to catch papers indexed after their publication date.
-                    var fromDate = source.ResearchFromDate ?? source.ResearchCheckpointAt?.AddDays(-7);
+                    var fromDate = (canPage ? source.ResearchFromDate : null) ?? source.ResearchCheckpointAt?.AddDays(-7)
+                        ?? windowStartedAt.AddYears(-2);
                     await PaceAcademicAsync("openalex", ct);
                     var response = await fetcher.FetchAsync(new RemoteRequest(ProviderAdapters.OpenAlexWatchUrl(query,
-                        source.ResultLimit, OpenAlexKey, fromDate, source.ResearchCursor), ProviderAdapters.JsonTypes), ct);
+                        source.ResultLimit, OpenAlexKey, fromDate, canPage ? source.ResearchCursor : null, windowStartedAt), ProviderAdapters.JsonTypes), ct);
                     var page = ProviderAdapters.ParseOpenAlexPage(response.Text);
-                    // Seed a finite newest selection, then page subsequent windows over separate refreshes.
-                    var hasMore = !initialSample && page.ResultCount > 0 && page.NextCursor is not null;
+                    // Keyless access permits only the first cursor page: retain a bounded newest
+                    // sample on the normal schedule, rather than queueing a guaranteed HTTP 401.
+                    // Authenticated watches page subsequent windows over separate refreshes.
+                    var hasMore = canPage && !initialSample && page.ResultCount > 0 && page.NextCursor is not null;
                     var progress = hasMore
                         ? new ResearchWatchProgress(page.NextCursor, fromDate, windowStartedAt, source.ResearchCheckpointAt)
                         : new ResearchWatchProgress(null, null, null, windowStartedAt);
@@ -283,10 +287,22 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         finally { UpsertLock.Release(); }
     }
 
-    public async Task<ContentItem> ImportUrlAsync(string url, string? title, CancellationToken ct)
+    public async Task<ContentItem> ImportUrlAsync(string url, string? title, CancellationToken ct, string? feedUrl = null)
     {
         var uri = SafeRemoteFetcher.ValidateUrl(url);
         var canonical = new UriBuilder(uri) { Fragment = "" }.Uri.ToString();
+        if (!string.IsNullOrWhiteSpace(feedUrl))
+        {
+            // Explicitly selected entries from a real public feed can be imported without
+            // subscribing to its entire publication. Never accept caller-supplied source text.
+            var feed = await FetchSourceAsync(new Source { Kind = "rss", Url = feedUrl }, ct, conditional: false);
+            var selected = feed.Items.FirstOrDefault(x => x.CanonicalUrl.TrimEnd('/') == canonical.TrimEnd('/'))
+                ?? throw new RemoteFetchException("That URL was not present in the supplied feed.");
+            selected.MetadataJson = ItemCatalog.MergeMetadata(selected.MetadataJson,
+                JsonSerializer.Serialize(new { importedFromFeed = SafeRemoteFetcher.ValidateUrl(feedUrl).AbsoluteUri }),
+                selected.Provider, selected.ProviderId, selected.Provider, selected.ProviderId);
+            return (await UpsertAsync(selected, null, [], ct)).Item;
+        }
         var item = new NormalizedItem
         {
             Provider = "manual",
@@ -322,6 +338,8 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                 var metadata = ProviderAdapters.HtmlMetadata(response.Text);
                 if (!string.IsNullOrWhiteSpace(metadata.Title)) item.Title = metadata.Title;
                 item.Excerpt = metadata.Description;
+                item.Author = metadata.Author;
+                item.PublishedAt = metadata.PublishedAt;
                 item.Warning = null;
             }
             else item.Warning = "Link only: the site's robots rules do not permit metadata retrieval.";

@@ -7,7 +7,7 @@ namespace RabbitHole.Features;
 
 public sealed record SourceInput(string? Name, string? Kind, string? Url, string? Query,
     List<Guid>? TopicIds, int? IntervalMinutes, int? ResultLimit, bool? Enabled);
-public sealed record UrlImportInput(string Url, string? Title);
+public sealed record UrlImportInput(string Url, string? Title, string? FeedUrl = null);
 public sealed record ResearchImportInput(string Provider, string ProviderId);
 
 public static class IngestionEndpoints
@@ -122,7 +122,7 @@ public static class IngestionEndpoints
             (await db.Jobs.ToListAsync(ct)).OrderByDescending(x => x.StartedAt).Take(100).ToArray());
         group.MapPost("/items/import-url", async (UrlImportInput input, IngestionService ingestion, CancellationToken ct) =>
         {
-            try { return Results.Ok(await ingestion.ImportUrlAsync(input.Url, input.Title, ct)); }
+            try { return Results.Ok(await ingestion.ImportUrlAsync(input.Url, input.Title, ct, input.FeedUrl)); }
             catch (RemoteFetchException e) { return Results.Problem(e.Message, statusCode: 400); }
         });
         group.MapGet("/research/search", async (string provider, string q, IngestionService ingestion, CancellationToken ct) =>

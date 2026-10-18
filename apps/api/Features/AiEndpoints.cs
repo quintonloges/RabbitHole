@@ -52,15 +52,23 @@ public static partial class AiEndpoints
             var item = await ItemCatalog.ResolveAsync(db, id, ct);
             if (item == null) return Results.NotFound();
             id = item.Id;
-            var related = (await db.Items.AsNoTracking().Where(i => i.Id != id).ToListAsync(ct))
-                .Where(i => i.TopicIds.Intersect(item.TopicIds).Any()).OrderByDescending(i => i.TopicIds.Intersect(item.TopicIds).Count()).Take(3).ToList();
-            related.Insert(0, item);
+            var related = new List<Recommendation>();
+            var visited = new HashSet<Guid> { item.Id };
+            var current = item;
+            for (var step = 0; step < 3; step++)
+            {
+                var next = (await ranking.RelatedAsync(current, 1, ct, visited)).FirstOrDefault();
+                if (next == null) break;
+                related.Add(next); visited.Add(next.Item.Id); current = next.Item;
+            }
+            var views = await ItemDto.BuildAsync(db, [item], ct);
+            views.AddRange(await ItemDto.RecommendationsAsync(db, related, ct));
             return Results.Ok(new
             {
                 title = "A short reading trail",
-                items = await ItemDto.BuildAsync(db, related, ct),
+                items = views,
                 question = "What connects these sources, and where do their accounts differ? Use the passages you have read.",
-                provenance = "Selected from real catalog records using shared topics. No generated lesson text."
+                provenance = "Suggested connections from available source text and tags. No generated lesson text."
             });
         });
         return routes;

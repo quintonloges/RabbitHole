@@ -1,5 +1,50 @@
 # RabbitHole acceptance report
 
+## Recommendation quality pass — 18 October 2026
+
+Implemented concept-based related ranking, editable concept tags, path-aware exclusions and intentional revisits, bounded routine-announcement penalties, structured explanations and per-trail/per-turn provenance. Curated/example/unknown-origin nodes and passive opens no longer become personal exploration evidence. No source, external integration, AI dependency or credibility policy was added.
+
+The starting catalog was **276 items**, with 35 configured sources (23 active), eight topics, seven personal-state rows, two curated trails and ten nodes. The additive migration `20261018041856_RecommendationEvidence` and audited provenance backfill preserve every original item/state/graph field and ID. The current legacy edition was archived by day key with all entries retained, and a new 25-item edition was created. The full comparison, actual titles/IDs and limitations are in [recommendation-quality-report.md](recommendation-quality-report.md).
+
+Actual verification:
+
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore` — **159 passed**, zero failed/skipped; formatting and EF pending-model checks passed.
+- Frontend lint, TypeScript and production build passed. `npm run test:e2e` — **15 passed** in 42.2 seconds; the recommendation test passed again after the final scoped mobile layout adjustment.
+- `python -m unittest discover -s tests/scripts -v` — **7 passed**.
+- `docker compose up --build -d --wait` — final images built and all four services running; API/web/database health checks pass. The gateway serves the app and remains the only published host port, `127.0.0.1:3000`.
+- `./scripts/check-recommendations-postgres.ps1` — **2 HTTP tests passed** against a disposable copy on the actual PostgreSQL 17 server, with real note/state/tag/branch persistence and stored daily evidence. The test database was removed; production received no test fixtures.
+- All 276 final live related orders/reasons and seven three-level walks matched the frozen-catalog evaluator. The original catalog/settings fingerprint is unchanged. The old API re-offered 17 previously visited candidates in those walks; the path-aware output re-offered none.
+- Pre/post migration export comparison passed with only the documented edition-key archive allowed. A complete service stop/start followed by an exact export comparison also passed, including current positions and structured rationale. All **276 items, two trails and ten nodes** remain.
+- Eight real-catalog UI checks at desktop 1440px and mobile 390px passed with no overflow, JavaScript errors or failed HTTP responses. Screenshots and manual browser inspection covered Discover, expanded explanations, reader recommendations, saved trail navigation and explicit revisit labels. A temporary read-through proxy suppressed passive opened writes during visual QA.
+- Production SQL checks found zero duplicate canonical URLs and zero test-fixture titles. Recent runtime logs had zero application failure-pattern matches. `git diff --check` passed.
+
+An intermediate mobile Settings overflow was fixed and the complete browser suite rerun successfully. No provider refresh or AI call was part of the frozen-catalog comparison. Sparse metadata and the limited concept vocabulary still constrain Remote Viewing/UFO paths, and format heuristics do not identify every promotional item; these are documented for human evaluation. The pre-change database/uploads backup is `backups/20261018-000906`.
+
+## Curation review fixes — 17 October 2026
+
+All three findings from the review of `d849ff0` are fixed with permanent regressions:
+
+- The reading-pack installer checks primary identifiers, stored provider references and known OpenAlex/arXiv alias fields before calling import. Existing records retain their edited metadata; malformed metadata and identifiers from other providers do not produce false matches.
+- Explicit RSS/Atom selection searches the entire size-limited feed for the requested URL, including entries after position 100. It normalizes/imports only the selected entry. Ordinary refresh parsing retains its 100-entry cap, and both direct feeds and HTML autodiscovery retain the existing fetch/XML protections.
+- Failed or interrupted refresh jobs for existing subscriptions produce a visible installer error and a nonzero exit code. Successful zero-import refreshes and existing subscription preferences are preserved.
+
+The new regressions failed against the reviewed implementation before these fixes. The final checks were:
+
+| Command or check | Actual result |
+|---|---|
+| `python -m unittest discover -s tests/scripts -v` | **7 passed**. Includes alias preservation in preview/apply modes, malformed metadata, missing-item import, repeated selection, refresh failures and opt-in flags. Added to `scripts/check.ps1`. |
+| `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore -v:minimal --blame-hang-timeout 60s` | **134 passed**, 0 failed/skipped. Four new cases cover entry 101 in direct/autodiscovered RSS and Atom, retaining the normal refresh cap and importing no unrelated records. |
+| `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` | Passed after correcting existing initializer whitespace in `CurationTests.cs`. |
+| `dotnet build RabbitHole.slnx -c Release --no-restore -v:minimal` | Passed with zero warnings/errors. |
+| `npm --prefix apps/web run lint`, `npm --prefix apps/web run typecheck`, `npm --prefix apps/web run build` | All passed; production routes built successfully. |
+| `npm run test:e2e -- --reporter=line` with `CI=1` | **14 passed** in 40.3 seconds, using a fresh isolated fixture API and browser. Covers persisted user state, branches, documents, media, error handling and responsive navigation. |
+| `docker compose up --build -d --wait` | Passed. Rebuilt API/web containers and the existing database/gateway are healthy. Gateway remains the only published host port, `127.0.0.1:3000`. Catalog count was **276 before and after** the rebuild. |
+| Both pack scripts without `--apply`, with reports under `.cache/review-d849ff0/` | Both exited 0: **23/23 existing subscriptions** and **27/27 existing selected items** recognized and preserved. These plans made no import or settings requests. |
+| Configured Quanta source's `/test` endpoint, health and runtime logs | Live feed parsed **5 records** without importing; API health returned `ok`; recent API/web logs had zero error-pattern matches. |
+| `git diff --check` | Passed. |
+
+Local test-host/build-host pipes, Docker access and generated Next.js directories required execution outside the sandbox. Failed sandbox attempts are not counted as successful checks. No provider contract or database schema changed in this fix pass.
+
 ## Personal feed curation — 17 October 2026
 
 The later population pass left the actual local PostgreSQL instance with **261 real records, 23 healthy active sources, 221 Discover-eligible records, and two saved branching trails**. All nine original item objects, the original reading state, eight topics, settings, and three original subscription preferences were preserved. See [feed-curation-report.md](feed-curation-report.md) for the 45-record editorial audit, source endpoints, exact schedules/counts, seven three-level recommendation walks, and provider restrictions. Earlier sections below describe the earlier nine-record acceptance baseline.

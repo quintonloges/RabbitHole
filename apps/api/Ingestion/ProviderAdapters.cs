@@ -65,7 +65,7 @@ public static class ProviderAdapters
         return new($"https://export.arxiv.org/api/query?search_query={Uri.EscapeDataString(expression)}&start=0&max_results={Math.Clamp(limit, 1, 25)}&sortBy=submittedDate&sortOrder=descending");
     }
 
-    public static IReadOnlyList<NormalizedItem> ParseFeed(string xml, string provider = "rss")
+    public static IReadOnlyList<NormalizedItem> ParseFeed(string xml, string provider = "rss", string? selectedItemUrl = null)
     {
         using var reader = XmlReader.Create(new StringReader(xml), new XmlReaderSettings
         {
@@ -73,10 +73,10 @@ public static class ProviderAdapters
             XmlResolver = null,
             MaxCharactersInDocument = 2_000_000
         });
-        return ParseFeedDocument(XDocument.Load(reader), provider);
+        return ParseFeedDocument(XDocument.Load(reader), provider, selectedItemUrl);
     }
 
-    public static IReadOnlyList<NormalizedItem> ParseFeed(byte[] xml, string provider = "rss")
+    public static IReadOnlyList<NormalizedItem> ParseFeed(byte[] xml, string provider = "rss", string? selectedItemUrl = null)
     {
         using var reader = XmlReader.Create(new MemoryStream(xml), new XmlReaderSettings
         {
@@ -84,10 +84,10 @@ public static class ProviderAdapters
             XmlResolver = null,
             MaxCharactersInDocument = 2_000_000
         });
-        return ParseFeedDocument(XDocument.Load(reader), provider);
+        return ParseFeedDocument(XDocument.Load(reader), provider, selectedItemUrl);
     }
 
-    private static IReadOnlyList<NormalizedItem> ParseFeedDocument(XDocument doc, string provider)
+    private static IReadOnlyList<NormalizedItem> ParseFeedDocument(XDocument doc, string provider, string? selectedItemUrl)
     {
         var root = doc.Root ?? throw new FormatException("Empty feed.");
         var atom = root.Name.LocalName == "feed";
@@ -96,7 +96,9 @@ public static class ProviderAdapters
         var entries = atom ? root.Elements().Where(x => x.Name.LocalName == "entry")
             : root.Descendants().Where(x => x.Name.LocalName == "item");
         var items = new List<NormalizedItem>();
-        foreach (var entry in entries.Take(100))
+        // Explicit selection scans the size-bounded document but normalizes only its match.
+        // Scheduled refreshes retain their normal entry cap.
+        foreach (var entry in selectedItemUrl is null ? entries.Take(100) : entries)
         {
             var link = atom
                 ? entry.Elements().Where(x => x.Name.LocalName == "link")
@@ -105,6 +107,7 @@ public static class ProviderAdapters
                 : Value(entry, "link");
             if (string.IsNullOrWhiteSpace(link)) continue;
             if (!TryPublicLink(link, out var canonical)) continue;
+            if (selectedItemUrl is not null && canonical.TrimEnd('/') != selectedItemUrl.TrimEnd('/')) continue;
             var rawTitle = Value(entry, "title") ?? canonical;
             var date = Value(entry, "published") ?? Value(entry, "updated") ??
                 Value(entry, "pubDate") ?? Value(entry, "date");
@@ -159,6 +162,7 @@ public static class ProviderAdapters
                 item.EmbedUrl = "https://www.youtube-nocookie.com/embed/" + id;
             }
             items.Add(item);
+            if (selectedItemUrl is not null) break;
         }
         return items;
     }

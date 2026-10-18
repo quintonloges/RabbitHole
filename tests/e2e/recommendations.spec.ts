@@ -1,0 +1,53 @@
+import { test, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+
+test('concept tags, honest explanations, curated origins and intentional revisits', async ({ page, request }) => {
+  const items: { id: string; title: string }[] = [];
+  for (const title of ['Biquad filters', 'Digital filters and sound design', 'Digital filters and frequency response']) {
+    const imported = await request.post('/api/items/import-url', { data: { url: `https://example.org/recommendation-${randomUUID()}` } });
+    expect(imported.ok()).toBe(true);
+    const body = await imported.json();
+    const id = body.item?.id || body.id;
+    const patched = await request.patch(`/api/items/${id}`, { data: { title: `TEST FIXTURE ${title}` } });
+    expect(patched.ok()).toBe(true);
+    items.push(await patched.json());
+  }
+  const [start, second, third] = items;
+  const created = await request.post('/api/holes', { data: { itemId: start.id, title: 'TEST FIXTURE curated concepts', origin: 'curated' } });
+  const hole = await created.json();
+  const root = hole.nodes[0].id;
+  const branch = await (await request.post(`/api/holes/${hole.id}/nodes`, { data: { parentId: root, itemId: second.id, origin: 'curated' } })).json();
+  await request.post(`/api/holes/${hole.id}/navigate`, { data: { nodeId: root } });
+  await page.goto(`/holes/${hole.id}`);
+  await expect(page.getByText(/A curated starting trail/)).toBeVisible();
+  await expect(page.locator('.recommendation-reason').first()).toBeVisible();
+  await expect(page.locator('.recommendation-reason')).not.toContainText(['Connected to something you explored']);
+  await page.getByLabel('Include sources already in this trail').check();
+  await expect(page.getByRole('button', { name: 'Branch again', exact: true })).toBeVisible();
+  await page.getByText('Why this?', { exact: true }).first().click();
+  await expect(page.locator('.recommendation-reason details[open]')).toContainText(/concept|connection|subject/);
+  await page.getByLabel('Include sources already in this trail').uncheck();
+  await expect(page.getByRole('button', { name: 'Branch again', exact: true })).toHaveCount(0);
+  const row = page.locator('.row-item').filter({ has: page.getByRole('link', { name: third.title, exact: true }) });
+  await row.getByRole('button', { name: 'Branch here', exact: true }).click();
+  await page.reload();
+  const saved = await (await request.get(`/api/holes/${hole.id}`)).json();
+  expect(saved.origin).toBe('curated');
+  expect(saved.nodes.find((n: { id: string }) => n.id === branch.id).origin).toBe('curated');
+  expect(saved.nodes.find((n: { itemId: string }) => n.itemId === third.id).origin).toBe('user');
+  await page.goto(`/items/${start.id}`);
+  await page.getByText('Concepts & tags', { exact: true }).click();
+  await page.getByRole('button', { name: 'Edit concepts', exact: true }).click();
+  await page.getByLabel('Your concept tags').fill('acoustic history');
+  await page.getByRole('button', { name: 'Save concepts', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Edit concepts', exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByText('Concepts & tags', { exact: true }).click();
+  await expect(page.getByText('acoustic history · your tag', { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/holes/${hole.id}`);
+  await expect(page.getByRole('heading', { name: 'TEST FIXTURE curated concepts', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const ai = await (await request.get('/api/ai/status')).json();
+  expect(ai.configured).toBe(false);
+});

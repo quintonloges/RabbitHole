@@ -138,6 +138,8 @@ public static class ItemCatalog
             winner.Excerpt ??= loser.Excerpt;
             if (winner.Body is null && loser.Body is not null) { winner.Body = loser.Body; winner.TextProvenance = loser.TextProvenance; }
             winner.Doi ??= loser.Doi; winner.ArxivId ??= loser.ArxivId;
+            winner.ConceptTags = winner.ConceptTags.Union(loser.ConceptTags).ToList();
+            winner.ExcludedConcepts = winner.ExcludedConcepts.Union(loser.ExcludedConcepts).Except(winner.ConceptTags).ToList();
             winner.PublishedAt ??= loser.PublishedAt; winner.ImageUrl ??= loser.ImageUrl; winner.EmbedUrl ??= loser.EmbedUrl;
             winner.MetadataJson = MergeMetadata(winner.MetadataJson, loser.MetadataJson, winner.Provider, winner.ProviderId, loser.Provider, loser.ProviderId);
             loser.MergedIntoId = winner.Id;

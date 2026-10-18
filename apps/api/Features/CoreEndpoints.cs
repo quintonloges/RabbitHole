@@ -12,6 +12,7 @@ public static class CoreEndpoints
     {
         var api = app.MapGroup("/api");
         api.MapGet("/topics", async (AppDbContext db, CancellationToken ct) => await db.Topics.AsNoTracking().OrderByDescending(t => t.Pinned).ThenBy(t => t.Name).ToListAsync(ct));
+        api.MapGet("/concepts", () => Concepts.Catalog.Select(c => new { c.Id, c.Label }));
         api.MapPost("/topics", CreateTopic);
         api.MapPatch("/topics/{id:guid}", UpdateTopic);
         api.MapDelete("/topics/{id:guid}", DeleteTopic);
@@ -141,7 +142,7 @@ public static class CoreEndpoints
         var dto = (await ItemDto.BuildAsync(db, [item], ct, includeBody: true))[0];
         dto.Notes = (await db.Notes.AsNoTracking().Where(n => n.ItemId == id).ToListAsync(ct)).OrderBy(n => n.CreatedAt).ToList();
         var related = await ranking.RelatedAsync(item, 8, ct);
-        dto.Related = await ItemDto.BuildAsync(db, related.Select(r => r.Item), ct, related.ToDictionary(r => r.Item.Id, r => (r.Reason, r.Evidence)));
+        dto.Related = await ItemDto.RecommendationsAsync(db, related, ct);
         return Results.Ok(dto);
     }
     private static async Task<IResult> UpdateItem(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
@@ -149,6 +150,16 @@ public static class CoreEndpoints
         var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Bad("Item does not exist.", 404);
         if (!TextOrNull(body, "author")) return Bad("author must be text or null.");
+        foreach (var key in new[] { "conceptTags", "excludedConcepts" })
+        {
+            if (!Has(body, key)) continue;
+            var value = body.GetProperty(key);
+            if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > 32 || value.EnumerateArray().Any(v => v.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(v.GetString()) || v.GetString()!.Length > 80))
+                return Bad($"{key} must contain at most 32 nonempty tags of at most 80 characters.");
+            var tags = value.EnumerateArray().Select(v => Concepts.TagId(v.GetString()!)).Where(t => t.Length > 0).Distinct().ToList();
+            if (key == "conceptTags") item.ConceptTags = tags; else item.ExcludedConcepts = tags;
+        }
+        if (item.ConceptTags.Intersect(item.ExcludedConcepts).Any()) return Bad("A concept cannot be both included and excluded.");
         if (Has(body, "title")) { var title = String(body, "title")?.Trim(); if (string.IsNullOrWhiteSpace(title)) return Bad("Title is required."); item.Title = title; }
         if (Has(body, "author")) item.Author = String(body, "author");
         if (Has(body, "topicIds"))
@@ -237,12 +248,28 @@ public static class CoreEndpoints
         static string Normalize(string text) => string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         return Normalize(item.Body).Contains(Normalize(quote), StringComparison.OrdinalIgnoreCase);
     }
-    private static async Task<IResult> Related(Guid id, AppDbContext db, Ranking ranking, CancellationToken ct)
+    private static async Task<IResult> Related(Guid id, HttpRequest request, AppDbContext db, Ranking ranking, CancellationToken ct)
     {
         var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Bad("Item does not exist.", 404);
-        var related = await ranking.RelatedAsync(item, 20, ct);
-        return Results.Ok(await ItemDto.BuildAsync(db, related.Select(r => r.Item), ct, related.ToDictionary(r => r.Item.Id, r => (r.Reason, r.Evidence))));
+        var visited = new HashSet<Guid>();
+        if (request.Query.TryGetValue("holeId", out var holeText))
+        {
+            if (!Guid.TryParse(holeText, out var holeId)) return Bad("holeId must be a valid ID.");
+            if (!await db.Holes.AnyAsync(h => h.Id == holeId, ct)) return Bad("Rabbit hole does not exist.", 404);
+            visited.UnionWith(await db.Nodes.Where(n => n.HoleId == holeId && n.ItemId != null).Select(n => n.ItemId!.Value).ToListAsync(ct));
+        }
+        if (request.Query.TryGetValue("visitedIds", out var visitText))
+        {
+            var values = visitText.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (values.Length > 200 || values.Any(v => !Guid.TryParse(v, out _))) return Bad("visitedIds must contain at most 200 item IDs.");
+            visited.UnionWith(values.Select(Guid.Parse));
+        }
+        visited = (await ItemCatalog.ResolveIdsAsync(db, visited, ct)).Values.ToHashSet();
+        var includeVisited = false;
+        if (request.Query.TryGetValue("includeVisited", out var includeText) && !bool.TryParse(includeText, out includeVisited)) return Bad("includeVisited must be true or false.");
+        var related = await ranking.RelatedAsync(item, 20, ct, visited, includeVisited);
+        return Results.Ok(await ItemDto.RecommendationsAsync(db, related, ct));
     }
 
     private static async Task<IResult> Search(HttpRequest request, AppDbContext db, CancellationToken ct)
@@ -331,7 +358,7 @@ public static class CoreEndpoints
                 var selected = await ranking.SelectAsync(Math.Clamp(settings.EditionSize, 5, 100), day + (more ? $":{entries.Count}" : ""), excluded.Values.ToHashSet(), ct);
                 foreach (var choice in selected)
                 {
-                    var entry = new FeedEntry { EditionId = edition.Id, ItemId = choice.Item.Id, Position = entries.Count, Reason = choice.Reason, EvidenceItemIds = choice.Evidence };
+                    var entry = new FeedEntry { EditionId = edition.Id, ItemId = choice.Item.Id, Position = entries.Count, Reason = choice.Reason, EvidenceItemIds = choice.Evidence, RationaleJson = choice.Rationale.ToJson() };
                     db.Entries.Add(entry); entries.Add(entry);
                 }
                 await db.SaveChangesAsync(ct);
@@ -343,8 +370,10 @@ public static class CoreEndpoints
             var visible = entries.Where(e => resolved.ContainsKey(e.ItemId) && byId.ContainsKey(resolved[e.ItemId]))
                 .DistinctBy(e => resolved[e.ItemId]).ToList();
             var ordered = visible.Select(e => byId[resolved[e.ItemId]]).ToList();
-            var reasons = visible.ToDictionary(e => resolved[e.ItemId], e => (e.Reason, e.EvidenceItemIds));
-            return Results.Ok(new { edition.Id, edition.Day, items = await ItemDto.BuildAsync(db, ordered, ct, reasons), total = ordered.Count });
+            var topics = await db.Topics.AsNoTracking().ToListAsync(ct);
+            var recommendations = visible.Select(e => new Recommendation(byId[resolved[e.ItemId]],
+                RecommendationRationale.FromJson(e.RationaleJson) ?? RecommendationRationale.LegacyEdition(byId[resolved[e.ItemId]], topics)));
+            return Results.Ok(new { edition.Id, edition.Day, items = await ItemDto.RecommendationsAsync(db, recommendations, ct), total = ordered.Count });
         }
         finally { EditionLock.Release(); }
     }
@@ -354,7 +383,7 @@ public static class CoreEndpoints
         if (selected.Count == 0) return Bad("No imported items are available yet.", 404);
         var index = Random.Shared.Next(selected.Count);
         var choice = selected[index];
-        return Results.Ok((await ItemDto.BuildAsync(db, [choice.Item], ct, new Dictionary<Guid, (string, List<Guid>)> { [choice.Item.Id] = (choice.Reason, choice.Evidence) }))[0]);
+        return Results.Ok((await ItemDto.RecommendationsAsync(db, [choice], ct))[0]);
     }
 
     private static async Task<IResult> ListHoles(AppDbContext db, CancellationToken ct)
@@ -363,7 +392,7 @@ public static class CoreEndpoints
         var nodes = await db.Nodes.AsNoTracking().ToListAsync(ct);
         var itemIds = nodes.Where(n => n.ItemId.HasValue).Select(n => n.ItemId!.Value).ToList();
         var titles = await db.Items.AsNoTracking().Where(i => itemIds.Contains(i.Id)).ToDictionaryAsync(i => i.Id, i => i.Title, ct);
-        return Results.Ok(holes.Select(h => new { h.Id, h.Title, h.LastNodeId, h.CreatedAt, h.UpdatedAt, nodeCount = nodes.Count(n => n.HoleId == h.Id), rootTitle = nodes.Where(n => n.HoleId == h.Id && n.ParentId == null).OrderBy(n => n.CreatedAt).Select(n => n.ItemId.HasValue ? titles.GetValueOrDefault(n.ItemId.Value) : n.Question).FirstOrDefault() }));
+        return Results.Ok(holes.Select(h => new { h.Id, h.Title, h.Origin, h.OriginNote, h.LastNodeId, h.CreatedAt, h.UpdatedAt, nodeCount = nodes.Count(n => n.HoleId == h.Id), rootTitle = nodes.Where(n => n.HoleId == h.Id && n.ParentId == null).OrderBy(n => n.CreatedAt).Select(n => n.ItemId.HasValue ? titles.GetValueOrDefault(n.ItemId.Value) : n.Question).FirstOrDefault() }));
     }
     private static async Task<IResult> CreateHole(JsonElement body, AppDbContext db, CancellationToken ct)
     {
@@ -376,12 +405,15 @@ public static class CoreEndpoints
         var title = String(body, "title")?.Trim();
         if (string.IsNullOrWhiteSpace(title)) title = item?.Title ?? question!;
         if (title.Length > 200 || question?.Length > 2000) return Bad("Title or question is too long.");
-        var hole = new RabbitHole.Domain.RabbitHole { Title = title };
-        var node = new RabbitNode { HoleId = hole.Id, ItemId = itemId, Question = itemId == null ? question : null };
+        var origin = String(body, "origin") ?? "user";
+        if (Has(body, "origin") && String(body, "origin") == null) return Bad("origin must be text.");
+        if (origin is not ("user" or "curated" or "example")) return Bad("origin must be user, curated, or example.");
+        var hole = new RabbitHole.Domain.RabbitHole { Title = title, Origin = origin };
+        var node = new RabbitNode { HoleId = hole.Id, ItemId = itemId, Question = itemId == null ? question : null, Origin = origin, Rationale = origin == "user" ? "Chosen by you" : "Curated starting point" };
         hole.LastNodeId = node.Id;
         db.Holes.Add(hole); db.Nodes.Add(node);
         await db.SaveChangesAsync(ct);
-        return Results.Created($"/api/holes/{hole.Id}", new { hole.Id, hole.Title, hole.LastNodeId, hole.CreatedAt, hole.UpdatedAt, nodes = new[] { node } });
+        return Results.Created($"/api/holes/{hole.Id}", new { hole.Id, hole.Title, hole.Origin, hole.OriginNote, hole.LastNodeId, hole.CreatedAt, hole.UpdatedAt, nodes = new[] { node } });
     }
     private static async Task<IResult> GetHole(Guid id, AppDbContext db, CancellationToken ct)
     {
@@ -391,7 +423,7 @@ public static class CoreEndpoints
         var ids = nodes.Where(n => n.ItemId.HasValue).Select(n => n.ItemId!.Value).ToList();
         var items = await db.Items.AsNoTracking().Where(i => ids.Contains(i.Id)).ToListAsync(ct);
         var dtos = (await ItemDto.BuildAsync(db, items, ct)).ToDictionary(i => i.Id);
-        return Results.Ok(new { hole.Id, hole.Title, hole.LastNodeId, hole.CreatedAt, hole.UpdatedAt, nodes = nodes.Select(n => new { n.Id, n.HoleId, n.ParentId, n.ItemId, n.Question, n.Rationale, n.EvidenceItemIds, n.CreatedAt, item = n.ItemId.HasValue ? dtos.GetValueOrDefault(n.ItemId.Value) : null }) });
+        return Results.Ok(new { hole.Id, hole.Title, hole.Origin, hole.OriginNote, hole.LastNodeId, hole.CreatedAt, hole.UpdatedAt, nodes = nodes.Select(n => new { n.Id, n.HoleId, n.ParentId, n.ItemId, n.Question, n.Origin, n.Rationale, n.EvidenceItemIds, n.CreatedAt, item = n.ItemId.HasValue ? dtos.GetValueOrDefault(n.ItemId.Value) : null }) });
     }
     private static async Task<IResult> AddNode(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
     {
@@ -411,7 +443,12 @@ public static class CoreEndpoints
         if (question?.Length > 2000) return Bad("Question is too long.");
         var rationale = String(body, "rationale")?.Trim() ?? "Chosen by you";
         if (rationale.Length > 500) return Bad("Rationale is too long.");
-        var node = new RabbitNode { HoleId = id, ParentId = parentId, ItemId = itemId, Question = itemId == null ? question : null, Rationale = rationale };
+        // Curators can build a whole example without accidentally creating user
+        // evidence. Interactive clients explicitly send origin=user for new turns.
+        var origin = String(body, "origin") ?? (hole.Origin is "curated" or "example" ? hole.Origin : "user");
+        if (Has(body, "origin") && String(body, "origin") == null) return Bad("origin must be text.");
+        if (origin is not ("user" or "curated" or "example")) return Bad("origin must be user, curated, or example.");
+        var node = new RabbitNode { HoleId = id, ParentId = parentId, ItemId = itemId, Question = itemId == null ? question : null, Rationale = origin != "user" && !Has(body, "rationale") ? "Curated branch" : rationale, Origin = origin };
         if (itemId.HasValue)
         {
             var parent = await db.Nodes.FindAsync([parentId], ct);
@@ -556,6 +593,8 @@ public static class CoreEndpoints
             i.UpdatedAt,
             i.TopicIds,
             i.ClassificationOrigin,
+            i.ConceptTags,
+            i.ExcludedConcepts,
             i.DocumentId,
             i.SectionId
         }).ToList();
@@ -563,7 +602,7 @@ public static class CoreEndpoints
         { x.Key, x.ItemId, x.Kind, scope = ExportSanitizer.RedactIdentifier(x.Scope), value = ExportSanitizer.RedactIdentifier(x.Value) }).ToList();
         var itemSources = (await db.ItemSources.AsNoTracking().ToListAsync(ct)).Select(x => new
         { x.Id, x.ItemId, x.SourceId, x.SourceKey, x.SourceVersion, x.Name, x.Kind, url = ExportSanitizer.RedactUrl(x.Url), x.TopicIds, x.LastSeenAt }).ToList();
-        var export = new { version = 2, exportedAt = DateTimeOffset.UtcNow, topics = await db.Topics.AsNoTracking().ToListAsync(ct), sources, items, identities, itemSources, itemTopics = await db.ItemTopics.AsNoTracking().ToListAsync(ct), states = await db.States.AsNoTracking().ToListAsync(ct), notes = await db.Notes.AsNoTracking().ToListAsync(ct), documents, sections = await db.Sections.AsNoTracking().ToListAsync(ct), holes = await db.Holes.AsNoTracking().ToListAsync(ct), nodes = await db.Nodes.AsNoTracking().ToListAsync(ct), prompts = await db.Prompts.AsNoTracking().ToListAsync(ct), attempts = await db.Attempts.AsNoTracking().ToListAsync(ct), editions = await db.Editions.AsNoTracking().ToListAsync(ct), entries = await db.Entries.AsNoTracking().ToListAsync(ct), settings = await SettingsService.ReadAsync(db, ct) };
+        var export = new { version = 3, exportedAt = DateTimeOffset.UtcNow, topics = await db.Topics.AsNoTracking().ToListAsync(ct), sources, items, identities, itemSources, itemTopics = await db.ItemTopics.AsNoTracking().ToListAsync(ct), states = await db.States.AsNoTracking().ToListAsync(ct), notes = await db.Notes.AsNoTracking().ToListAsync(ct), documents, sections = await db.Sections.AsNoTracking().ToListAsync(ct), holes = await db.Holes.AsNoTracking().ToListAsync(ct), nodes = await db.Nodes.AsNoTracking().ToListAsync(ct), prompts = await db.Prompts.AsNoTracking().ToListAsync(ct), attempts = await db.Attempts.AsNoTracking().ToListAsync(ct), editions = await db.Editions.AsNoTracking().ToListAsync(ct), entries = await db.Entries.AsNoTracking().ToListAsync(ct), settings = await SettingsService.ReadAsync(db, ct) };
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         options.Converters.Add(new UtcDateTimeOffsetConverter());
         var bytes = JsonSerializer.SerializeToUtf8Bytes(export, options);

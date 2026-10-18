@@ -26,6 +26,14 @@ On macOS/Linux, use `cp .env.example .env` before the same Compose command. No h
 
 Fresh installations start empty. Deterministic fixtures live only under `tests/`; they are never inserted into the real database. The existing local instance was explicitly populated in October 2026; see the [feed curation report](docs/feed-curation-report.md) for actual counts, verified sources, editorial findings, and limitations.
 
+## Recommendations and exploration
+
+Discover explains its choices with your actual topic settings and recorded interactions. Curated starting trails stay labeled as curated; opening a card is not reading or understanding. Specific concept matches connect the existing catalog without AI. Use **Concepts & tags** in an item's reader to add your tags or exclude a mistaken match. These tags describe an item without changing your lasting interests.
+
+Rabbit-hole suggestions exclude sources already on that trail. **Include sources already in this trail** allows an intentional revisit; existing branches and navigation remain available. **Why this?** links to the records behind a connection. Broad suggestions are labeled, and a sparse collection can return fewer suggestions. Routine release/announcement patterns receive a small daily ranking reduction; they remain searchable and can surface through your preferences.
+
+See [the recommendation quality report](docs/recommendation-quality-report.md) for the actual seven-path before/after evaluation, known weaknesses, and preservation checks. The upgrade retains the earlier daily edition as history and creates a fresh selection with recorded reasons; subsequent reloads keep that selection stable.
+
 ## Optional curated sources and reading pack
 
 With the app running and Python 3 installed, preview or explicitly apply the editable packs:
@@ -37,7 +45,7 @@ python scripts/import-reading-pack.py
 python scripts/import-reading-pack.py --apply
 ```
 
-The default is a read-only plan. Applying [curated-source-pack.json](config/curated-source-pack.json) verifies and refreshes new sources before enabling them. It preserves matching existing subscriptions, topic preferences, and personal state. Applying [curated-reading-pack.json](config/curated-reading-pack.json) imports only missing selected real links/papers through the normal API. Neither pack runs automatically at startup. Failed sources stay disabled and errors appear in the run report and source health.
+The default is a read-only plan. Applying [curated-source-pack.json](config/curated-source-pack.json) verifies and refreshes new sources before enabling them. It preserves matching existing subscriptions, topic preferences, and personal state. Applying [curated-reading-pack.json](config/curated-reading-pack.json) imports only missing selected real links/papers through the normal API, recognizing stored provider aliases before requesting an import. Neither pack runs automatically at startup. Failed new sources stay disabled; failed refreshes of existing sources also print the error and return a nonzero exit code without changing their settings.
 
 Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts accept `--base http://127.0.0.1:3000/api` and `--report PATH`. They use only Python's standard library. Pack edits do not overwrite existing user configuration; use **Settings** for that. After imports, choose **New selection** on Discover.
 
@@ -62,9 +70,10 @@ AI summaries, comparisons, reading aids and critique are labeled synthesis and c
 
 ## Development and checks
 
-Requirements: .NET 10 SDK, Node.js 24, Docker for the production stack. Package versions and the frontend lockfile are checked in.
+Requirements: .NET 10 SDK, Node.js 24, Python 3 for the source-pack checks, Docker for the production stack. Package versions and the frontend lockfile are checked in.
 
 ```powershell
+python -m unittest discover -s tests/scripts -v
 dotnet restore RabbitHole.slnx
 dotnet build RabbitHole.slnx -c Release
 dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release
@@ -76,9 +85,12 @@ npm --prefix apps/web run build
 npm ci
 npx playwright install chromium
 npm run test:e2e
+./scripts/check-recommendations-postgres.ps1
 ```
 
 Playwright starts the real Next frontend on `127.0.0.1:3001` and an isolated API on `127.0.0.1:5081`. Its separate test host substitutes only external HTTP responses and uses a new temporary SQLite database/uploads folder. The production project does not reference that host. Provider tests never require third-party availability. Fixture files can be regenerated with `python scripts/make-test-fixtures.py`.
+
+The PostgreSQL recommendation check restores a disposable copy of the running database, applies migrations, runs the same recommendation HTTP tests on PostgreSQL, and removes only that test database on success. Ingestion and AI are disabled in its test host. It does not insert test fixtures into your personal catalog.
 
 For development without PostgreSQL, an explicit **development-only** SQLite database can be used:
 

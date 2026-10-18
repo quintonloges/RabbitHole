@@ -81,6 +81,7 @@ using (var scope = app.Services.CreateScope())
         await db.SaveChangesAsync();
     }
     await CatalogUpgrade.ApplyAsync(db);
+    await RecommendationUpgrade.ApplyAsync(db);
 }
 
 app.Run();

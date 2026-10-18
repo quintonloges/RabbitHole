@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, Bookmark, BookOpen, Check, CircleHelp, RotateCcw, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { ArrowRight, Bookmark, BookOpen, Check, RotateCcw, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { RecommendationExplanation } from "@/components/recommendation-explanation";
 import { api, json, publicationDate, safeExternal } from "@/lib/api";
 import type { Item, ItemState } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
@@ -39,6 +40,6 @@ export function StateActions({ item, onChange, compact = false }: { item: Item; 
     {error && <span className="subtle" role="alert">{error}</span>}
   </span>;
 }
-export function ArticleCard({ item, onChange }: { item: Item; onChange?: (item: Item) => void }) { return <article className="panel article-card"><div className="card-top"><Kind kind={item.kind}/><span>{item.state.read ? "READ" : ""}</span></div><h3><Link href={`/items/${item.id}`}>{item.title}</Link></h3><p>{item.excerpt ? item.excerpt.slice(0, 240) + (item.excerpt.length > 240 ? "…" : "") : "Open to explore this source and its connections."}</p><div className="card-bottom"><SourceLine item={item}/><StateActions key={item.id} item={item} onChange={onChange} compact/></div>{item.reason && <details className="details"><summary><CircleHelp size={12} style={{ display: "inline", marginRight: 4 }}/>Why this?</summary><p>{item.reason}</p>{item.evidenceItemIds?.map((id, index) => <Link key={id} className="pill" style={{ marginRight: 6 }} href={`/items/${id}`}>Supporting item {index + 1} →</Link>)}</details>}</article>; }
+export function ArticleCard({ item, onChange }: { item: Item; onChange?: (item: Item) => void }) { return <article className="panel article-card"><div className="card-top"><Kind kind={item.kind}/><span>{item.state.read ? "READ" : ""}</span></div><h3><Link href={`/items/${item.id}`}>{item.title}</Link></h3><p>{item.excerpt ? item.excerpt.slice(0, 240) + (item.excerpt.length > 240 ? "…" : "") : "Open to explore this source and its connections."}</p><div className="card-bottom"><SourceLine item={item}/><StateActions key={item.id} item={item} onChange={onChange} compact/></div><RecommendationExplanation item={item}/></article>; }
 export function ItemRow({ item, action }: { item: Item; action?: React.ReactNode }) { return <div className="row-item"><div><Kind kind={item.kind}/><h3><Link className="text-link" href={`/items/${item.id}`}>{item.title}</Link></h3><SourceLine item={item}/></div><div className="action-row">{action}<Link href={`/items/${item.id}`} className="btn small" aria-label={`Open ${item.title}`}><ArrowRight size={15}/></Link></div></div>; }
 export function ExternalLink({ url, children, className = "btn" }: { url?: string | null; children: React.ReactNode; className?: string }) { const safe = safeExternal(url); return safe ? <a href={safe} target="_blank" rel="noopener noreferrer" className={className}>{children}</a> : null; }

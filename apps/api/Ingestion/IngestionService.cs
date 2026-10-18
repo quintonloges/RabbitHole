@@ -62,21 +62,7 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         switch (source.Kind.ToLowerInvariant())
         {
             case "rss":
-                {
-                    var response = await fetcher.FetchAsync(new RemoteRequest(SafeRemoteFetcher.ValidateUrl(source.Url),
-                        [.. ProviderAdapters.FeedTypes, .. ProviderAdapters.HtmlTypes], 1_500_000,
-                        conditional ? source.ETag : null, conditional ? source.LastModified : null), ct);
-                    if (response.StatusCode == 304) return new FetchBatch([], response.ETag, response.LastModified, true);
-                    if (ProviderAdapters.HtmlTypes.Contains(response.ContentType))
-                    {
-                        var feeds = ProviderAdapters.DiscoverFeeds(response.Text, response.FinalUrl);
-                        if (feeds.Count == 0) throw new FormatException("No RSS or Atom feed was discovered at this URL.");
-                        var feed = await fetcher.FetchAsync(new RemoteRequest(feeds[0], ProviderAdapters.FeedTypes, 1_500_000), ct);
-                        return new FetchBatch(ProviderAdapters.ParseFeed(feed.Body), feed.ETag, feed.LastModified,
-                            DiscoveredFeedUrl: feed.FinalUrl.ToString());
-                    }
-                    return new FetchBatch(ProviderAdapters.ParseFeed(response.Body), response.ETag, response.LastModified);
-                }
+                return await FetchFeedAsync(source, ct, conditional);
             case "openalex":
                 {
                     var query = source.Query.Trim();
@@ -119,6 +105,23 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                 }
             default: throw new ArgumentException("Supported source kinds are rss, openalex, arxiv, and youtube.");
         }
+    }
+
+    private async Task<FetchBatch> FetchFeedAsync(Source source, CancellationToken ct, bool conditional, string? selectedItemUrl = null)
+    {
+        var response = await fetcher.FetchAsync(new RemoteRequest(SafeRemoteFetcher.ValidateUrl(source.Url),
+            [.. ProviderAdapters.FeedTypes, .. ProviderAdapters.HtmlTypes], 1_500_000,
+            conditional ? source.ETag : null, conditional ? source.LastModified : null), ct);
+        if (response.StatusCode == 304) return new FetchBatch([], response.ETag, response.LastModified, true);
+        if (ProviderAdapters.HtmlTypes.Contains(response.ContentType))
+        {
+            var feeds = ProviderAdapters.DiscoverFeeds(response.Text, response.FinalUrl);
+            if (feeds.Count == 0) throw new FormatException("No RSS or Atom feed was discovered at this URL.");
+            var feed = await fetcher.FetchAsync(new RemoteRequest(feeds[0], ProviderAdapters.FeedTypes, 1_500_000), ct);
+            return new FetchBatch(ProviderAdapters.ParseFeed(feed.Body, selectedItemUrl: selectedItemUrl), feed.ETag, feed.LastModified,
+                DiscoveredFeedUrl: feed.FinalUrl.ToString());
+        }
+        return new FetchBatch(ProviderAdapters.ParseFeed(response.Body, selectedItemUrl: selectedItemUrl), response.ETag, response.LastModified);
     }
 
     public async Task<IngestionJob> RefreshAsync(Source source, CancellationToken ct)
@@ -295,8 +298,8 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         {
             // Explicitly selected entries from a real public feed can be imported without
             // subscribing to its entire publication. Never accept caller-supplied source text.
-            var feed = await FetchSourceAsync(new Source { Kind = "rss", Url = feedUrl }, ct, conditional: false);
-            var selected = feed.Items.FirstOrDefault(x => x.CanonicalUrl.TrimEnd('/') == canonical.TrimEnd('/'))
+            var feed = await FetchFeedAsync(new Source { Url = feedUrl }, ct, conditional: false, selectedItemUrl: canonical);
+            var selected = feed.Items.SingleOrDefault()
                 ?? throw new RemoteFetchException("That URL was not present in the supplied feed.");
             selected.MetadataJson = ItemCatalog.MergeMetadata(selected.MetadataJson,
                 JsonSerializer.Serialize(new { importedFromFeed = SafeRemoteFetcher.ValidateUrl(feedUrl).AbsoluteUri }),

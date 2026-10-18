@@ -64,7 +64,7 @@ public class CurationTests
         db.AddRange(topic, start, subject, incidental); await db.SaveChangesAsync();
         var related = await new Ranking(db).RelatedAsync(start, 8, default);
         Assert.Equal(subject.Id, related[0].Item.Id);
-        Assert.Contains("global workspace", related[0].Reason);
+        Assert.Contains("global workspace", related[0].Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class CurationTests
         db.AddRange(topic, start, specific, broad, noise, disabled, suppressed); await db.SaveChangesAsync();
         var related = await new Ranking(db).RelatedAsync(start, 8, default);
         Assert.Equal(specific.Id, related[0].Item.Id);
-        Assert.Contains("global", related[0].Reason);
+        Assert.Contains("global", related[0].Reason, StringComparison.OrdinalIgnoreCase);
         Assert.All(related, result => Assert.Equal(new[] { start.Id }, result.Evidence));
         Assert.DoesNotContain(related, result => result.Item.Id == noise.Id || result.Item.Id == suppressed.Id);
         Assert.Contains(related, result => result.Item.Id == broad.Id && result.Reason.Contains("broad topic"));
@@ -123,8 +123,11 @@ public class CurationTests
             db.Add(subscription);
             for (var i = 0; i < (source == 0 ? 40 : 3); i++) db.Add(new ContentItem
             {
-                Title = $"TEST {source} {i}", SourceId = subscription.Id, TopicIds = [topic.Id],
-                CanonicalUrl = $"https://example.org/{source}/{i}", PublishedAt = DateTimeOffset.UtcNow
+                Title = $"TEST {source} {i}",
+                SourceId = subscription.Id,
+                TopicIds = [topic.Id],
+                CanonicalUrl = $"https://example.org/{source}/{i}",
+                PublishedAt = DateTimeOffset.UtcNow
             });
         }
         await db.SaveChangesAsync();

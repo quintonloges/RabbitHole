@@ -14,6 +14,25 @@ public sealed class ItemDto : ContentItem
     public List<Guid> EvidenceItemIds { get; set; } = [];
     public List<Note>? Notes { get; set; }
     public List<ItemDto>? Related { get; set; }
+    public RecommendationRationale? Rationale { get; set; }
+    public List<ConceptMatch> Concepts { get; set; } = [];
+    public bool Revisit { get; set; }
+
+    public static async Task<List<ItemDto>> RecommendationsAsync(AppDbContext db, IEnumerable<Recommendation> recommendations, CancellationToken ct)
+    {
+        var list = recommendations.ToList();
+        var dtos = await BuildAsync(db, list.Select(r => r.Item), ct);
+        var byId = list.ToDictionary(r => r.Item.Id);
+        foreach (var dto in dtos)
+        {
+            var recommendation = byId[dto.Id];
+            dto.Reason = recommendation.Reason;
+            dto.EvidenceItemIds = recommendation.Evidence;
+            dto.Rationale = recommendation.Rationale;
+            dto.Revisit = recommendation.Revisit;
+        }
+        return dtos;
+    }
 
     public static async Task<List<ItemDto>> BuildAsync(AppDbContext db, IEnumerable<ContentItem> items, CancellationToken ct, IReadOnlyDictionary<Guid, (string Reason, List<Guid> Evidence)>? reasons = null, bool includeBody = false)
     {
@@ -49,6 +68,9 @@ public sealed class ItemDto : ContentItem
                 IngestedAt = i.IngestedAt,
                 UpdatedAt = i.UpdatedAt,
                 TopicIds = i.TopicIds,
+                ConceptTags = i.ConceptTags,
+                ExcludedConcepts = i.ExcludedConcepts,
+                Concepts = Features.Concepts.Match(i),
                 ClassificationOrigin = i.ClassificationOrigin,
                 DocumentId = i.DocumentId,
                 SectionId = i.SectionId,

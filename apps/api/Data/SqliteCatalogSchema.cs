@@ -30,6 +30,16 @@ public static class SqliteCatalogSchema
         }
 
         var itemColumns = await ColumnsAsync("Items");
+        foreach (var column in new[] { "ConceptTags", "ExcludedConcepts" })
+            if (!itemColumns.Contains(column)) await ExecuteAsync($"ALTER TABLE \"Items\" ADD COLUMN \"{column}\" TEXT NOT NULL DEFAULT '[]';");
+        if (!(await ColumnsAsync("Holes")).Contains("Origin"))
+            await ExecuteAsync("ALTER TABLE \"Holes\" ADD COLUMN \"Origin\" TEXT NOT NULL DEFAULT 'legacy-unknown';");
+        if (!(await ColumnsAsync("Holes")).Contains("OriginNote"))
+            await ExecuteAsync("ALTER TABLE \"Holes\" ADD COLUMN \"OriginNote\" TEXT NULL;");
+        if (!(await ColumnsAsync("Nodes")).Contains("Origin"))
+            await ExecuteAsync("ALTER TABLE \"Nodes\" ADD COLUMN \"Origin\" TEXT NOT NULL DEFAULT 'legacy-unknown';");
+        if (!(await ColumnsAsync("Entries")).Contains("RationaleJson"))
+            await ExecuteAsync("ALTER TABLE \"Entries\" ADD COLUMN \"RationaleJson\" TEXT NULL;");
         if (!itemColumns.Contains("MergedIntoId"))
             await ExecuteAsync("ALTER TABLE \"Items\" ADD COLUMN \"MergedIntoId\" TEXT NULL REFERENCES \"Items\" (\"Id\") ON DELETE RESTRICT;");
         var sourceColumns = await ColumnsAsync("Sources");

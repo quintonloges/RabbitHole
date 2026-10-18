@@ -4,6 +4,8 @@ Push-Location $root
 try {
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
     $env:NEXT_TELEMETRY_DISABLED = '1'
+    python -m unittest discover -s tests/scripts -v
+    if ($LASTEXITCODE -ne 0) { throw 'Source pack tests failed.' }
     dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release
     if ($LASTEXITCODE -ne 0) { throw 'Backend tests failed.' }
     Push-Location apps/web

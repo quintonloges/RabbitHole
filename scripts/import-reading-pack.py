@@ -10,6 +10,34 @@ api = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(api)
 
 
+def matches_reading(item, reading):
+    url = reading.get('url')
+    if url and item['canonicalUrl'].rstrip('/') == url.rstrip('/'):
+        return True
+    provider, provider_id = reading.get('provider'), reading.get('providerId')
+    if not provider or not provider_id:
+        return False
+    if item.get('provider') == provider and item.get('providerId') == provider_id:
+        return True
+    if provider == 'arxiv' and item.get('arxivId') == provider_id:
+        return True
+    # Merges retain the original provider fields, so later imports may be aliases.
+    # Resolve these before POST: ingestion can otherwise overwrite edited metadata.
+    try:
+        metadata = json.loads(item.get('metadataJson') or '{}')
+    except (ValueError, TypeError):
+        return False
+    if not isinstance(metadata, dict):
+        return False
+    field = {'openalex': 'openAlexId', 'arxiv': 'arxivId'}.get(provider)
+    if field and metadata.get(field) == provider_id:
+        return True
+    references = metadata.get('providerReferences')
+    return isinstance(references, list) and any(
+        isinstance(reference, dict) and reference.get('provider') == provider
+        and reference.get('id') == provider_id for reference in references)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pack', default='config/curated-reading-pack.json')
@@ -33,8 +61,7 @@ def main():
         offset += 100
     results = []
     for reading in pack['items']:
-        existing = next((i for i in items if i['canonicalUrl'].rstrip('/') == reading.get('url', '').rstrip('/')
-                        or (reading.get('providerId') and i['provider'] == reading['provider'] and i['providerId'] == reading['providerId'])), None)
+        existing = next((item for item in items if matches_reading(item, reading)), None)
         result = {'label': reading['label']}
         try:
             if existing:

@@ -36,6 +36,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<ItemTopic>().HasKey(x => new { x.ItemId, x.TopicId });
         foreach (var entity in builder.Model.GetEntityTypes())
         {
+            foreach (var property in entity.GetProperties().Where(p => p.ClrType == typeof(List<string>)))
+            {
+                property.SetValueConverter(new ValueConverter<List<string>, string>(
+                    value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
+                    value => JsonSerializer.Deserialize<List<string>>(value, (JsonSerializerOptions?)null) ?? new List<string>()));
+                property.SetValueComparer(new ValueComparer<List<string>>(
+                    (left, right) => left != null && right != null && left.SequenceEqual(right),
+                    value => value.Aggregate(0, (hash, text) => HashCode.Combine(hash, text)),
+                    value => value.ToList()));
+            }
             foreach (var property in entity.GetProperties().Where(p => p.ClrType == typeof(List<Guid>)))
             {
                 var converter = new ValueConverter<List<Guid>, string>(

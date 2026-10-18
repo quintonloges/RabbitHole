@@ -94,6 +94,10 @@ namespace RabbitHole.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.PrimitiveCollection<string>("ConceptTags")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("DocumentId")
                         .HasColumnType("uuid");
 
@@ -104,6 +108,10 @@ namespace RabbitHole.Data.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Excerpt")
+                        .HasColumnType("text");
+
+                    b.PrimitiveCollection<string>("ExcludedConcepts")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ImageUrl")
@@ -257,6 +265,9 @@ namespace RabbitHole.Data.Migrations
 
                     b.Property<int>("Position")
                         .HasColumnType("integer");
+
+                    b.Property<string>("RationaleJson")
+                        .HasColumnType("text");
 
                     b.Property<string>("Reason")
                         .IsRequired()
@@ -621,6 +632,13 @@ namespace RabbitHole.Data.Migrations
                     b.Property<Guid?>("LastNodeId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginNote")
+                        .HasColumnType("text");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("text");
@@ -651,6 +669,10 @@ namespace RabbitHole.Data.Migrations
 
                     b.Property<Guid?>("ItemId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("uuid");

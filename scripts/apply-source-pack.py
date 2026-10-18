@@ -55,6 +55,8 @@ def main():
                 report.update(action='preserved existing settings', sourceId=existing['id'])
                 if args.refresh:
                     report['job'] = request(args.base, '/sources/' + existing['id'] + '/refresh', 'POST')
+                    if report['job']['status'] != 'completed':
+                        raise ValueError('Refresh failed: ' + str(report['job'].get('error') or report['job']['status']))
             else:
                 missing = [name for name in selected['topics'] if name not in topics]
                 if missing:

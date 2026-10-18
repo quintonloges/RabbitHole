@@ -1,0 +1,7 @@
+services:
+  recommendation-checks:
+    build:
+      context: .
+      dockerfile: tests/recommendations/Dockerfile
+    environment:
+      RABBITHOLE_TEST_POSTGRES: Host=db;Database=${RABBITHOLE_CHECK_DATABASE:?Run scripts/check-recommendations-postgres.ps1};Username=rabbithole;Password=${POSTGRES_PASSWORD:-rabbithole-local-only}

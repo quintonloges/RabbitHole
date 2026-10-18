@@ -65,6 +65,9 @@ public class ContentItem
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<Guid> TopicIds { get; set; } = [];
     public string ClassificationOrigin { get; set; } = "source-keywords";
+    // Explicit concept tags and exclusions are separate from inferred source-text matches.
+    public List<string> ConceptTags { get; set; } = [];
+    public List<string> ExcludedConcepts { get; set; } = [];
     public Guid? DocumentId { get; set; }
     public Guid? SectionId { get; set; }
 }
@@ -162,6 +165,8 @@ public class RabbitHole
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
+    public string Origin { get; set; } = "user";
+    public string? OriginNote { get; set; }
     public Guid? LastNodeId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
@@ -171,6 +176,7 @@ public class RabbitNode
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid HoleId { get; set; }
+    public string Origin { get; set; } = "user";
     public Guid? ParentId { get; set; }
     public Guid? ItemId { get; set; }
     public string? Question { get; set; }
@@ -217,6 +223,7 @@ public class FeedEntry
     public Guid ItemId { get; set; }
     public int Position { get; set; }
     public string Reason { get; set; } = "";
+    public string? RationaleJson { get; set; }
     public List<Guid> EvidenceItemIds { get; set; } = [];
 }
 

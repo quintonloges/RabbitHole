@@ -14,6 +14,7 @@ import { ArticleList } from "./article-list";
 import { ConceptEditor } from "./concept-editor";
 import { PaperProvenance } from "./paper-provenance";
 import { ReaderNavigation } from "./reader-navigation";
+import { PublicationControl } from "./publication-control";
 
 type Tool = "notes" | "explore" | "details";
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
@@ -136,7 +137,7 @@ export function ItemReader({ id }: { id: string }) {
     setHoleBusy(true); setHoleError(null);
     try {
       const hole = await api<HoleSummary>("/holes", json("POST", { itemId: id, title: item?.title }));
-      if (active.current) router.push(`/holes/${hole.id}`);
+      if (active.current) router.push(`/admin/holes/${hole.id}`);
     } catch (error) { if (active.current) setHoleError(message(error, "Could not start rabbit hole.")); }
     finally { if (active.current) setHoleBusy(false); }
   }
@@ -178,7 +179,7 @@ export function ItemReader({ id }: { id: string }) {
   }
 
   if (itemQuery.loading && !item) return <Loading/>;
-  if (!item) return <><Notice error={itemQuery.error} onRetry={() => void itemQuery.reload()}/><Link href="/" className="btn"><ArrowLeft size={14}/>Discover</Link></>;
+  if (!item) return <><Notice error={itemQuery.error} onRetry={() => void itemQuery.reload()}/><Link href="/admin" className="btn"><ArrowLeft size={14}/>Discover</Link></>;
   const embed = safeEmbed(item);
   const body = item.body?.trim();
   // Reflow extraction whitespace only. Keep every word and existing paragraph boundary;
@@ -194,7 +195,7 @@ export function ItemReader({ id }: { id: string }) {
   const notes = item.notes || [];
 
   return <div className="reader item-reader">
-    <Link href="/" className="reader-back"><ArrowLeft size={14}/>Discover</Link>
+    <Link href="/admin" className="reader-back"><ArrowLeft size={14}/>Discover</Link>
     <header className="reader-header">
       <div className="reader-title"><h1>{itemHeading(item)}</h1><ItemFormat item={item}/></div>
       <ItemByline item={item}/>
@@ -204,6 +205,7 @@ export function ItemReader({ id }: { id: string }) {
         <button className="reader-text-button" onClick={() => openTool("notes", true)}>Notes{notes.length ? ` (${notes.length})` : ""}</button>
       </div>
       <Notice error={itemQuery.error} onRetry={() => void itemQuery.reload()}/>
+      <PublicationControl item={item} onChange={itemQuery.setData}/>
       {item.importWarning && <p className="reader-content-notice">{item.importWarning}</p>}
     </header>
     {item.documentId && <ReaderNavigation {...navigation}/>}
@@ -247,9 +249,9 @@ export function ItemReader({ id }: { id: string }) {
       <section id="panel-explore" role="tabpanel" aria-labelledby="tool-explore" hidden={tool !== "explore"} className="reader-tool-panel">
         <h2>Related items</h2>
         {item.related?.length ? <ArticleList items={item.related.slice(0, 4)} label="Related items" onChange={updated => itemQuery.setData(old => old ? { ...old, related: old.related?.map(related => related.id === updated.id ? updated : related).filter(related => !related.state.dismissed) } : old)}/>
-          : <p className="subtle">No related items in your collection yet. <Link className="text-link" href="/search">Search for more.</Link></p>}
-        <div className="reader-explore-tools"><button className="btn small" disabled={trailBusy} onClick={takeDeeper}>{trailBusy ? "Finding a trail…" : "Find a reading trail"}</button><Notice error={trailError}/>{lesson && <div className="reader-result"><h3>{lesson.title}</h3><p>{lesson.question}</p><p className="subtle">{lesson.provenance}</p>{lesson.items.map((related, index) => <div key={related.id} className="row-item"><span className="number">{index + 1}</span><Link className="text-link" href={`/items/${related.id}`}>{itemHeading(related)}</Link><ArrowRight size={14}/></div>)}</div>}</div>
-        <details className="reader-ai-tools"><summary>AI tools</summary><Notice error={aiStatus.error} onRetry={() => void aiStatus.reload()}/>{aiStatus.loading ? <p className="subtle">Checking AI availability…</p> : aiStatus.data?.configured && aiStatus.data.enabled ? <><p className="subtle">{aiStatus.data.privacy}</p><div className="action-row"><button className="btn small" disabled={aiBusy} onClick={() => askAi("summary")}>Summarize</button><button className="btn small" disabled={aiBusy} onClick={() => askAi("challenge")}>Compare arguments</button>{aiBusy && <span className="subtle" role="status">Generating…</span>}</div></> : <p className="subtle">AI is off. <Link className="text-link" href="/settings">See setup details in Settings.</Link></p>}<Notice error={aiError}/>{aiText && <div className="reader-result"><h3>AI response</h3><p className="reader-ai-result">{aiText}</p><div className="action-row">{aiEvidence.map((evidenceId, index) => <Link className="text-link" href={`/items/${evidenceId}`} key={evidenceId}>Source {index + 1} →</Link>)}</div></div>}</details>
+          : <p className="subtle">No related items in your collection yet. <Link className="text-link" href="/admin/search">Search for more.</Link></p>}
+        <div className="reader-explore-tools"><button className="btn small" disabled={trailBusy} onClick={takeDeeper}>{trailBusy ? "Finding a trail…" : "Find a reading trail"}</button><Notice error={trailError}/>{lesson && <div className="reader-result"><h3>{lesson.title}</h3><p>{lesson.question}</p><p className="subtle">{lesson.provenance}</p>{lesson.items.map((related, index) => <div key={related.id} className="row-item"><span className="number">{index + 1}</span><Link className="text-link" href={`/admin/items/${related.id}`}>{itemHeading(related)}</Link><ArrowRight size={14}/></div>)}</div>}</div>
+        <details className="reader-ai-tools"><summary>AI tools</summary><Notice error={aiStatus.error} onRetry={() => void aiStatus.reload()}/>{aiStatus.loading ? <p className="subtle">Checking AI availability…</p> : aiStatus.data?.configured && aiStatus.data.enabled ? <><p className="subtle">{aiStatus.data.privacy}</p><div className="action-row"><button className="btn small" disabled={aiBusy} onClick={() => askAi("summary")}>Summarize</button><button className="btn small" disabled={aiBusy} onClick={() => askAi("challenge")}>Compare arguments</button>{aiBusy && <span className="subtle" role="status">Generating…</span>}</div></> : <p className="subtle">AI is off. <Link className="text-link" href="/admin/settings">See setup details in Settings.</Link></p>}<Notice error={aiError}/>{aiText && <div className="reader-result"><h3>AI response</h3><p className="reader-ai-result">{aiText}</p><div className="action-row">{aiEvidence.map((evidenceId, index) => <Link className="text-link" href={`/admin/items/${evidenceId}`} key={evidenceId}>Source {index + 1} →</Link>)}</div></div>}</details>
       </section>
 
       <section id="panel-details" role="tabpanel" aria-labelledby="tool-details" hidden={tool !== "details"} className="reader-tool-panel">
@@ -263,7 +265,7 @@ export function ItemReader({ id }: { id: string }) {
         <button className="btn small" disabled={detailsBusy} onClick={() => { setSelectedTopics(item.topics.map(topic => topic.id)); setEditingTopics(!editingTopics); }}>Edit topics</button>
         {editingTopics && <div className="stack reader-editor"><Notice error={topics.error} onRetry={() => void topics.reload()}/>{topics.loading ? <p className="subtle">Loading topics…</p> : <div className="chip-row">{topics.data?.map(topic => <label className="pill" key={topic.id}><input type="checkbox" checked={selectedTopics.includes(topic.id)} onChange={event => setSelectedTopics(event.target.checked ? [...selectedTopics, topic.id] : selectedTopics.filter(value => value !== topic.id))}/>{topic.name}</label>)}</div>}<div className="action-row"><button className="btn small" disabled={detailsBusy || !topics.data} onClick={() => saveDetails({ topicIds: selectedTopics })}>Save topics</button><button className="reader-text-button" disabled={detailsBusy} onClick={() => setEditingTopics(false)}>Cancel</button></div></div>}
         <ConceptEditor item={item} onSaved={itemQuery.reload}/>
-        {item.documentId && <div className="reader-editor"><button className="btn small" disabled={detailsBusy} onClick={() => { setTitle(item.title); setAuthor(item.author || ""); setEditing(!editing); }}>Edit title and author</button>{editing && <div className="stack reader-editor"><p className="subtle">To edit the whole book, go to <Link href="/library" className="text-link">Library</Link>.</p><label className="field">Title<input value={title} onChange={event => setTitle(event.target.value)}/></label><label className="field">Author<input value={author} onChange={event => setAuthor(event.target.value)}/></label><div className="action-row"><button className="btn small" disabled={detailsBusy || !title.trim()} onClick={() => saveDetails({ title: title.trim(), author: author.trim() || null })}>Save details</button><button className="reader-text-button" disabled={detailsBusy} onClick={() => setEditing(false)}>Cancel</button></div></div>}</div>}
+        {item.documentId && <div className="reader-editor"><button className="btn small" disabled={detailsBusy} onClick={() => { setTitle(item.title); setAuthor(item.author || ""); setEditing(!editing); }}>Edit title and author</button>{editing && <div className="stack reader-editor"><p className="subtle">To edit the whole book, go to <Link href="/admin/library" className="text-link">Library</Link>.</p><label className="field">Title<input value={title} onChange={event => setTitle(event.target.value)}/></label><label className="field">Author<input value={author} onChange={event => setAuthor(event.target.value)}/></label><div className="action-row"><button className="btn small" disabled={detailsBusy || !title.trim()} onClick={() => saveDetails({ title: title.trim(), author: author.trim() || null })}>Save details</button><button className="reader-text-button" disabled={detailsBusy} onClick={() => setEditing(false)}>Cancel</button></div></div>}</div>}
       </section>
     </section>
 

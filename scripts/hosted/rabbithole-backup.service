@@ -1,0 +1,12 @@
+[Unit]
+Description=Encrypted RabbitHole off-server backup
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+TimeoutStartSec=6h
+UMask=0077
+Environment=RH_RELEASE=/srv/rabbithole/current
+Environment=RH_CONFIG=/etc/rabbithole/hosted.env
+ExecStart=/bin/bash /srv/rabbithole/current/scripts/hosted/backup.sh

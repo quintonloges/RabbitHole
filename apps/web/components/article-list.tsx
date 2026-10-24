@@ -26,7 +26,7 @@ function ArticleRow({ item, number, onChange }: { item: Item; number: number; on
     <span className="story-number" aria-hidden="true">{number}.</span>
     <div className="story-content">
       <div className="story-heading">
-        <h3><Link href={`/items/${item.id}`}>{itemHeading(item)}</Link></h3>
+        <h3><Link href={`/admin/items/${item.id}`}>{itemHeading(item)}</Link></h3>
         <ItemFormat item={item}/>
         {current.state.read && <span className="story-read">Read</span>}
       </div>

@@ -45,9 +45,10 @@ def main():
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--report', default='data/curation/reading-pack-run.json')
     args = parser.parse_args()
-    target = urllib.parse.urlsplit(args.base)
-    if target.scheme != 'http' or target.hostname not in ('127.0.0.1', 'localhost', '::1'):
-        parser.error('Only the local HTTP RabbitHole instance is supported.')
+    try:
+        api.validate_base(args.base)
+    except ValueError as error:
+        parser.error(str(error))
     pack = json.loads(Path(args.pack).read_text(encoding='utf-8-sig'))
     topics = {t['name']: t['id'] for t in api.request(args.base, '/topics')}
     # Paginated item reads avoid exporting private notes/documents just to detect duplicate URLs.

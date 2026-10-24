@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 import { randomUUID } from 'node:crypto';
 
 test('concept tags, honest explanations, curated origins and intentional revisits', async ({ page, request }) => {
@@ -18,7 +18,7 @@ test('concept tags, honest explanations, curated origins and intentional revisit
   const root = hole.nodes[0].id;
   const branch = await (await request.post(`/api/holes/${hole.id}/nodes`, { data: { parentId: root, itemId: second.id, origin: 'curated' } })).json();
   await request.post(`/api/holes/${hole.id}/navigate`, { data: { nodeId: root } });
-  await page.goto(`/holes/${hole.id}`);
+  await page.goto(`/admin/holes/${hole.id}`);
   await expect(page.getByText(/A suggested trail/)).toBeVisible();
   await expect(page.locator('.recommendation-reason').first()).toBeVisible();
   await expect(page.locator('.recommendation-reason')).not.toContainText(['Connected to something you explored']);
@@ -35,7 +35,7 @@ test('concept tags, honest explanations, curated origins and intentional revisit
   expect(saved.origin).toBe('curated');
   expect(saved.nodes.find((n: { id: string }) => n.id === branch.id).origin).toBe('curated');
   expect(saved.nodes.find((n: { itemId: string }) => n.itemId === third.id).origin).toBe('user');
-  await page.goto(`/items/${start.id}`);
+  await page.goto(`/admin/items/${start.id}`);
   await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await page.getByText('Concepts & tags', { exact: true }).click();
   await page.getByRole('button', { name: 'Edit concepts', exact: true }).click();
@@ -47,7 +47,7 @@ test('concept tags, honest explanations, curated origins and intentional revisit
   await page.getByText('Concepts & tags', { exact: true }).click();
   await expect(page.getByText('acoustic history · your tag', { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`/holes/${hole.id}`);
+  await page.goto(`/admin/holes/${hole.id}`);
   await expect(page.getByRole('heading', { name: 'TEST FIXTURE curated concepts', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   const ai = await (await request.get('/api/ai/status')).json();

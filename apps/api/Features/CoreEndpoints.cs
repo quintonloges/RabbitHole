@@ -20,14 +20,16 @@ public static class CoreEndpoints
         api.MapGet("/items/{id:guid}", GetItem);
         api.MapPatch("/items/{id:guid}", UpdateItem);
         api.MapPatch("/items/{id:guid}/state", UpdateState);
+        api.MapPatch("/items/{id:guid}/publication", UpdatePublication);
         api.MapPost("/items/{id:guid}/notes", AddNote);
         api.MapPatch("/notes/{id:guid}", UpdateNote);
         api.MapDelete("/notes/{id:guid}", DeleteNote);
         api.MapGet("/items/{id:guid}/related", Related);
         api.MapGet("/search", Search);
         api.MapGet("/discover/today", Today);
+        api.MapPost("/discover/today", CreateEdition);
         api.MapPost("/discover/refresh-edition", RefreshEdition);
-        api.MapGet("/discover/more", More);
+        api.MapPost("/discover/more", More);
         api.MapGet("/discover/surprise", Surprise);
         api.MapGet("/holes", ListHoles);
         api.MapPost("/holes", CreateHole);
@@ -114,6 +116,11 @@ public static class CoreEndpoints
     private static async Task<IResult> ListItems(HttpRequest request, AppDbContext db, CancellationToken ct)
     {
         var query = db.Items.AsNoTracking().AsQueryable();
+        if (request.Query.ContainsKey("isPublic"))
+        {
+            if (!bool.TryParse(request.Query["isPublic"], out var isPublic)) return Bad("isPublic must be true or false.");
+            query = query.Where(i => i.IsPublic == isPublic);
+        }
         if (Guid.TryParse(request.Query["sourceId"], out var sourceId)) query = query.Where(i => i.SourceId == sourceId || db.ItemSources.Any(s => s.ItemId == i.Id && s.SourceKey == sourceId));
         if (request.Query.TryGetValue("kind", out var kind) && !string.IsNullOrWhiteSpace(kind)) query = query.Where(i => i.Kind == kind.ToString());
         var all = (await query.ToListAsync(ct)).OrderByDescending(i => i.IngestedAt).ToList();
@@ -185,6 +192,21 @@ public static class CoreEndpoints
         item.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return Results.Ok((await ItemDto.BuildAsync(db, [item], ct, includeBody: true))[0]);
+    }
+    private static async Task<IResult> UpdatePublication(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
+    {
+        if (Bool(body, "isPublic") is not bool isPublic) return Bad("isPublic must be a boolean.");
+        var requested = await db.Items.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == id, ct);
+        if (requested == null) return Bad("Item does not exist.", 404);
+        if (isPublic && !await PublicCatalogPolicy.CanPublishAsync(db, requested, ct)) return Bad("Document-derived items and private or credential-bearing URLs cannot be published.");
+        var item = await ItemCatalog.ResolveAsync(db, id, ct);
+        if (item == null) return Bad("Item does not exist.", 404);
+        if (isPublic && !await PublicCatalogPolicy.CanPublishAsync(db, item, ct)) return Bad("Document-derived items and private or credential-bearing URLs cannot be published.");
+        requested.IsPublic = isPublic;
+        item.IsPublic = isPublic;
+        item.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return Results.Ok((await ItemDto.BuildAsync(db, [item], ct))[0]);
     }
     private static async Task<IResult> UpdateState(Guid id, JsonElement body, AppDbContext db, CancellationToken ct)
     {
@@ -351,21 +373,23 @@ public static class CoreEndpoints
         return Results.Ok(new { items = await ItemDto.BuildAsync(db, matches.Skip(offset).Take(limit), ct), total });
     }
 
-    private static async Task<IResult> Today(AppDbContext db, Ranking ranking, CancellationToken ct) => await EditionResult(db, ranking, false, false, ct);
+    private static async Task<IResult> Today(AppDbContext db, Ranking ranking, CancellationToken ct) => await EditionResult(db, ranking, false, false, ct, readOnly: true);
+    private static async Task<IResult> CreateEdition(AppDbContext db, Ranking ranking, CancellationToken ct) => await EditionResult(db, ranking, false, false, ct);
     private static async Task<IResult> RefreshEdition(AppDbContext db, Ranking ranking, CancellationToken ct) => await EditionResult(db, ranking, true, false, ct);
     private static async Task<IResult> More(AppDbContext db, Ranking ranking, CancellationToken ct) => await EditionResult(db, ranking, false, true, ct);
-    private static async Task<IResult> EditionResult(AppDbContext db, Ranking ranking, bool refresh, bool more, CancellationToken ct)
+    private static async Task<IResult> EditionResult(AppDbContext db, Ranking ranking, bool refresh, bool more, CancellationToken ct, bool readOnly = false)
     {
         await EditionLock.WaitAsync(ct);
         try
         {
             var day = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
             var edition = await db.Editions.SingleOrDefaultAsync(e => e.Day == day, ct);
+            if (edition == null && readOnly) return Results.Ok(new { id = (Guid?)null, day, items = Array.Empty<ItemDto>(), total = 0 });
             if (edition == null) { edition = new FeedEdition { Day = day }; db.Editions.Add(edition); await db.SaveChangesAsync(ct); }
             var entries = await db.Entries.Where(e => e.EditionId == edition.Id).OrderBy(e => e.Position).ToListAsync(ct);
             if (refresh && entries.Count > 0) { db.Entries.RemoveRange(entries); await db.SaveChangesAsync(ct); entries.Clear(); }
             var settings = await SettingsService.ReadAsync(db, ct);
-            if (entries.Count == 0 || more)
+            if (!readOnly && (entries.Count == 0 || more))
             {
                 var excluded = await ItemCatalog.ResolveIdsAsync(db, entries.Select(e => e.ItemId), ct);
                 var selected = await ranking.SelectAsync(Math.Clamp(settings.EditionSize, 5, 100), day + (more ? $":{entries.Count}" : ""), excluded.Values.ToHashSet(), ct);
@@ -567,6 +591,7 @@ public static class CoreEndpoints
         if (Has(body, "serendipity")) { var value = Number(body, "serendipity"); if (value == null || value < 0 || value > 1) return Bad("Serendipity must be between 0 and 1."); settings.Serendipity = value.Value; }
         if (Has(body, "freshness")) { var value = Number(body, "freshness"); if (value == null || value < 0 || value > 1) return Bad("Freshness must be between 0 and 1."); settings.Freshness = value.Value; }
         if (Has(body, "practiceEnabled")) { var value = Bool(body, "practiceEnabled"); if (value == null) return Bad("practiceEnabled must be a boolean."); settings.PracticeEnabled = value.Value; }
+        if (Has(body, "ingestionPaused")) { var value = Bool(body, "ingestionPaused"); if (value == null) return Bad("ingestionPaused must be a boolean."); settings.IngestionPaused = value.Value; }
         if (Has(body, "aiEnabled")) { var value = Bool(body, "aiEnabled"); if (value == null) return Bad("aiEnabled must be a boolean."); settings.AiEnabled = value.Value; }
         if (Has(body, "theme")) { var value = String(body, "theme"); if (value is not ("system" or "dark" or "light")) return Bad("Theme must be system, dark, or light."); settings.Theme = value; }
         await SettingsService.SaveAsync(db, settings, ct);
@@ -585,6 +610,7 @@ public static class CoreEndpoints
         {
             i.Id,
             i.SourceId,
+            i.IsPublic,
             i.MergedIntoId,
             i.Kind,
             i.Title,

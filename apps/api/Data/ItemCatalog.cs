@@ -90,6 +90,7 @@ public static class ItemCatalog
         {
             if (winner.DocumentId.HasValue || loser.DocumentId.HasValue)
                 throw new InvalidOperationException("Local document sections cannot merge with external records.");
+            winner.IsPublic = winner.IsPublic && loser.IsPublic;
             await AttachSourceAsync(db, winner, winner.SourceId, ct);
             await AttachSourceAsync(db, loser, loser.SourceId, ct);
             await TopicClassification.AssignAsync(db, winner, [], ct);

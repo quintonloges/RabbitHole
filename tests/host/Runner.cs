@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RabbitHole.Data;
 using RabbitHole.Ingestion;
+using RabbitHole.Features;
 
 namespace RabbitHole.E2e;
 
@@ -16,6 +17,8 @@ public static class Runner
         using var factory = new FixtureFactory();
         factory.UseKestrel(options => options.Listen(IPAddress.Loopback, 5081));
         using var client = factory.CreateClient();
+        using (var scope = factory.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<AdminAuthentication>().SetPasswordAsync("TEST-FIXTURE-password-2026!");
         Console.WriteLine("TEST FIXTURE API listening at http://127.0.0.1:5081; external HTTP is replaced; private production data is not used.");
         await Task.Delay(Timeout.Infinite);
     }
@@ -27,6 +30,8 @@ public class FixtureFactory : WebApplicationFactory<global::Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         Directory.CreateDirectory(temporary);
+        builder.UseEnvironment("Testing");
+        builder.UseSetting("Security:DataProtectionPath", Path.Combine(temporary, "auth-keys"));
         builder.UseContentRoot(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../apps/api")));
         builder.UseSetting("DATABASE_PROVIDER", "sqlite");
         builder.UseSetting("ConnectionStrings:Default", "Data Source=" + Path.Combine(temporary, "test.db"));

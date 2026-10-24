@@ -8,7 +8,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from urllib.request import Request, urlopen
+from admin_client import AdminClient
 from urllib.parse import urlencode
 
 SEEDS = {
@@ -32,10 +32,9 @@ def main():
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
 
+    client = AdminClient(args.base)
     def request(path, method="GET"):
-        req = Request(args.base + path, method=method)
-        with urlopen(req, timeout=60) as response:
-            return json.load(response)
+        return client.request(path, method)
 
     snapshot = request("/export", "POST")
     def fingerprint(data):

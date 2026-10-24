@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using RabbitHole.Data;
 using RabbitHole.Domain;
 using RabbitHole.Features;
-using System.Net;
 
 if (args is ["--parse-document", var input, var kind, var output])
 {
@@ -10,7 +9,14 @@ if (args is ["--parse-document", var input, var kind, var output])
     return;
 }
 
-var builder = WebApplication.CreateBuilder(args);
+if (args.Any(a => a.StartsWith("--admin-password", StringComparison.Ordinal)) && args is not ["--admin-password"])
+{
+    Console.Error.WriteLine("Run --admin-password alone in an interactive terminal. Do not pass passwords as command arguments.");
+    Environment.ExitCode = 1;
+    return;
+}
+var provisionAdmin = args is ["--admin-password"];
+var builder = WebApplication.CreateBuilder(args.Where(a => a != "--admin-password").ToArray());
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 52L * 1024 * 1024);
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
@@ -23,36 +29,15 @@ builder.Services.AddScoped<Ranking>();
 builder.Services.AddIngestion();
 builder.Services.AddDocuments();
 builder.Services.AddAi();
+builder.AddApiSecurity();
 
 var app = builder.Build();
 app.UseExceptionHandler();
-app.Use(async (context, next) =>
-{
-    var host = context.Request.Host.Host;
-    var loopback = host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || (IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address));
-    if (!loopback && !app.Configuration.GetValue<bool>("RABBITHOLE_ALLOW_REMOTE_HOSTS"))
-    {
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        await Results.Problem(title: "Host not allowed", statusCode: 403).ExecuteAsync(context);
-        return;
-    }
-    if (context.Request.Method is not ("GET" or "HEAD" or "OPTIONS"))
-    {
-        var fetchSite = context.Request.Headers["Sec-Fetch-Site"].ToString();
-        var origin = context.Request.Headers.Origin.ToString();
-        var allowedOrigins = (app.Configuration["RABBITHOLE_ALLOWED_ORIGINS"] ?? app.Configuration["RABBITHOLE_ALLOWED_ORIGIN"] ?? "").Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var originMatches = string.IsNullOrWhiteSpace(origin) || allowedOrigins.Any(value => value.Equals(origin, StringComparison.OrdinalIgnoreCase)) || (Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.Host.Equals(host, StringComparison.OrdinalIgnoreCase) && uri.Port == (context.Request.Host.Port ?? (context.Request.IsHttps ? 443 : 80)));
-        if ((fetchSite == "cross-site" && !allowedOrigins.Any(value => value.Equals(origin, StringComparison.OrdinalIgnoreCase))) || !originMatches)
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await Results.Problem(title: "Cross-site request blocked", statusCode: 403).ExecuteAsync(context);
-            return;
-        }
-    }
-    await next();
-});
+app.UseApiSecurity();
 app.MapOpenApi();
-app.MapGet("/api/healthz", async (AppDbContext db, CancellationToken ct) => await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.Problem(title: "Database unavailable", statusCode: 503));
+app.MapGet("/api/healthz", async (AppDbContext db, CancellationToken ct) => await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "ok" }) : Results.Problem(title: "Database unavailable", statusCode: 503)).AllowAnonymous();
+app.MapAdminAuthEndpoints();
+app.MapPublicCatalogEndpoints();
 app.MapCoreEndpoints();
 app.MapIngestionEndpoints();
 app.MapDocumentEndpoints();
@@ -66,6 +51,7 @@ using (var scope = app.Services.CreateScope())
     {
         await db.Database.EnsureCreatedAsync();
         await SqliteCatalogSchema.ApplyAsync(db);
+        await SqliteSecuritySchema.ApplyAsync(db);
     }
     if (!await db.Topics.AnyAsync())
     {
@@ -80,10 +66,16 @@ using (var scope = app.Services.CreateScope())
             new Topic { Name = "Unexpected finds", Description = "Cross-disciplinary detours", Keywords = "curiosity, unexpected", Weight = 2, CuriosityOnly = true });
         await db.SaveChangesAsync();
     }
+    await PublicationUpgrade.ApplyAsync(db);
     await CatalogUpgrade.ApplyAsync(db);
     await RecommendationUpgrade.ApplyAsync(db);
 }
 
+if (provisionAdmin)
+{
+    await AdminAuthentication.ProvisionInteractivelyAsync(app.Services);
+    return;
+}
 app.Run();
 
 public partial class Program;

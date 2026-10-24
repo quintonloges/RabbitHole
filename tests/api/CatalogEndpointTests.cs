@@ -19,13 +19,14 @@ namespace RabbitHole.Tests;
 
 public class CatalogEndpointTests
 {
-    private sealed class ApiFactory : WebApplicationFactory<Program>
+    private sealed class ApiFactory : AuthenticatedApiFactory
     {
         private readonly string _path = Path.Combine(Path.GetTempPath(), $"rabbithole-catalog-{Guid.NewGuid():N}.db");
         public Func<RemoteRequest, RemoteResponse> Fetch { get; set; } = request => throw new InvalidOperationException("Unexpected fixture fetch: " + request.Url.Host);
         public Action<HttpContext>? ObserveRequest { get; set; }
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             builder.UseSetting("DATABASE_PROVIDER", "sqlite");
             builder.UseSetting("ConnectionStrings:Default", "Data Source=" + _path);
             builder.UseSetting("Logging:LogLevel:Default", "Warning");
@@ -206,7 +207,7 @@ public class CatalogEndpointTests
         }
         foreach (var route in new[] { $"/api/items?sourceId={secondaryId}", $"/api/search?q=membershipitem&sourceId={secondaryId}", "/api/discover/today" })
         {
-            var result = await Read(await client.GetAsync(route));
+            var result = await Read(route == "/api/discover/today" ? await client.PostAsJsonAsync(route, new { }) : await client.GetAsync(route));
             Assert.Equal(1, result.GetProperty("total").GetInt32());
             var item = Assert.Single(result.GetProperty("items").EnumerateArray());
             Assert.Equal(itemId, item.GetProperty("id").GetGuid());

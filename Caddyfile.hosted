@@ -1,0 +1,48 @@
+{
+    admin off
+    email {$ACME_EMAIL}
+}
+{$PUBLIC_HOST} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        X-Frame-Options SAMEORIGIN
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Strict-Transport-Security "max-age=31536000"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src 'self' https://www.youtube-nocookie.com https://w.soundcloud.com; connect-src 'self'; font-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+    }
+    @noindex expression "!{$PUBLIC_INDEXING_ENABLED:false}"
+    header @noindex X-Robots-Tag "noindex, nofollow"
+    @maintenance {
+        path / /search* /items/* /api/public/* /sitemap* /robots*
+        file {
+            root /srv/state
+            try_files maintenance
+        }
+    }
+    handle @maintenance {
+        header Retry-After 300
+        header X-Robots-Tag "noindex, nofollow"
+        respond "RabbitHole is undergoing maintenance. Please return shortly." 503
+    }
+    handle /api/* {
+        reverse_proxy api:8080 {
+            header_up -X-Forwarded-For
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host {$PUBLIC_HOST}
+        }
+    }
+    handle /openapi/* {
+        reverse_proxy api:8080
+    }
+    handle {
+        reverse_proxy web:3000 {
+            header_up -X-Forwarded-For
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host {$PUBLIC_HOST}
+        }
+    }
+}

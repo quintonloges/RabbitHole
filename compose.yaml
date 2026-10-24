@@ -24,6 +24,11 @@ services:
     init: true
     environment:
       ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      Security__AllowedHosts: localhost,127.0.0.1,::1,api
+      Security__AllowedOrigins: http://127.0.0.1:${PORT:-47832},http://localhost:${PORT:-47832}
+      Security__DataProtectionPath: /data/auth-keys
+      Ingestion__Paused: ${INGESTION_PAUSED:-false}
       ConnectionStrings__Default: Host=db;Database=rabbithole;Username=rabbithole;Password=${POSTGRES_PASSWORD:-rabbithole-local-only}
       Documents__Path: /data/uploads
       OpenAlex__ApiKey: ${OPENALEX_API_KEY:-}
@@ -37,6 +42,7 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - uploads:/data/uploads
+      - auth_keys:/data/auth-keys
     depends_on:
       db:
         condition: service_healthy
@@ -55,6 +61,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: '3000'
       API_ORIGIN: http://api:8080
+      PUBLIC_ORIGIN: http://127.0.0.1:${PORT:-47832}
     depends_on:
       api:
         condition: service_healthy
@@ -78,3 +85,4 @@ services:
 volumes:
   database:
   uploads:
+  auth_keys:

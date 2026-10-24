@@ -1,0 +1,57 @@
+name: Validate
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/**']
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+      CI: 'true'
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: rabbithole
+          POSTGRES_PASSWORD: fixture-ci-password
+          POSTGRES_DB: rabbithole_recommendation_test_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U rabbithole -d rabbithole_recommendation_test_ci" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '10.0.x' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm, cache-dependency-path: 'apps/web/package-lock.json' }
+      - run: python3 -m unittest discover -s tests/scripts -v
+      - run: dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release
+      - run: dotnet format RabbitHole.slnx --verify-no-changes --no-restore
+      - name: PostgreSQL migration and endpoint regressions
+        run: dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-build --filter 'FullyQualifiedName~RecommendationEndpointTests|FullyQualifiedName~HostedPostgresTests'
+        env:
+          RABBITHOLE_TEST_POSTGRES: Host=127.0.0.1;Database=rabbithole_recommendation_test_ci;Username=rabbithole;Password=fixture-ci-password
+      - run: npm ci --prefix apps/web
+      - run: npm --prefix apps/web run lint
+      - run: npm --prefix apps/web run typecheck
+      - run: npm --prefix apps/web run build
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: browser-failure-evidence, path: 'test-results/', retention-days: 7 }
+      - name: Hosted configuration and script validation
+        run: |
+          for file in scripts/hosted/*.sh; do bash -n "$file"; done
+          python3 -m py_compile scripts/hosted/*.py scripts/preservation-manifest.py
+          python3 -m unittest discover -s scripts/hosted -p 'test_*.py' -v
+          docker run --rm -v "$PWD/Caddyfile.hosted:/etc/caddy/Caddyfile:ro" -e PUBLIC_HOST=quintonloges.me -e ACME_EMAIL=fixture@example.org -e PUBLIC_INDEXING_ENABLED=false caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+          docker run --rm -v "$PWD/Caddyfile.staging:/etc/caddy/Caddyfile:ro" -e PUBLIC_HOST=quintonloges.me -e STAGING_ORIGIN=https://quintonloges.me:47834 caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile

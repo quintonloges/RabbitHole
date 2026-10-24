@@ -169,3 +169,8 @@ body:has(.reader-contents-dialog[open]) { overflow: hidden; }
   .reader-contents-dialog { max-height: 80vh; padding-inline: 16px; }
   .reader-selection-bar { bottom: 78px; right: 16px; gap: 8px; padding: 10px; }
 }
+
+.public-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-bottom:26px}.public-filters .public-query{grid-column:span 3}.public-filters>.action-row{align-self:end}.login-page{max-width:560px;padding-top:10vh}.login-page>.brand{padding-left:0}.publication-control{margin:15px 0}.publication-control .field{margin:0}.public-shell .topbar{gap:15px}.public-shell .mobile-nav{justify-content:center;gap:70px}
+@media(max-width:720px){.public-filters{grid-template-columns:1fr}.public-filters .public-query{grid-column:auto}.login-page{padding-top:5vh}.login-page h1{font-family:Georgia,serif;font-weight:400}}
+
+.public-catalog-form{display:grid;gap:16px;margin-bottom:26px}.public-catalog-form>.field{margin:0}.public-filter-options>summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600}.public-filter-options .public-filters{margin:16px 0 0}.public-catalog-form .public-query{grid-column:auto}

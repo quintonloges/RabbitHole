@@ -14,12 +14,13 @@ namespace RabbitHole.Tests;
 [Collection("Document imports")]
 public class DocumentRebuildTests
 {
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : AuthenticatedApiFactory
     {
         public string Folder { get; } = Path.Combine(Path.GetTempPath(), "rabbithole-rebuild-" + Guid.NewGuid().ToString("N"));
         public string Original => Path.Combine(Folder, "uploads", "fixture.epub");
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             Directory.CreateDirectory(Folder);
             builder.UseSetting("DATABASE_PROVIDER", "sqlite");
             builder.UseSetting("ConnectionStrings:Default", "Data Source=" + Path.Combine(Folder, "test.db"));

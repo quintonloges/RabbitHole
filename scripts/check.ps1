@@ -6,6 +6,8 @@ try {
     $env:NEXT_TELEMETRY_DISABLED = '1'
     python -m unittest discover -s tests/scripts -v
     if ($LASTEXITCODE -ne 0) { throw 'Source pack tests failed.' }
+    python -m unittest discover -s scripts/hosted -p 'test_*.py' -v
+    if ($LASTEXITCODE -ne 0) { throw 'Hosted launch-evidence tests failed.' }
     dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release
     if ($LASTEXITCODE -ne 0) { throw 'Backend tests failed.' }
     Push-Location apps/web

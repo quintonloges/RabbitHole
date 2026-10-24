@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 import { randomUUID } from 'node:crypto';
 import type { Item, Prompt } from '../../apps/web/lib/types';
 
@@ -46,7 +47,7 @@ function gate() {
 test('a saved row reconciles after PATCH commits, without a stale pre-commit reload', async ({ page, request }) => {
   const item = await importItem(request, 'saved removal');
   await request.patch(`/api/items/${item.id}/state`, { data: { saved: true } });
-  await page.goto('/library');
+  await page.goto('/admin/library');
   const row = page.locator('.row-item').filter({ has: page.getByRole('link', { name: item.title, exact: true }) });
   await expect(row.getByRole('button', { name: 'Remove from library', exact: true })).toBeVisible();
   const commit = gate();
@@ -71,7 +72,7 @@ test('a saved row reconciles after PATCH commits, without a stale pre-commit rel
 test('a failed saved-state mutation restores the row and keeps its error visible', async ({ page, request }) => {
   const item = await importItem(request, 'saved failure');
   await request.patch(`/api/items/${item.id}/state`, { data: { saved: true } });
-  await page.goto('/library');
+  await page.goto('/admin/library');
   const row = page.locator('.row-item').filter({ has: page.getByRole('link', { name: item.title, exact: true }) });
   await page.route(`**/api/items/${item.id}/state`, route => route.fulfill({ status: 503, json: { detail: 'TEST FIXTURE: state update failed' } }), { times: 1 });
   await row.getByRole('button', { name: 'Remove from library', exact: true }).click();
@@ -85,7 +86,7 @@ test('a failed saved-state mutation restores the row and keeps its error visible
 test('marking a read-only history item unread reconciles both library caches', async ({ page, request }) => {
   const item = await importItem(request, 'read-only history');
   await request.patch(`/api/items/${item.id}/state`, { data: { read: true } });
-  await page.goto('/library');
+  await page.goto('/admin/library');
   await page.getByRole('tab', { name: 'Reading history', exact: true }).click();
   const row = page.locator('.row-item').filter({ has: page.getByRole('link', { name: item.title, exact: true }) });
   await row.getByRole('button', { name: 'Mark unread', exact: true }).click();
@@ -95,7 +96,7 @@ test('marking a read-only history item unread reconciles both library caches', a
 
 test('snoozing another prompt submits an empty response and preserves the active draft', async ({ page, request }) => {
   const { first, second } = await practicePair(request);
-  await page.goto('/practice');
+  await page.goto('/admin/practice');
   const firstCard = promptCard(page, first);
   const secondCard = promptCard(page, second);
   await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
@@ -116,7 +117,7 @@ test('snoozing another prompt submits an empty response and preserves the active
 
 test('failed reflection preserves its draft and a later save leaves another active draft intact', async ({ page, request }) => {
   const { first, second } = await practicePair(request);
-  await page.goto('/practice');
+  await page.goto('/admin/practice');
   const firstCard = promptCard(page, first);
   const secondCard = promptCard(page, second);
   await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
@@ -149,7 +150,7 @@ test('late AI critique stays with its prompt and is discarded when that draft ch
     await reply.promise;
     await route.fulfill({ json: { text: 'TEST FIXTURE: critique of first draft', evidenceItemIds: [item.id] } });
   });
-  await page.goto('/practice');
+  await page.goto('/admin/practice');
   const firstCard = promptCard(page, first);
   const secondCard = promptCard(page, second);
   await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
@@ -191,7 +192,7 @@ test('document extraction retry shows failures and refreshes recovered sections'
   let recovered = false;
   await page.route('**/api/library/books', route => route.fulfill({ json: [{ ...book, ...(recovered ? { status: 'ready', error: null } : {}) }] }));
   await page.route(`**/api/library/books/${id}/sections`, route => route.fulfill({ json: [] }));
-  await page.goto('/library');
+  await page.goto('/admin/library');
   await page.getByRole('tab', { name: 'Books & files', exact: true }).click();
   const card = page.locator('.panel.panel-pad').filter({ has: page.getByRole('heading', { name: book.title, exact: true }) });
   await card.getByRole('button', { name: 'Sections', exact: true }).click();
@@ -210,7 +211,7 @@ test('document extraction retry shows failures and refreshes recovered sections'
   try { await expect(card.getByRole('button', { name: 'Retrying extraction…', exact: true })).toBeDisabled(); }
   finally { extraction.release(); }
   await expect(card.getByRole('heading', { name: 'TEST FIXTURE: recovered chapter', exact: true })).toBeVisible();
-  await expect(card.getByRole('link', { name: 'Read', exact: true })).toHaveAttribute('href', `/items/${itemId}`);
+  await expect(card.getByRole('link', { name: 'Read', exact: true })).toHaveAttribute('href', `/admin/items/${itemId}`);
   await expect(card.getByRole('button', { name: 'Retry extraction', exact: true })).toHaveCount(0);
   await expect(page.locator('.error[role="alert"]')).toHaveCount(0);
 });

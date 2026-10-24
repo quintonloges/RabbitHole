@@ -42,7 +42,7 @@ public class RecommendationEndpointTests
             await db.SaveChangesAsync();
         }
         await Read(await client.PatchAsJsonAsync($"/api/items/{ids[0]}/state", new { dismissed = true, saved = true }));
-        var edition = await Read(await client.GetAsync("/api/discover/today"));
+        var edition = await Read(await client.PostAsJsonAsync("/api/discover/today", new { }));
         var first = await Read(await client.GetAsync($"/api/items?topicId={topicId}&dismissed=false&order=reading&limit=1"));
         var second = await Read(await client.GetAsync($"/api/items?topicId={topicId}&dismissed=false&order=reading&limit=1&offset=1"));
         Assert.Equal(2, first.GetProperty("total").GetInt32());
@@ -56,11 +56,12 @@ public class RecommendationEndpointTests
         Assert.True(hidden.GetProperty("state").GetProperty("saved").GetBoolean());
     }
 
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : AuthenticatedApiFactory
     {
         private readonly string path = Path.Combine(Path.GetTempPath(), $"rabbithole-recommendations-{Guid.NewGuid():N}.db");
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             var postgres = Environment.GetEnvironmentVariable("RABBITHOLE_TEST_POSTGRES");
             if (!string.IsNullOrEmpty(postgres) && new Npgsql.NpgsqlConnectionStringBuilder(postgres).Database?.StartsWith("rabbithole_recommendation_test", StringComparison.Ordinal) != true)
                 throw new InvalidOperationException("PostgreSQL checks require a dedicated rabbithole_recommendation_test* database.");

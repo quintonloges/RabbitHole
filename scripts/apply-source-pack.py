@@ -11,14 +11,8 @@ from pathlib import Path
 import sys
 import urllib.parse
 import urllib.request
-
-
-def request(base, path, method='GET', body=None):
-    data = None if body is None else json.dumps(body).encode()
-    req = urllib.request.Request(base + path, data=data, method=method,
-                                 headers={'Content-Type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=90) as response:
-        return json.load(response)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from admin_client import request, validate_base
 
 
 def identity(source):
@@ -36,9 +30,10 @@ def main():
     parser.add_argument('--only', help='Only a named source; exact match')
     parser.add_argument('--report', default='data/curation/source-pack-run.json')
     args = parser.parse_args()
-    target = urllib.parse.urlsplit(args.base)
-    if target.hostname not in ('localhost', '127.0.0.1', '::1') or target.scheme != 'http':
-        parser.error('This installer only targets the local HTTP RabbitHole instance.')
+    try:
+        validate_base(args.base)
+    except ValueError as error:
+        parser.error(str(error))
     pack = json.loads(Path(args.pack).read_text(encoding='utf-8-sig'))
     topics = {t['name']: t['id'] for t in request(args.base, '/topics')}
     sources = {identity(s): s for s in request(args.base, '/sources')}

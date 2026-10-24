@@ -1,0 +1,23 @@
+# Always combine with compose.hosted.yaml. Separate project/config isolates volumes.
+# Reach through SSH forwarding; Caddy uses its private CA rather than public ACME.
+services:
+  api:
+    environment:
+      Ingestion__Paused: 'true'
+      Security__AllowedOrigins: ${STAGING_ORIGIN:?Set the explicit browser HTTPS origin including its forwarded port}
+  web:
+    environment:
+      PUBLIC_INDEXING_ENABLED: 'false'
+      PUBLIC_ORIGIN: ${STAGING_ORIGIN}
+  gateway:
+    environment:
+      PUBLIC_INDEXING_ENABLED: 'false'
+      STAGING_ORIGIN: ${STAGING_ORIGIN}
+    ports: !override
+      - '127.0.0.1:${STAGING_HTTP_PORT:-47833}:80'
+      - '127.0.0.1:${STAGING_HTTPS_PORT:-47834}:443'
+    volumes: !override
+      - ./Caddyfile.staging:/etc/caddy/Caddyfile:ro
+      - ${STATE_PATH:?Set a dedicated staging state directory}:/srv/state:ro
+      - caddy_data:/data
+      - caddy_config:/config

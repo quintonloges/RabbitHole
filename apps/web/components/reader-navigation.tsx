@@ -20,14 +20,14 @@ export function ReaderNavigation({ sections, currentItemId, isPdf, loading, erro
   if (footer && !previous && !next) return null;
   return <>
     <nav className="reader-document-nav" aria-label={footer ? "Continue reading" : "Document navigation"}>
-      {previous ? <Link className="text-link" href={`/items/${previous.itemId}`} aria-label={`Previous ${label}`}>← Previous</Link> : <span/>}
+      {previous ? <Link className="text-link" href={`/admin/items/${previous.itemId}`} aria-label={`Previous ${label}`}>← Previous</Link> : <span/>}
       <div className="reader-location">
         {!footer && <button ref={trigger} className="reader-text-button" onClick={() => dialog.current?.showModal()}><List size={14}/>Contents</button>}
         {index >= 0 && <span>{index + 1} of {sequence.length} {label === "page" ? "pages" : "sections"}</span>}
         {!footer && loading && !sections && <span role="status">Loading navigation…</span>}
         {!footer && error && <button className="reader-text-button" onClick={onRetry}>Retry navigation</button>}
       </div>
-      {next ? <Link className="text-link" href={`/items/${next.itemId}`} aria-label={`Next ${label}`}>Next →</Link> : <span/>}
+      {next ? <Link className="text-link" href={`/admin/items/${next.itemId}`} aria-label={`Next ${label}`}>Next →</Link> : <span/>}
     </nav>
     {!footer && <>
       {current?.isSuperseded && <p className="subtle">This is an earlier version with your saved notes and progress.</p>}

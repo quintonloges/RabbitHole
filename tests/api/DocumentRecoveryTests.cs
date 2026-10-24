@@ -20,12 +20,13 @@ namespace RabbitHole.Tests;
 [Collection("Document imports")]
 public class DocumentRecoveryTests
 {
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : AuthenticatedApiFactory
     {
         public string Folder { get; } = Path.Combine(Path.GetTempPath(), "rabbithole-document-recovery-" + Guid.NewGuid().ToString("N"));
         public string Original => Path.Combine(Folder, "uploads", "interrupted.pdf");
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             Directory.CreateDirectory(Folder);
             builder.UseSetting("DATABASE_PROVIDER", "sqlite");
             builder.UseSetting("ConnectionStrings:Default", "Data Source=" + Path.Combine(Folder, "test.db"));

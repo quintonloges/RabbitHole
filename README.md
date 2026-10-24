@@ -1,6 +1,10 @@
 # RabbitHole
 
-A private discovery feed with a memory. Follow real articles, research, books, videos and music into branching trails; keep notes and revisit ideas when you choose. There are no accounts, analytics, streaks or fabricated feed entries.
+A public catalog with a private learning workspace. Visitors browse real published articles, research, videos and music. One administrator follows branching trails, keeps notes, reads private books and revisits ideas. There are no visitor accounts, analytics, streaks or fabricated feed entries.
+
+Public routes are `/`, `/search`, `/items/{id}`. Personal features are under `/admin`, with sign-in at `/admin/login`. Public records expose approved metadata and bounded source excerpts. Uploads, full stored text, notes, history, trails, practice and AI output stay private. Control visibility with **Show publicly** in item Details and the Library visibility filter. The upgrade publishes eligible existing external records; document-derived records are always private.
+
+See [public hosting and migration](docs/public-hosting.md) for DigitalOcean and GitHub Actions setup for `quintonloges.me`. Live release requires server/DNS configuration and successful migration/backup gates.
 
 ## Desktop environments
 
@@ -16,6 +20,7 @@ Open PowerShell in this repository:
 ```powershell
 ./scripts/production.ps1 start   # Starts preserved production images; never builds
 ./scripts/dev.ps1 start          # Builds this checkout and starts development
+docker compose exec api dotnet RabbitHole.Api.dll --admin-password # Interactive setup/recovery
 ```
 
 Both scripts also accept `status`, `logs`, `stop`, and `restart`. Production is a private deployment snapshot in ignored `.local/production/`, with pinned image IDs and its own Caddyfile. Keep that folder. Development uses the working checkout's `compose.yaml` and `.env`; ordinary `docker compose` commands now target development. Production updates are deliberate; rebuilding development cannot deploy new code to production.
@@ -26,7 +31,7 @@ Only each Caddy gateway publishes a host port, bound to `127.0.0.1`. The databas
 
 ## First visit
 
-1. Open **Settings**. Edit the starter topics, select a verified suggested feed or enter your own RSS/Atom/site URL, and add it. Sources are never silently subscribed.
+1. Provision the administrator password with the interactive command above, visit `/admin/login`, then open **Settings**. Edit the starter topics, select a verified suggested feed or enter your own RSS/Atom/site URL, and add it. Sources are never silently subscribed.
 2. Refresh the source. Its actual imported count, last success and error appear alongside persistent jobs. Use **New selection** on Discover to include newly imported items immediately.
 3. Open a source, save it, write a note, or choose **Follow the rabbit hole**. Each branch and your current position persist. Questions are visibly user-authored; recommended links always refer to catalog records.
 4. Use **Library → Books & files** to import a personal PDF or EPUB, navigate its actual sections and save a reading position. PDF bookmarks and named ranges appear first; individual pages have a separate searchable list. **Rebuild sections** applies improved extraction to an existing book while preserving notes and progress. Scanned/encrypted/unparseable files retain an original-file fallback.
@@ -62,7 +67,7 @@ python scripts/import-reading-pack.py --apply
 
 The default is a read-only plan against development. Applying [curated-source-pack.json](config/curated-source-pack.json) verifies and refreshes new sources before enabling them. It preserves matching existing subscriptions, topic preferences, and personal state. Applying [curated-reading-pack.json](config/curated-reading-pack.json) imports only missing selected real links/papers through the normal API, recognizing stored provider aliases before requesting an import. Neither pack runs automatically at startup. Failed new sources stay disabled; failed refreshes of existing sources also print the error and return a nonzero exit code without changing their settings.
 
-Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts default to `--base http://127.0.0.1:47832/api`; use `--base http://127.0.0.1:47831/api` explicitly to target your production library. Both accept `--report PATH` and use only Python's standard library. Pack edits do not overwrite existing user configuration; use **Settings** for that. After imports, choose **New selection** on Discover.
+Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts prompt for the administrator password, retain cookies only in memory, and default to `--base http://127.0.0.1:47832/api`. Use `--base https://quintonloges.me/api` explicitly for the hosted library; remote HTTP is refused. The new clients require the authenticated API and do not target the preserved legacy production image. Both accept `--report PATH` and use Python's standard library. Pack edits do not overwrite existing preferences; use **Settings** for that. After imports, choose **New selection** on admin Discover.
 
 ## Configuration
 
@@ -78,6 +83,7 @@ The app works without any API key: RSS/Atom, public arXiv, low-volume OpenAlex w
 | `AI_API_KEY` | Server-only provider credential |
 | `AI_ALLOW_LOCAL` | `true` for a deliberately configured local compatible model endpoint; an API key may then be empty |
 | `AI_TOKEN_PARAMETER` | `max_completion_tokens` by default; `max_tokens` for compatible servers that require it |
+| `INGESTION_PAUSED` | Stops provider calls without changing subscriptions; also available in admin Settings |
 
 The table describes development's `.env`. Production retains its effective settings in private `.local/production/compose.json`; changing development's `.env` has no effect on production. After development environment changes: `./scripts/dev.ps1 start`. For production settings, see [environment operations](docs/environments.md). Also enable AI explicitly in that environment's Settings. AI is only called for an action you request. A remote provider receives bounded source passages and your submitted response. Inside Docker, a host model server can be addressed as `http://host.docker.internal:11434/v1` if that server exposes a compatible endpoint. The default model is intentionally unspecified.
 
@@ -113,7 +119,9 @@ For development without PostgreSQL, an explicit **development-only** SQLite data
 $env:DATABASE_PROVIDER = 'sqlite'
 $env:ConnectionStrings__Default = 'Data Source=rabbithole-dev.db'
 $env:Documents__Path = "$PWD/data/dev-uploads"
-$env:RABBITHOLE_ALLOWED_ORIGIN = 'http://127.0.0.1:47834'
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+$env:Security__AllowedOrigins = 'http://127.0.0.1:47834'
+dotnet run --project apps/api -- --admin-password
 dotnet run --project apps/api --urls http://127.0.0.1:5080
 # In another terminal:
 $env:NEXT_TELEMETRY_DISABLED = '1'
@@ -122,7 +130,7 @@ npm --prefix apps/web run dev -- --port 47834
 
 Production uses PostgreSQL and forward migrations. SQLite is for tests/development; an additive schema upgrade preserves older development databases. Both paths transactionally backfill identities, multiple source origins and explicit topic choices before serving traffic. Never point the test host at your personal database.
 
-OpenAPI is served at `/openapi/v1.json`. Health at `/api/healthz` checks the database. See [architecture](docs/architecture.md), [ingestion and privacy](docs/ingestion-and-privacy.md), [provider checks](docs/provider-verification.md) and the [acceptance report](docs/acceptance-report.md) for actual validation and remaining limits.
+OpenAPI at `/openapi/v1.json` requires an administrator session. Anonymous health at `/api/healthz` returns minimal database availability. See [architecture](docs/architecture.md), [ingestion and privacy](docs/ingestion-and-privacy.md), [public hosting](docs/public-hosting.md), [provider checks](docs/provider-verification.md) and the [acceptance report](docs/acceptance-report.md) for validation and limitations.
 
 ## Backup and restore
 
@@ -187,4 +195,4 @@ To change development's port, edit `PORT` in `.env` and run `./scripts/dev.ps1 s
 
 **Destructive development reset:** only after deciding to erase development, `docker compose -p rabbithole-dev --env-file .env -f compose.yaml down --volumes` deletes its database and uploads. Never use it for routine rebuilds or troubleshooting. Production volumes are external and are not removed by Compose; deleting them manually would erase the personal library.
 
-This is a single-user loopback application with no login. Exposing it to LAN/internet requires independent authentication and careful proxy configuration. Do not change the host binding to `0.0.0.0`. The API also validates Host and mutation origins; an explicitly configured `RABBITHOLE_ALLOWED_ORIGIN` is for a trusted local development proxy.
+Desktop Compose remains loopback-only. The current app has a public catalog and a password-protected private workspace; use the separate hosted configuration for HTTPS internet access. Explicit `Security:AllowedHosts`, `Security:AllowedOrigins` and exact `Security:TrustedProxies` replace broad remote-host exceptions. Provision/recover the password interactively; do not weaken these boundaries to resolve a configuration error.

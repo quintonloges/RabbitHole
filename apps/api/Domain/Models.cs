@@ -41,6 +41,8 @@ public class Source
 
 public class ContentItem
 {
+    // Durable publication choice, independent of reading state and subscriptions.
+    public bool IsPublic { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid? SourceId { get; set; }
     // Merged records remain as historical snapshots; existing links resolve to the survivor.

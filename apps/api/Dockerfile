@@ -7,7 +7,7 @@ RUN dotnet publish apps/api/RabbitHole.Api.csproj -c Release -o /out --no-restor
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /data/uploads && chown -R app:app /data
+    && mkdir -p /data/uploads /data/auth-keys && chown -R app:app /data
 WORKDIR /app
 COPY --from=build /out .
 USER app

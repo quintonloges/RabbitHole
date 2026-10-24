@@ -1,0 +1,66 @@
+name: Deploy to DigitalOcean
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        default: staging
+        description: GitHub environment holding server SSH configuration
+      platform:
+        type: choice
+        options: [linux/amd64, linux/arm64]
+        default: linux/amd64
+        description: DigitalOcean server CPU architecture
+permissions:
+  contents: read
+concurrency:
+  group: rabbithole-deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and pin release images
+        env:
+          PLATFORM: ${{ inputs.platform }}
+        run: |
+          docker buildx build --platform "$PLATFORM" --load -f apps/api/Dockerfile -t "rabbithole-api:$GITHUB_SHA" .
+          docker buildx build --platform "$PLATFORM" --load -t "rabbithole-web:$GITHUB_SHA" apps/web
+          docker pull --platform "$PLATFORM" postgres:17-alpine
+          docker pull --platform "$PLATFORM" caddy:2-alpine
+          docker tag postgres:17-alpine "rabbithole-postgres:$GITHUB_SHA"
+          docker tag caddy:2-alpine "rabbithole-caddy:$GITHUB_SHA"
+          docker save "rabbithole-api:$GITHUB_SHA" "rabbithole-web:$GITHUB_SHA" "rabbithole-postgres:$GITHUB_SHA" "rabbithole-caddy:$GITHUB_SHA" | gzip >images.tar.gz
+          sha256sum images.tar.gz >bundle.sha256
+          tar -czf release.tar.gz images.tar.gz bundle.sha256 compose.hosted.yaml compose.staging.yaml Caddyfile.hosted Caddyfile.staging scripts/hosted scripts/admin_client.py scripts/preservation-manifest.py
+      - name: Transfer over verified SSH and deploy in maintenance
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_USER: ${{ vars.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          test -n "$SSH_HOST" && test -n "$SSH_USER" && test -n "$SSH_PRIVATE_KEY" && test -n "$SSH_KNOWN_HOSTS"
+          [[ "$SSH_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]+$ ]] && [[ "$SSH_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] && [[ "$SSH_PORT" =~ ^[0-9]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+          SSH_TARGET="$SSH_USER@$SSH_HOST"
+          RH_CONFIG=/etc/rabbithole/hosted.env
+          if [[ "$DEPLOY_ENVIRONMENT" == staging ]]; then RH_CONFIG=/etc/rabbithole/staging.env; fi
+          ssh -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$SSH_TARGET" "mkdir -p /srv/rabbithole/releases/$GITHUB_SHA"
+          scp -P "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes release.tar.gz "$SSH_TARGET:/srv/rabbithole/releases/$GITHUB_SHA/"
+          ssh -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$SSH_TARGET" "cd /srv/rabbithole/releases/$GITHUB_SHA && tar -xzf release.tar.gz && RH_CONFIG=$RH_CONFIG bash scripts/hosted/deploy.sh /srv/rabbithole/releases/$GITHUB_SHA"

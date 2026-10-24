@@ -274,6 +274,7 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
             existing.ArxivId ??= item.ArxivId;
             existing.PublishedAt ??= item.PublishedAt;
             if (created || item.Warning is null) existing.ImportWarning = item.Warning;
+            if (created) existing.IsPublic = PublicCatalogPolicy.IsEligible(existing);
             existing.UpdatedAt = DateTimeOffset.UtcNow;
             await ItemCatalog.AttachSourceAsync(db, existing, sourceId, ct);
             await ItemCatalog.RegisterAsync(db, existing, identities, ct);

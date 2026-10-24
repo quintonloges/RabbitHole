@@ -30,6 +30,8 @@ public static class SqliteCatalogSchema
         }
 
         var itemColumns = await ColumnsAsync("Items");
+        if (!itemColumns.Contains("IsPublic"))
+            await ExecuteAsync("ALTER TABLE \"Items\" ADD COLUMN \"IsPublic\" INTEGER NOT NULL DEFAULT 0;");
         foreach (var column in new[] { "ConceptTags", "ExcludedConcepts" })
             if (!itemColumns.Contains(column)) await ExecuteAsync($"ALTER TABLE \"Items\" ADD COLUMN \"{column}\" TEXT NOT NULL DEFAULT '[]';");
         if (!(await ColumnsAsync("Holes")).Contains("Origin"))

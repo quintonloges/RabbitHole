@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 import { randomUUID } from 'node:crypto';
 import type { BookSection, Item, Note } from '../../apps/web/lib/types';
 
@@ -7,7 +8,7 @@ const opening = 'TEST FIXTURE: The passage begins here, before any record-manage
 const body = opening.replaceAll(' ', '\t') + '\n\n' + 'This\tsupplied paragraph describes\ncuriosity and careful obser-\nvation. '.repeat(90);
 const pages: BookSection[] = Array.from({ length: 200 }, (_, index) => ({ id: randomUUID(), documentId: bookId, itemId: randomUUID(), title: `Page ${index + 1}`, order: index, startPage: index + 1, endPage: index + 1, locator: `page=${index + 1}` }));
 function base(title: string, patch: Partial<Item> = {}): Item {
-  return { id: randomUUID(), title, kind: 'article', canonicalUrl: 'https://example.org/fixture', provider: 'manual', ingestedAt: '2026-01-01T00:00:00Z', textProvenance: 'metadata-only', state: { saved: false, read: false, understood: false, dismissed: false, feedback: 0, progress: 0 }, topics: [], notes: [], related: [], ...patch };
+  return { isPublic: false, canPublish: false, id: randomUUID(), title, kind: 'article', canonicalUrl: 'https://example.org/fixture', provider: 'manual', ingestedAt: '2026-01-01T00:00:00Z', textProvenance: 'metadata-only', state: { saved: false, read: false, understood: false, dismissed: false, feedback: 0, progress: 0 }, topics: [], notes: [], related: [], ...patch };
 }
 const first = base('Page 165', { id: pages[164].itemId, documentId: bookId, sectionId: pages[164].id, kind: 'book', provider: 'local-upload', canonicalUrl: 'local://fixture/165', body, excerpt: opening, hasText: true, textProvenance: 'personal-upload', document: { id: bookId, title: 'TEST FIXTURE: A book worth reading', author: 'Fixture author', format: 'PDF', sectionType: 'page', startPage: 165, endPage: 165, pageCount: 200, isSuperseded: false } });
 const second = { ...first, id: pages[165].itemId, sectionId: pages[165].id, title: 'Page 166', document: { ...first.document!, startPage: 166, endPage: 166 } };
@@ -50,7 +51,7 @@ async function selectText(page: Page, selector: string, length: number) {
 test('reading stays above the fold while contents and secondary actions remain accessible', async ({ page }) => {
   await fixture(page);
   await page.route(`**/api/library/books/${bookId}/sections`, route => route.fulfill({ status: 503, json: { detail: 'TEST FIXTURE: navigation temporarily unavailable' } }), { times: 1 });
-  await page.goto(`/items/${first.id}`);
+  await page.goto(`/admin/items/${first.id}`);
   await expect(page.locator('.reader-body')).toContainText(opening);
   await expect(page.locator('.reader-lede')).toHaveCount(0);
   const reflowed = await page.locator('.reader-body').textContent();
@@ -60,7 +61,7 @@ test('reading stays above the fold while contents and secondary actions remain a
   await expect(page.getByRole('heading', { name: 'TEST FIXTURE: A book worth reading — page 165' })).toBeVisible();
   const navigation = page.getByRole('navigation', { name: 'Document navigation', exact: true });
   await navigation.getByRole('button', { name: 'Retry navigation' }).click();
-  await expect(navigation.getByRole('link', { name: 'Next page', exact: true })).toHaveAttribute('href', `/items/${second.id}`);
+  await expect(navigation.getByRole('link', { name: 'Next page', exact: true })).toHaveAttribute('href', `/admin/items/${second.id}`);
   for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: 900 });
     expect((await page.locator('.reader-body').boundingBox())!.y).toBeLessThan(650);
@@ -85,7 +86,7 @@ test('reading stays above the fold while contents and secondary actions remain a
   await page.getByLabel('Preserve PDF line breaks').check();
   expect(await page.locator('.reader-body').textContent()).toBe(body);
   await navigation.getByRole('link', { name: 'Next page', exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/items/${second.id}$`));
+  await expect(page).toHaveURL(new RegExp(`/admin/items/${second.id}$`));
   await expect(page.locator('.reader-body')).toContainText(opening);
   await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await expect(page.getByLabel('Preserve PDF line breaks')).toBeChecked();
@@ -94,7 +95,7 @@ test('reading stays above the fold while contents and secondary actions remain a
 
 test('note drafts and quotes stay with their item and survive a failed save', async ({ page }) => {
   const records = await fixture(page);
-  await page.goto(`/items/${first.id}`);
+  await page.goto(`/admin/items/${first.id}`);
   await page.getByLabel('Your note').fill('TEST FIXTURE: Keep this draft with page 165.');
   await selectText(page, '.reader-body', opening.length);
   await page.getByRole('button', { name: 'Quote in note', exact: true }).click();
@@ -128,7 +129,7 @@ test('note drafts and quotes stay with their item and survive a failed save', as
 
 test('highlights accept only source selections and report persistence without duplicating a note draft', async ({ page }) => {
   const records = await fixture(page);
-  await page.goto(`/items/${first.id}`);
+  await page.goto(`/admin/items/${first.id}`);
   await expect(page.locator('.reader-body')).toBeVisible();
   await selectText(page, '.reader-title h1', 12);
   await expect(page.getByRole('region', { name: 'Selected passage' })).toHaveCount(0);
@@ -149,20 +150,20 @@ test('media, abstracts and link-only items present the content they actually con
   await fixture(page);
   let playerRequests = 0;
   await page.route('https://www.youtube-nocookie.com/**', route => { playerRequests++; return route.fulfill({ contentType: 'text/html', body: '<p>TEST FIXTURE: consented player</p>' }); });
-  await page.goto(`/items/${video.id}`);
+  await page.goto(`/admin/items/${video.id}`);
   await expect(page.getByRole('button', { name: 'Load player' })).toBeVisible();
   expect(playerRequests).toBe(0);
   await expect(page.locator('.reader-content-notice')).toHaveCount(0);
   await page.getByRole('button', { name: 'Load player' }).click();
   await expect(page.locator('iframe')).toBeVisible();
   await expect.poll(() => playerRequests).toBe(1);
-  await page.goto(`/items/${paper.id}`);
+  await page.goto(`/admin/items/${paper.id}`);
   await expect(page.getByRole('heading', { name: 'Abstract', exact: true })).toBeVisible();
   await expect(page.locator('.reader-body')).toHaveText(opening);
   await expect(page.locator('.reader-lede')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await expect(page.getByText('DOI: 10.1234/fixture', { exact: false })).toBeVisible();
-  await page.goto(`/items/${link.id}`);
+  await page.goto(`/admin/items/${link.id}`);
   await expect(page.getByRole('link', { name: 'Open original source', exact: true })).toHaveAttribute('href', link.canonicalUrl);
   await expect(page.locator('.reader-content-notice')).toContainText('The text isn’t available here.');
 });
@@ -172,7 +173,7 @@ test('an AI response that finishes after page navigation never appears on the ne
   let complete!: () => void;
   const pending = new Promise<void>(resolve => { complete = resolve; });
   await page.route(`**/api/items/${first.id}/ai`, async route => { await pending; await route.fulfill({ json: { text: 'TEST FIXTURE: synthesis for page 165 only', evidenceItemIds: [first.id] } }); });
-  await page.goto(`/items/${first.id}`);
+  await page.goto(`/admin/items/${first.id}`);
   await page.getByRole('tab', { name: 'Explore', exact: true }).click();
   await page.locator('.reader-ai-tools > summary').click();
   const answer = page.waitForResponse(response => response.url().endsWith(`/api/items/${first.id}/ai`));

@@ -24,6 +24,17 @@ public static class IngestionEndpoints
     public static IEndpointRouteBuilder MapIngestionEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api");
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            var path = context.HttpContext.Request.Path.Value ?? "";
+            var remoteOperation = path is "/api/items/import-url" or "/api/research/import" or "/api/research/search" ||
+                path.StartsWith("/api/sources/", StringComparison.Ordinal) && (path.EndsWith("/refresh") || path.EndsWith("/test"));
+            if (remoteOperation && await SettingsService.IsIngestionPausedAsync(
+                context.HttpContext.RequestServices.GetRequiredService<AppDbContext>(),
+                context.HttpContext.RequestServices.GetRequiredService<IConfiguration>(), context.HttpContext.RequestAborted))
+                return Results.Problem(title: "Ingestion paused", detail: "Resume ingestion in Settings or the server configuration before contacting providers.", statusCode: 409);
+            return await next(context);
+        });
         group.MapGet("/sources", async (AppDbContext db, CancellationToken ct) =>
             await db.Sources.OrderBy(x => x.Name).ToListAsync(ct));
         group.MapGet("/sources/presets", () => IngestionService.Presets);
@@ -198,6 +209,7 @@ public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<Ingesti
                 {
                     using var scope = scopes.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    if (await SettingsService.IsIngestionPausedAsync(db, scope.ServiceProvider.GetRequiredService<IConfiguration>(), stoppingToken)) continue;
                     var stale = (await db.Jobs.Where(x => x.Status == "running").ToListAsync(stoppingToken))
                         .Where(x => x.StartedAt < DateTimeOffset.UtcNow.AddMinutes(-2)).Take(20).ToList();
                     foreach (var job in stale)
@@ -215,6 +227,7 @@ public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<Ingesti
                         // Give each provider its own unit of work, including after a database error.
                         using var sourceScope = scopes.CreateScope();
                         var sourceDb = sourceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                        if (await SettingsService.IsIngestionPausedAsync(sourceDb, sourceScope.ServiceProvider.GetRequiredService<IConfiguration>(), stoppingToken)) break;
                         var source = await sourceDb.Sources.FindAsync([dueSource.Id], stoppingToken);
                         if (source is null || !source.Enabled) continue;
                         try { await sourceScope.ServiceProvider.GetRequiredService<IngestionService>().RefreshAsync(source, stoppingToken); }

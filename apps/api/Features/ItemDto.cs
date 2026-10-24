@@ -18,6 +18,7 @@ public sealed class ItemDto : ContentItem
     public List<ConceptMatch> Concepts { get; set; } = [];
     public bool Revisit { get; set; }
     public bool HasText { get; set; }
+    public bool CanPublish { get; set; }
     public ItemDocumentContext? Document { get; set; }
 
     public static async Task<List<ItemDto>> RecommendationsAsync(AppDbContext db, IEnumerable<Recommendation> recommendations, CancellationToken ct)
@@ -39,6 +40,7 @@ public sealed class ItemDto : ContentItem
     public static async Task<List<ItemDto>> BuildAsync(AppDbContext db, IEnumerable<ContentItem> items, CancellationToken ct, IReadOnlyDictionary<Guid, (string Reason, List<Guid> Evidence)>? reasons = null, bool includeBody = false)
     {
         var list = items.ToList();
+        var documentDerivedIds = await PublicCatalogPolicy.DocumentDerivedIdsAsync(db, ct);
         var ids = list.Select(i => i.Id).ToList();
         var sourceIds = list.Where(i => i.SourceId.HasValue).Select(i => i.SourceId!.Value).Distinct().ToList();
         var states = await db.States.AsNoTracking().Where(s => ids.Contains(s.ItemId)).ToDictionaryAsync(s => s.ItemId, ct);
@@ -69,6 +71,8 @@ public sealed class ItemDto : ContentItem
             var dto = new ItemDto
             {
                 Id = i.Id,
+                IsPublic = i.IsPublic,
+                CanPublish = PublicCatalogPolicy.IsEligible(i) && !documentDerivedIds.Contains(i.Id),
                 SourceId = i.SourceId,
                 Kind = i.Kind,
                 Title = i.Title,

@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 import { randomUUID } from 'node:crypto';
 import type { Book, BookSection, Item } from '../../apps/web/lib/types';
 
@@ -12,7 +13,7 @@ function documentFixture() {
 
 async function openBook(page: Page, book: Book) {
   await page.route('**/api/library/books', route => route.fulfill({ json: [book] }));
-  await page.goto('/library');
+  await page.goto('/admin/library');
   await page.getByRole('tab', { name: 'Books & files', exact: true }).click();
   const card = page.locator('.document-card').filter({ has: page.getByRole('heading', { name: book.title, exact: true }) });
   await card.getByRole('button', { name: 'Sections', exact: true }).click();
@@ -95,22 +96,22 @@ test('reader navigation keeps chapters and pages separate and retains earlier ex
   const previous = { ...fixture.chapters[1], id: randomUUID(), itemId: randomUUID(), title: 'TEST FIXTURE: Old extraction', isSuperseded: true };
   await page.route(`**/api/library/books/${fixture.book.id}/sections`, route => route.fulfill({ json: [fixture.pages[0], fixture.chapters[0], previous, fixture.pages[1], fixture.chapters[1]] }));
   for (const section of [fixture.chapters[0], fixture.chapters[1], fixture.pages[0], fixture.pages[1], previous]) {
-    const item: Item = { id: section.itemId, documentId: fixture.book.id, sectionId: section.id, kind: 'book-section', title: section.title, canonicalUrl: `local://book/${fixture.book.id}`, provider: 'local-document', body: 'TEST FIXTURE: source text from a private document', textProvenance: 'user-document', ingestedAt: fixture.book.createdAt, topics: [], notes: [], related: [], state: { saved: false, read: false, dismissed: false, understood: false, progress: 0, feedback: 0 } };
+    const item: Item = { isPublic: false, canPublish: false, id: section.itemId, documentId: fixture.book.id, sectionId: section.id, kind: 'book-section', title: section.title, canonicalUrl: `local://book/${fixture.book.id}`, provider: 'local-document', body: 'TEST FIXTURE: source text from a private document', textProvenance: 'user-document', ingestedAt: fixture.book.createdAt, topics: [], notes: [], related: [], state: { saved: false, read: false, dismissed: false, understood: false, progress: 0, feedback: 0 } };
     await page.route(`**/api/items/${section.itemId}`, route => route.fulfill({ json: item }));
     await page.route(`**/api/items/${section.itemId}/state`, route => route.fulfill({ json: item }));
   }
-  await page.goto(`/items/${fixture.chapters[0].itemId}`);
+  await page.goto(`/admin/items/${fixture.chapters[0].itemId}`);
   const navigation = page.getByRole('navigation', { name: 'Document navigation', exact: true });
-  await expect(navigation.getByRole('link', { name: 'Next chapter', exact: true })).toHaveAttribute('href', `/items/${fixture.chapters[1].itemId}`);
+  await expect(navigation.getByRole('link', { name: 'Next chapter', exact: true })).toHaveAttribute('href', `/admin/items/${fixture.chapters[1].itemId}`);
   await expect(navigation.getByRole('link', { name: 'Previous chapter', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: previous.title, exact: true })).not.toBeVisible();
   await page.getByRole('button', { name: 'Contents', exact: true }).click();
   await page.locator('summary').filter({ hasText: /^Previous extraction/ }).click();
   await expect(page.getByRole('link', { name: previous.title, exact: true })).toBeVisible();
-  await page.goto(`/items/${fixture.pages[0].itemId}`);
-  await expect(navigation.getByRole('link', { name: 'Next page', exact: true })).toHaveAttribute('href', `/items/${fixture.pages[1].itemId}`);
+  await page.goto(`/admin/items/${fixture.pages[0].itemId}`);
+  await expect(navigation.getByRole('link', { name: 'Next page', exact: true })).toHaveAttribute('href', `/admin/items/${fixture.pages[1].itemId}`);
   await expect(page.getByRole('link', { name: 'Next chapter', exact: true })).toHaveCount(0);
-  await page.goto(`/items/${previous.itemId}`);
+  await page.goto(`/admin/items/${previous.itemId}`);
   await expect(page.getByText('This is an earlier version with your saved notes and progress.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Contents', exact: true }).click();
   await expect(page.getByRole('link', { name: previous.title, exact: true })).toBeVisible();
@@ -123,7 +124,7 @@ test('EPUB navigation respects supplied spine order and page-only PDFs explain t
   await page.route(`**/api/library/books/${book.id}/sections`, route => route.fulfill({ json: chapters }));
   const card = await openBook(page, book);
   await expect(card.getByRole('heading', { level: 3 }).nth(2)).toHaveText(chapters[0].title);
-  await expect(card.getByRole('link', { name: 'Read', exact: true }).first()).toHaveAttribute('href', `/items/${chapters[0].itemId}`);
+  await expect(card.getByRole('link', { name: 'Read', exact: true }).first()).toHaveAttribute('href', `/admin/items/${chapters[0].itemId}`);
   await page.route(`**/api/library/books/${fixture.book.id}/sections`, route => route.fulfill({ json: fixture.pages }));
   const pdfCard = await openBook(page, fixture.book);
   await expect(pdfCard.getByText(/No chapters were detected. Read individual pages below/)).toBeVisible();

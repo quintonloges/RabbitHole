@@ -1,11 +1,12 @@
-import { test, expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 import { randomUUID } from 'node:crypto';
 import type { Item, Topic } from '../../apps/web/lib/types';
 
 const mind: Topic = { id: randomUUID(), name: 'TEST FIXTURE Minds', description: '', keywords: '', aliases: '', weight: 3, pinned: false, curiosityOnly: false, enabled: true };
 const empty: Topic = { ...mind, id: randomUUID(), name: 'TEST FIXTURE Empty topic' };
 function item(title: string, patch: Partial<Item> = {}): Item {
-  return { id: randomUUID(), title, kind: 'article', provider: 'manual', canonicalUrl: 'https://example.org/fixture', ingestedAt: '2026-01-01T00:00:00Z', textProvenance: 'metadata-only', hasText: false, state: { saved: false, read: false, understood: false, dismissed: false, progress: 0, feedback: 0 }, topics: [mind], ...patch };
+  return { isPublic: false, canPublish: false, id: randomUUID(), title, kind: 'article', provider: 'manual', canonicalUrl: 'https://example.org/fixture', ingestedAt: '2026-01-01T00:00:00Z', textProvenance: 'metadata-only', hasText: false, state: { saved: false, read: false, understood: false, dismissed: false, progress: 0, feedback: 0 }, topics: [mind], ...patch };
 }
 const pdf = { id: randomUUID(), title: 'TEST FIXTURE: Field notes', author: 'Fixture author', format: 'PDF', sectionType: 'page' as const, startPage: 116, endPage: 116, pageCount: 369, isSuperseded: false };
 const mixed = [
@@ -27,7 +28,7 @@ async function mockFeed(page: Page) {
 
 test('mixed rows identify documents, actual text availability and source excerpts without opening drawers', async ({ page }) => {
   await mockFeed(page);
-  await page.goto('/');
+  await page.goto('/admin');
   const rows = page.locator('.story-row');
   await expect(rows).toHaveCount(7);
   await expect(rows.nth(0).getByRole('heading', { name: 'TEST FIXTURE: Field notes — page 116' })).toBeVisible();
@@ -87,9 +88,9 @@ test('topic browsing reaches the collection, paginates and survives navigation w
     return route.fulfill({ json: { items: records.slice(offset, offset + 30), total: records.length } });
   });
   await page.route('**/api/discover/refresh-edition', () => { throw new Error('Browsing must not replace the daily edition'); });
-  await page.goto('/');
+  await page.goto('/admin');
   await page.getByRole('combobox', { name: 'Browse topic' }).selectOption(mind.id);
-  await expect(page).toHaveURL(`http://127.0.0.1:3001/?topic=${mind.id}`);
+  await expect(page).toHaveURL(`http://127.0.0.1:3001/admin?topic=${mind.id}`);
   await expect(page.getByRole('heading', { name: mind.name, exact: true })).toBeVisible();
   await expect(page.locator('.story-row')).toHaveCount(30);
   await expect(page.getByRole('link', { name: 'TEST FIXTURE: Topic source 1', exact: true })).toBeVisible();

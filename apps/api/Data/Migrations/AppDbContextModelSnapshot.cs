@@ -22,6 +22,59 @@ namespace RabbitHole.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("RabbitHole.Domain.AdminAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FailedAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("PasswordChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AdminAccounts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AdminAccounts_SingleAccount", "\"Id\" = 1");
+                        });
+                });
+
+            modelBuilder.Entity("RabbitHole.Domain.AdminSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("AdminSessions");
+                });
+
             modelBuilder.Entity("RabbitHole.Domain.AiResult", b =>
                 {
                     b.Property<Guid>("Id")
@@ -122,6 +175,9 @@ namespace RabbitHole.Data.Migrations
 
                     b.Property<DateTimeOffset>("IngestedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Kind")
                         .IsRequired()
@@ -819,6 +875,15 @@ namespace RabbitHole.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Topics");
+                });
+
+            modelBuilder.Entity("RabbitHole.Domain.AdminSession", b =>
+                {
+                    b.HasOne("RabbitHole.Domain.AdminAccount", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RabbitHole.Domain.AiResult", b =>

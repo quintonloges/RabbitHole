@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 import path from 'node:path';
 
 test.describe.serial('A private curiosity engine with real backend state', () => {
@@ -7,7 +7,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
   let hole: string;
 
   test('add a source, import genuine fixture responses, save/read and keep a stable edition', async ({ page, request }) => {
-    await page.goto('/settings');
+    await page.goto('/admin/settings');
     await page.getByLabel('Items per day', { exact: false }).fill('5');
     await page.getByLabel('Enable practice', { exact: true }).check();
     await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
@@ -26,7 +26,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     const items = await (await request.get('/api/items')).json();
     expect(items.total).toBe(3);
     first = items.items.find((i: { title: string }) => i.title.includes('Consciousness and machines')).id;
-    await page.goto('/');
+    await page.goto('/admin');
     await page.getByRole('button', { name: 'New selection' }).click();
     await expect(page.getByRole('link', { name: 'TEST FIXTURE: Consciousness and machines', exact: true })).toBeVisible();
     const before = await (await request.get('/api/discover/today')).json();
@@ -37,7 +37,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     const more = await (await request.get('/api/discover/today')).json();
     expect(new Set(more.items.map((i: { id: string }) => i.id)).size).toBe(3);
     await page.getByText('Why this?', { exact: true }).first().click();
-    await page.goto(`/items/${first}`);
+    await page.goto(`/admin/items/${first}`);
     await expect(page.getByText(/This TEST FIXTURE discusses consciousness/).last()).toBeVisible();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByRole('button', { name: 'Mark read', exact: true }).first().click();
@@ -50,7 +50,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
   });
 
   test('notes, actual branches, sibling preservation and a saved position', async ({ page, request }) => {
-    await page.goto(`/items/${first}`);
+    await page.goto(`/admin/items/${first}`);
     await page.getByLabel('Your note').fill('TEST NOTE: a connection worth returning to');
     await page.getByRole('button', { name: 'Save note', exact: true }).click();
     await expect(page.getByText('TEST NOTE: a connection worth returning to', { exact: true })).toBeVisible();
@@ -73,7 +73,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     await page.getByLabel('New question').fill('TEST QUESTION: where might this lead?');
     await page.getByRole('button', { name: 'Add question', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'TEST QUESTION: where might this lead?', exact: true })).toBeVisible();
-    await page.goto('/search');
+    await page.goto('/admin/search');
     await page.getByLabel('Search terms').fill('TEST NOTE');
     await page.getByRole('button', { name: 'Search your collection' }).click();
     await expect(page.getByRole('link', { name: 'TEST FIXTURE: Consciousness and machines', exact: true })).toBeVisible();
@@ -87,7 +87,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
   });
 
   test('import actual EPUB and PDF, navigate chapters, save progress, preserve originals', async ({ page, request }) => {
-    await page.goto('/library');
+    await page.goto('/admin/library');
     await page.getByRole('tab', { name: 'Books & files' }).click();
     await page.getByLabel('Choose a PDF or EPUB').setInputFiles(path.resolve('tests/e2e/fixtures/test-book.epub'));
     await expect(page.getByRole('heading', { name: 'TEST FIXTURE: Private book', exact: true })).toBeVisible({ timeout: 45000 });
@@ -106,7 +106,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     await page.locator('summary').filter({ hasText: /^Progress within this/ }).click();
     await expect(page.getByRole('slider')).toHaveValue('42');
     expect((await request.get(`/api/library/books/${book}/file`)).ok()).toBe(true);
-    await page.goto('/library');
+    await page.goto('/admin/library');
     await page.getByRole('tab', { name: 'Books & files' }).click();
     await page.getByLabel('Choose a PDF or EPUB').setInputFiles(path.resolve('tests/e2e/fixtures/test-page.pdf'));
     await expect(page.getByRole('heading', { name: 'test-page', exact: true })).toBeVisible({ timeout: 45000 });
@@ -120,7 +120,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
   });
 
   test('official media metadata and explicitly imported scholarly results', async ({ page, request }) => {
-    await page.goto('/search');
+    await page.goto('/admin/search');
     await page.getByLabel('Public URL', { exact: true }).fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
     await page.getByRole('button', { name: 'Import link', exact: true }).click();
     await page.getByRole('link', { name: 'Open item →' }).click();
@@ -130,7 +130,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     await page.route('https://www.youtube-nocookie.com/**', route => route.fulfill({ contentType: 'text/html', body: '<p>TEST FIXTURE PLAYER</p>' }));
     await page.getByRole('button', { name: 'Load player' }).click();
     await expect(page.locator('iframe')).toHaveAttribute('src', /https:\/\/www.youtube-nocookie.com\/embed\/dQw4w9WgXcQ/);
-    await page.goto('/search');
+    await page.goto('/admin/search');
     await page.getByLabel('Public URL', { exact: true }).fill('https://soundcloud.com/fixture/track');
     await page.getByRole('button', { name: 'Import link', exact: true }).click();
     await page.getByRole('link', { name: 'Open item →' }).click();
@@ -138,7 +138,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     await expect(page.getByRole('heading', { name: 'TEST FIXTURE: Track', exact: true })).toBeVisible();
     const track = await (await request.get(`/api/items/${page.url().split('/').pop()}`)).json();
     expect(new URL(track.embedUrl).hostname).toBe('w.soundcloud.com');
-    await page.goto('/search');
+    await page.goto('/admin/search');
     await page.getByLabel('Search terms').fill('consciousness');
     await page.getByRole('button', { name: 'Search research', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'TEST FIXTURE: A consciousness paper', exact: true })).toBeVisible();
@@ -156,7 +156,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
   });
 
   test('opt-in reflection, self-rating and snooze persist without claiming mastery', async ({ page, request }) => {
-    await page.goto('/practice');
+    await page.goto('/admin/practice');
     await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption(first);
     await page.getByRole('button', { name: 'Add question', exact: true }).click();
     await page.getByText('Show source passage', { exact: true }).click();
@@ -191,14 +191,14 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     expect(text).toContain('TEST NOTE');
     expect(text).not.toMatch(/apiKey|password|storageName/i);
     await page.setViewportSize({ width: 390, height: 844 });
-    for (const route of ['/', '/holes', '/library', '/practice', '/search', '/settings']) {
+    for (const route of ['/admin', '/admin/holes', '/admin/library', '/admin/practice', '/admin/search', '/admin/settings']) {
       await page.goto(route);
       await expect(page.locator('h1')).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     }
-    await page.screenshot({ path: 'test-results/mobile-settings.png', fullPage: true });
+    await page.screenshot({ path: '.cache/ui-review/admin-settings-mobile.png', fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto('/');
-    await page.screenshot({ path: 'test-results/desktop-discover.png', fullPage: true });
+    await page.goto('/admin');
+    await page.screenshot({ path: '.cache/ui-review/admin-discover-desktop.png', fullPage: true });
   });
 });

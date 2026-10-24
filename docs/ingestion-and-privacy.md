@@ -1,6 +1,10 @@
 # Ingestion, privacy and limits
 
-RabbitHole stores one person's collection locally. There are no analytics, accounts, advertisements or remote database services. Internet egress comes from configured source refreshes, explicitly requested research/URL lookups, opted-in media players and explicitly invoked AI actions. Fonts and visual assets do not require a third-party CDN.
+RabbitHole stores one administrator's collection on the chosen machine/server, with a separate public catalog of eligible external metadata and bounded source excerpts. There are no visitor accounts, analytics, advertisements or external managed database dependencies. Uploaded files/text, notes, history, trails, practice, settings, subscriptions and AI results are private. Internet egress comes from configured source refreshes, explicitly requested research/URL lookups, opted-in media players, explicitly invoked AI actions and configured encrypted backups. Fonts and visual assets do not require a third-party CDN.
+
+Publication is persistent and separate from personal state. Credential-bearing/private URLs and document-derived records, including aliases and stale section references, are excluded before public search/counts/facets/sitemap. Public requests are read-only and do not record learning activity. Public related results use metadata only. HTTPS cookie sessions and CSRF protect all existing APIs, exports, files/ranges and writes; there is no public setup wizard. See [public hosting](public-hosting.md) for the complete boundary and operational commands.
+
+`Ingestion:Paused` or the administrator's `ingestionPaused` setting stops scheduled refreshes and provider test/import/search operations without changing `Sources.Enabled`, cursors or topic assignments. A current in-flight request may finish; consistent backups stop the API before taking a database/files pair. Staging forces pause in server configuration, independently of restored user preferences.
 
 ## Source handling
 

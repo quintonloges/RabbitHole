@@ -4,7 +4,7 @@
 
 ## Mission and product philosophy
 
-**RabbitHole** is a private, single-user, locally hosted discovery-and-learning application. It replaces low-value doomscrolling with an enjoyable stream of *real* articles, research, blogs, personal book chapters, videos, audio, music, and curiosity-driven explorations.
+**RabbitHole** is a public discovery catalog with a private, single-administrator learning workspace. It replaces low-value doomscrolling with an enjoyable stream of *real* articles, research, blogs, personal book chapters, videos, audio, music, and curiosity-driven explorations. Visitors see published external metadata and bounded source excerpts; learning history and books remain private.
 
 **North star: A on the surface, B quietly underneath.** A = an inviting, surprising, personalized discovery feed. B = cumulative understanding, connections, recall, and learning trails that emerge unobtrusively over days, weeks, and months. Never make reading feel like compulsory coursework.
 
@@ -16,7 +16,7 @@
 2. **Epistemic honesty without editorial paternalism.** Don't fabricate articles, papers, references, quotes, study results, author identities, transcripts, publishing dates, connections, or certainty. Preserve who said what. Distinguish a source's assertion from the app's own synthesis. Provide original links, metadata, and provenance. Let the user *choose* to inspect counterarguments, conflicting viewpoints, methodological critiques, or source comparisons; don't force these on every speculative item.
 3. **Human-created material first.** Retrieval and curation lead; AI enriches, organizes, connects, or helps recall. Do not generate an infinite synthetic-content feed. AI-generated descriptions must be clearly distinguishable from original source text.
 4. **Not an engagement trap.** No outrage optimization, streak pressure, vanity knowledge scores, artificial urgency, endless filler, aggressive notifications, or manipulative engagement metrics. Support a meaningful finite daily selection, with deliberate deeper exploration.
-5. **Personal use, personal control.** Single user; user selects topics, sources, reading preferences, music tastes, and AI provider. Private data remains local by default. No SaaS, telemetry, ads, login/signup flows, billing, public social network, or multi-tenant architecture.
+5. **Personal use, personal control.** One password-only administrator selects topics, sources, reading preferences, music tastes, AI provider and publication status. No visitor accounts, registration, SaaS, telemetry, ads, billing, public social network or multi-tenant architecture. Uploads, notes, history, trails, practice, AI results and provider configuration are private.
 6. **Graceful degradation is a feature.** With no AI key, missing API credentials, no internet, rate limits, malformed PDFs, or unavailable providers, the app still boots and existing personal content remains usable. Clearly indicate missing capability, not false success.
 7. **Full vertical slices.** A feature is not "done" because the UI renders. It must persist, work through real backend logic, handle loading/errors/empty states, and have appropriate tests.
 
@@ -109,7 +109,10 @@ External source availability changes. **Consult official API documentation durin
 
 ## Security, privacy, and respectful ingestion
 
-- Bind the gateway to loopback by default. No authentication is required for loopback-only use; document that exposing it to LAN or internet without independent authentication is unsafe. Never silently open all interfaces.
+- Desktop gateways remain loopback-only. Hosted deployment uses separate `compose.hosted.yaml`, an explicit HTTPS origin and trusted internal proxies. Every legacy API and `/admin` page requires administrator authorization, including on desktop. Only the dedicated public API, login/CSRF bootstrap and minimal health allow anonymous access. Never bypass auth in tests or scripts.
+- Public routes are `/`, `/search`, `/items/{id}`; personal routes are under `/admin`. Public server rendering uses separate DTOs, never forwards admin cookies, never writes personal state, and never invokes ingestion or AI. Filter publication/eligibility before search, counts, related ranking, pagination, facets or sitemap. Hiding must take effect without stale cached responses.
+- `IsPublic` is independent of saved/read/dismissed/source-enabled state. Eligible external imports default public; refresh preserves choices; merging uses restrictive visibility. Documents, section references, upload-derived aliases, credential-bearing and private URLs are never publishable. Public responses exclude full stored text, raw metadata, subscription URLs and personal identifiers.
+- Writes, including login/uploads, require CSRF tokens. Discovery creation/more are POST; GET is read-only. Provision/recover admin only through interactive `--admin-password`. Persist Data Protection keys and revoke every session after a password reset.
 - Validate scheme, host, redirects, final DNS targets, allowed ports, MIME type, upload size, file extension, path traversal, zip/EPUB bombs, and response length. Block cloud metadata endpoints, loopback/private addresses, and DNS rebinding for arbitrary user-provided URL fetches. Treat consciously configured local AI endpoints separately from general web fetches.
 - Sanitize HTML and Markdown before displaying external content, or render as plain text. Sandbox/allowlist provider embeds; do not execute third-party HTML supplied in feeds.
 - Observe robots.txt and platform permissions as applicable. Don't bypass paywalls, DRM, or anti-bot controls, or download media without permission. Store full article text only when supplied by a permitted feed/API or appropriately licensed; otherwise store metadata/excerpt and link to original.
@@ -136,6 +139,8 @@ External source availability changes. **Consult official API documentation durin
 - Production's private deployment snapshot is in ignored `.local/production/`. It has immutable image IDs, no build contexts, a separate gateway configuration, and external data volumes. Do not delete this folder, point development at these volumes, or regenerate the snapshot from the working checkout as a routine coding step.
 - Apply code changes and tests to development. Updating production requires a user-requested deployment and a preceding `./scripts/backup.ps1`; follow `docs/environments.md`. Existing authorization for a deployment remains valid.
 - Pack/audit scripts default to development. Use an explicit `--base http://127.0.0.1:47831/api` only when the requested operation targets the personal production library.
+- Hosted project `rabbithole-hosted` is independent of desktop environments. GitHub repository: `quintonloges/RabbitHole`; hostname: `quintonloges.me`; DigitalOcean deployment uses GitHub Actions. Versioned images transfer over verified SSH and are pinned by image ID. Never connect hosted Compose to original desktop volumes.
+- Read `docs/public-hosting.md` before a release. Launch requires privacy tests, preservation rehearsal, HTTPS/authenticated checks, off-server encrypted nightly backups and verified restoration. Keep PostgreSQL 17. Preserve the original local stack as a stopped recovery copy only after final cutover. Rollback restores matching database/files and images.
 
 ### Checks and delivery
 

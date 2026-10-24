@@ -1,0 +1,118 @@
+name: ${PROJECT_NAME:-rabbithole-hosted}
+
+x-logs: &logs
+  driver: json-file
+  options: { max-size: 10m, max-file: '3' }
+
+services:
+  db:
+    image: ${DB_IMAGE:?Use a release.env with a pinned PostgreSQL 17 image}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rabbithole
+      POSTGRES_USER: rabbithole
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a database password on the server}
+    volumes: [database:/var/lib/postgresql/data]
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U rabbithole -d rabbithole']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    logging: *logs
+  api:
+    image: ${API_IMAGE:?Use a pinned release image}
+    restart: unless-stopped
+    init: true
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=db;Database=rabbithole;Username=rabbithole;Password=${POSTGRES_PASSWORD}
+      Documents__Path: /data/uploads
+      Security__AllowedHosts: ${PUBLIC_HOST:?Set the public hostname},api,localhost
+      Security__AllowedOrigins: https://${PUBLIC_HOST}
+      Security__TrustedProxies: ${GATEWAY_IP:-172.30.5.2},${WEB_IP:-172.30.5.3}
+      Security__DataProtectionPath: /data/auth-keys
+      Security__SessionHours: ${SESSION_HOURS:-12}
+      Security__PublicRequestsPerMinute: ${PUBLIC_REQUESTS_PER_MINUTE:-120}
+      Security__SearchRequestsPerMinute: ${SEARCH_REQUESTS_PER_MINUTE:-30}
+      Security__LoginAttemptsPerWindow: ${LOGIN_ATTEMPTS_PER_WINDOW:-5}
+      Ingestion__Paused: ${INGESTION_PAUSED:-true}
+      OpenAlex__ApiKey: ${OPENALEX_API_KEY:-}
+      AI__BaseUrl: ${AI_BASE_URL:-}
+      AI__Model: ${AI_MODEL:-}
+      AI__ApiKey: ${AI_API_KEY:-}
+      AI__AllowLocal: ${AI_ALLOW_LOCAL:-false}
+      AI__TokenParameter: ${AI_TOKEN_PARAMETER:-max_completion_tokens}
+      Logging__LogLevel__Microsoft.AspNetCore.Hosting.Diagnostics: Warning
+      Logging__LogLevel__System.Net.Http.HttpClient: Warning
+    volumes: [uploads:/data/uploads, auth_keys:/data/auth-keys]
+    networks:
+      app:
+        ipv4_address: ${API_IP:-172.30.5.4}
+      database: {}
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:8080/api/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1g
+    logging: *logs
+  web:
+    image: ${WEB_IMAGE:?Use a pinned release image}
+    restart: unless-stopped
+    environment:
+      NEXT_TELEMETRY_DISABLED: '1'
+      HOSTNAME: 0.0.0.0
+      PORT: '3000'
+      API_ORIGIN: http://api:8080
+      PUBLIC_ORIGIN: https://${PUBLIC_HOST}
+      PUBLIC_INDEXING_ENABLED: ${PUBLIC_INDEXING_ENABLED:-false}
+      TRUST_PROXY_HEADERS: 'true'
+    networks:
+      app:
+        ipv4_address: ${WEB_IP:-172.30.5.3}
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    logging: *logs
+  gateway:
+    image: ${CADDY_IMAGE:?Use a pinned release image}
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      ACME_EMAIL: ${ACME_EMAIL:?Set the certificate contact email}
+      PUBLIC_INDEXING_ENABLED: ${PUBLIC_INDEXING_ENABLED:-false}
+    ports:
+      - '${HTTP_BIND:-0.0.0.0}:80:80'
+      - '${HTTPS_BIND:-0.0.0.0}:443:443'
+    volumes:
+      - ./Caddyfile.hosted:/etc/caddy/Caddyfile:ro
+      - ${STATE_PATH:?Set the absolute release-independent state directory}:/srv/state:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      app:
+        ipv4_address: ${GATEWAY_IP:-172.30.5.2}
+    depends_on:
+      web: { condition: service_healthy }
+    logging: *logs
+
+networks:
+  app:
+    ipam:
+      config: [{ subnet: '${APP_SUBNET:-172.30.5.0/24}' }]
+  database:
+    internal: true
+volumes:
+  database:
+  uploads:
+  auth_keys:
+  caddy_data:
+  caddy_config:

@@ -1,5 +1,7 @@
 # Desktop environments
 
+The public/private migration adds a **third**, independent hosted environment. `compose.hosted.yaml` uses project `rabbithole-hosted` for DigitalOcean and `compose.staging.yaml` adds an isolated loopback staging setup. The original personal instance below remains a preserved recovery copy; do not replace its deployment snapshot from this checkout. See [public hosting and migration](public-hosting.md) for GitHub Actions, HTTPS, authenticated clients, final cutover, encrypted backups and rollback. Development now requires a provisioned admin account at `/admin/login`; its public catalog is available anonymously. `backup.ps1 -KeepStopped` preserves the old stack stopped for final cutover; ordinary backups restore its previous running state.
+
 The existing Docker Desktop engine runs two independent stacks. No second Docker installation or virtual machine is required.
 
 | | Personal production | Development |
@@ -40,7 +42,7 @@ Both production data volumes are explicitly named and marked `external: true`. A
 
 Keep `.local/production/` privately backed up separately from the database/files backups. It contains effective server configuration and may contain provider secrets. It is excluded from Git and Docker build contexts. Never attach its contents to an issue or print `docker compose config` for production in shared logs. Its `.env` is intentionally empty; environment values live in `compose.json`. Compose interpolates JSON strings, so literal `$` characters in manually edited settings must be escaped as `$$`.
 
-The root `.env` belongs only to development. Do not copy production credentials into it. Explicitly enable any desired development providers and add sources through the app; development begins without subscriptions or imported items. Pack and audit scripts target development by default. To operate on the personal library, specify `--base http://127.0.0.1:47831/api` explicitly.
+The root `.env` belongs only to development. Do not copy production credentials into it. Explicitly enable any desired development providers and add sources through the app; development begins without subscriptions or imported items. Pack and audit scripts now authenticate and target development by default. Use an explicit HTTPS base for the migrated hosted library; the preserved legacy desktop image retains its original API contract.
 
 ## Backups and checks
 
@@ -69,6 +71,6 @@ After a release, the production manifest determines the active version. The init
 
 ## Network boundary
 
-Both gateways still bind only to `127.0.0.1`. No Windows firewall rules, router forwarding, remote-host exceptions, or LAN exposure were added. Phone access requires a subsequent protected proxy or private-network setup. The app still has no built-in login. The unusual ports prevent common development collisions; they do not provide authentication.
+Both desktop gateways still bind only to `127.0.0.1`. No Windows firewall rules, router forwarding or LAN exposure were added. The current development app requires built-in administrator authentication for its workspace and existing APIs; the frozen legacy production image retains its previous behavior. Hosted HTTPS access is a separate configuration with validated hosts/origins/proxies. The unusual desktop ports prevent collisions; they do not provide authentication.
 
 Docker documents [project isolation](https://docs.docker.com/compose/how-tos/project-name/), [external volumes](https://docs.docker.com/reference/compose-file/volumes/), and [production Compose deployments](https://docs.docker.com/compose/how-tos/production/).

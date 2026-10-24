@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './auth-fixture';
 import { publicationDate, readableDate } from '../../apps/web/lib/api';
 
 test('date-only publications and editions preserve the source calendar date', () => {

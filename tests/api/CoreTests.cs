@@ -16,11 +16,12 @@ namespace RabbitHole.Tests;
 
 public class CoreTests
 {
-    private sealed class ApiFactory : WebApplicationFactory<Program>
+    private sealed class ApiFactory : AuthenticatedApiFactory
     {
         private readonly string _path = Path.Combine(Path.GetTempPath(), $"rabbithole-core-{Guid.NewGuid():N}.db");
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             builder.UseSetting("DATABASE_PROVIDER", "sqlite");
             builder.UseSetting("DATABASE_URL", $"Data Source={_path}");
             builder.UseSetting("ConnectionStrings:Default", $"Data Source={_path}");
@@ -49,7 +50,7 @@ public class CoreTests
                 new ContentItem { Id = second, Title = "Robotics discussion", CanonicalUrl = "https://example.org/real-fixture-b", Provider = "test-fixture", TopicIds = [topicId], Excerpt = "Another supplied test record" });
             await db.SaveChangesAsync();
         }
-        var edition1 = await Read(await client.GetAsync("/api/discover/today"));
+        var edition1 = await Read(await client.PostAsJsonAsync("/api/discover/today", new { }));
         var edition2 = await Read(await client.GetAsync("/api/discover/today"));
         Assert.Equal(edition1.GetProperty("id").GetGuid(), edition2.GetProperty("id").GetGuid());
         Assert.Equal(edition1.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid()), edition2.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid()));
@@ -268,7 +269,7 @@ public class CoreTests
             db.Items.Add(new ContentItem { Title = "Supplied fixture", CanonicalUrl = "https://example.org/concurrent-fixture", Provider = "test-fixture" });
             await db.SaveChangesAsync();
         }
-        var responses = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => client.GetAsync("/api/discover/today")));
+        var responses = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => client.PostAsJsonAsync("/api/discover/today", new { })));
         var editions = await Task.WhenAll(responses.Select(Read));
         Assert.All(editions, e => Assert.Equal(editions[0].GetProperty("id").GetGuid(), e.GetProperty("id").GetGuid()));
         using var verifyScope = factory.Services.CreateScope();

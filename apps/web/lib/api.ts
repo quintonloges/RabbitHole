@@ -2,21 +2,40 @@ export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
 
+let csrfToken: Promise<string> | null = null;
+export function resetCsrf() { csrfToken = null; }
+async function csrf(): Promise<string> {
+  csrfToken ??= fetch("/api/auth/csrf", { cache: "no-store", credentials: "same-origin" }).then(async response => {
+    if (!response.ok) throw new ApiError("Could not prepare this request. Please try again.", response.status);
+    const data = await response.json() as { token: string };
+    if (!data.token) throw new ApiError("The service did not provide a request token.", 0);
+    return data.token;
+  }).catch(cause => { resetCsrf(); throw cause; });
+  return csrfToken;
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const isForm = options.body instanceof FormData;
   let response: Response;
+  const headers = new Headers(options.headers);
+  if (!isForm && options.body) headers.set("Content-Type", "application/json");
+  if (!["GET", "HEAD", "OPTIONS"].includes((options.method || "GET").toUpperCase())) headers.set("X-CSRF-TOKEN", await csrf());
   try {
     response = await fetch(`/api${path}`, {
-      cache: "no-store",
       ...options,
-      headers: { ...(isForm ? {} : options.body ? { "Content-Type": "application/json" } : {}), ...options.headers },
+      cache: "no-store", credentials: "same-origin", headers,
     });
   } catch {
-    throw new ApiError("The local service is unavailable. Check that RabbitHole is running.", 0);
+    throw new ApiError("The RabbitHole service is unavailable. Please try again in a moment.", 0);
   }
   if (!response.ok) {
-    const problem = await response.json().catch(() => ({})) as { detail?: string; title?: string };
-    throw new ApiError(problem.detail || problem.title || `Request failed (${response.status})`, response.status);
+    if (response.status === 400 || response.status === 403) resetCsrf();
+    if (response.status === 401 && !path.startsWith("/auth/")) {
+      resetCsrf();
+      if (typeof window !== "undefined") window.location.replace("/admin/login");
+    }
+    const problem = await response.json().catch(() => ({})) as { detail?: string; title?: string; error?: string };
+    throw new ApiError(problem.detail || problem.title || problem.error || `Request failed (${response.status})`, response.status);
   }
   if (response.status === 204) return undefined as T;
   const type = response.headers.get("content-type") || "";

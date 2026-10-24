@@ -25,12 +25,13 @@ public class AiIntegrationTests
                 JsonSerializer.Serialize(new { text = "An attributed synthesis of the supplied source.", evidenceItemIds = new[] { evidence[0].Id } }));
         }
     }
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : AuthenticatedApiFactory
     {
         public readonly FakeTransport Transport = new();
         private readonly string folder = Path.Combine(Path.GetTempPath(), "rabbithole-ai-test-" + Guid.NewGuid().ToString("N"));
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            base.ConfigureWebHost(builder);
             Directory.CreateDirectory(folder);
             builder.UseContentRoot(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../apps/api")));
             builder.UseSetting("DATABASE_PROVIDER", "sqlite");

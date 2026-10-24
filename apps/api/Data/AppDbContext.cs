@@ -27,11 +27,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<IngestionJob> Jobs => Set<IngestionJob>();
     public DbSet<AppSetting> Settings => Set<AppSetting>();
     public DbSet<AiResult> AiResults => Set<AiResult>();
+    public DbSet<AdminAccount> AdminAccounts => Set<AdminAccount>();
+    public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Entity<ItemState>().HasKey(x => x.ItemId);
         builder.Entity<AppSetting>().HasKey(x => x.Key);
+        builder.Entity<AdminAccount>().ToTable("AdminAccounts", table => table.HasCheckConstraint("CK_AdminAccounts_SingleAccount", "\"Id\" = 1"));
+        builder.Entity<AdminAccount>().Property(x => x.Id).ValueGeneratedNever();
+        builder.Entity<AdminSession>().HasOne<AdminAccount>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<AdminSession>().HasIndex(x => x.ExpiresAt);
         builder.Entity<ItemIdentity>().HasKey(x => x.Key);
         builder.Entity<ItemTopic>().HasKey(x => new { x.ItemId, x.TopicId });
         foreach (var entity in builder.Model.GetEntityTypes())

@@ -38,7 +38,7 @@ export function RecommendationExplanation({ item, compact = false }: { item: Ite
       <div className="reason-heading"><h4>Why this was selected</h4><button className="icon-button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close explanation" autoFocus><X size={16}/></button></div>
       {overview}
       {rationale?.evidence.map((evidence, index) => <p key={`${evidence.itemId}-${index}`}>
-        {evidence.itemId === item.id ? <span>This source</span> : <Link className="text-link" href={`/items/${evidence.itemId}`}>{evidence.title}</Link>}
+        {evidence.itemId === item.id ? <span>This source</span> : <Link className="text-link" href={`/admin/items/${evidence.itemId}`}>{evidence.title}</Link>}
         {evidence.match ? <> · {evidence.field === "user-tag" ? "your tag" : evidence.field === "source-text" ? "source text" : evidence.field}: {evidence.match}</> : evidence.concept ? <> · {evidence.concept}</> : null}
         {evidence.relationship === "saved" ? " · saved when selected" : evidence.relationship === "read" ? " · marked read when selected" : evidence.relationship === "user-trail" ? " · chosen for a trail" : evidence.relationship === "positive-feedback" ? " · you chose More like this" : null}
       </p>)}
@@ -49,7 +49,7 @@ export function RecommendationExplanation({ item, compact = false }: { item: Ite
     <details className="details"><summary>Why this?</summary>
       {rationale?.detail && <p>{rationale.detail}</p>}
       {rationale?.evidence.map((evidence, index) => <p key={`${evidence.itemId}-${index}`}>
-        {evidence.itemId === item.id ? <span>This source</span> : <Link className="text-link" href={`/items/${evidence.itemId}`}>{evidence.title}</Link>}
+        {evidence.itemId === item.id ? <span>This source</span> : <Link className="text-link" href={`/admin/items/${evidence.itemId}`}>{evidence.title}</Link>}
         {evidence.match ? <> · {evidence.field === "user-tag" ? "your tag" : evidence.field === "source-text" ? "text match" : `${evidence.field} match`}: {evidence.match}</> : evidence.concept ? <> · {evidence.concept}</> : null}
         {evidence.relationship === "saved" ? " · saved when selected" : evidence.relationship === "read" ? " · marked read when selected" : evidence.relationship === "user-trail" ? " · chosen for a trail" : evidence.relationship === "positive-feedback" ? " · you chose More like this" : null}
       </p>)}

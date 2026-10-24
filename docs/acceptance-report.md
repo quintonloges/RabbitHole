@@ -1,5 +1,15 @@
 # RabbitHole acceptance report
 
+## Live DigitalOcean cutover in progress — 24 October 2026
+
+[GitHub deployment run 40117763402](https://github.com/quintonloges/RabbitHole/actions/runs/40117763402) validated, built and installed release `5911f38`. Its first release attempt failed because `SSH_USER` contained a transposed deployment-account name; corrected only that secret through GitHub's encrypted-secret API and successfully reran the release job. SSH keys were unchanged.
+
+The preliminary backup `backups/20261024-134807-production` transferred over verified SSH with all four file hashes matching. On the Droplet, staging restored all **19 original tables and 2 uploaded files**. A staging-only check provisioned an ephemeral administrator through a real PTY, kept its generated password only in memory, and passed private-CA HTTPS, CSRF/origin rejection, secure cookies, private access, full public pagination, unchanged personal exports and logout: **346 public IDs**, disjoint from **435 private/document IDs**. Staging is now stopped.
+
+The final backup is `backups/20261024-140536-production`; the original desktop production stack is stopped and preserved for recovery. Promoted the exact staging image bundle to hosted production and restored that final backup, again matching all original record and file hashes. External HTTPS checks verified the real public certificate, healthy API, maintenance HTTP 503, unauthenticated private API HTTP 401, admin redirect/login, and HTTP-to-HTTPS 308. Public DNS resolves the subdomain to the Droplet and has no AAAA record.
+
+The server created both independent encrypted local backup repositories and passed restic integrity checks. The actual restore rehearsal exposed Docker 29's `IPAM.Config: null` for built-in networks. Fixed the subnet parser to accept null configurations; **3 focused regression tests passed**, exercising the actual configuration-generation block with null/missing data, overlapping IPv4/IPv6 networks, preserved settings and exhausted candidate space. The initial sandbox test attempt could not use its temporary directory; the rerun with normal local process access passed. The correction still needs its GitHub release and live restore rerun. The nightly service is installed with `User=rabbithole-deploy`; its timer is enabled but not yet started. Production remains paused in maintenance pending restoration verification and the owner's interactive administrator/password launch step.
+
 ## Public hostname and firewall preparation — 24 October 2026
 
 The owner selected `rabbithole.quintonloges.me`. Updated repository configuration examples, CI validation inputs, operational scripts and current documentation. Updated only `PUBLIC_HOST` in both server configurations and `STAGING_ORIGIN` in staging over verified SSH; the atomic replacements preserved ownership, mode 600 and every unrelated setting. Both certificate-contact emails are configured. No email, password or key value was returned to chat. The server's effective SSH configuration has public-key authentication enabled and password/keyboard-interactive authentication disabled.

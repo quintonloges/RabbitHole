@@ -72,6 +72,8 @@ The workflow uses these secrets directly. `SSH_HOST`, `SSH_USER` and `SSH_PORT` 
 
 The job builds commit-tagged API/web images, includes PostgreSQL 17 and Caddy, transfers a checksummed image archive over verified SSH and installs `/srv/rabbithole/releases/<git-sha>`. `release.env` pins all four runtime images by SHA-256 ID. Reusing a commit with different image IDs is rejected. Retain release directories/image archives and matching backups for rollback.
 
+When promoting a release already tested in staging on the same Droplet, reuse its installed bundle: run `RH_CONFIG=/etc/rabbithole/hosted.env bash /srv/rabbithole/releases/SHA/scripts/hosted/deploy.sh /srv/rabbithole/releases/SHA` as the deployment account, replacing both `SHA` placeholders with that release's full Git commit. Do not dispatch a second image rebuild for the same commit into the existing release directory; rebuilt image IDs may differ from its immutable pins.
+
 On first install, deploy loads images and sets the current release pointer **without creating application data volumes**. Restore the personal library before starting the site. On later releases, deploy first creates an encrypted backup of the previous pinned release even when its stack is stopped, then upgrades in maintenance mode. Backups use local storage unless `BACKUP_MODE=offserver` is explicitly configured. Deployment does not automatically open the public site.
 
 ## Isolated staging and local rehearsal

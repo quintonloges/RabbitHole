@@ -27,8 +27,7 @@ public static class DocumentEndpoints
             .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(MaxUpload + 1024 * 1024));
         routes.MapPost("/api/library/books/{id:guid}/retry", Retry);
         routes.MapGet("/api/library/books/{id:guid}/sections", async (Guid id, AppDbContext db, CancellationToken ct) =>
-            Results.Ok(await db.Sections.AsNoTracking().Where(s => s.DocumentId == id).OrderBy(s => s.Order).Select(s => new
-            { s.Id, s.DocumentId, s.ItemId, s.Title, s.Order, s.StartPage, s.EndPage, s.Locator }).ToListAsync(ct)));
+            Results.Ok(await ReadSectionsAsync(db, id, ct)));
         routes.MapGet("/api/library/books/{id:guid}/file", async (Guid id, AppDbContext db, DocumentStore store, HttpContext context, CancellationToken ct) =>
         {
             var doc = await db.Documents.FindAsync([id], ct);
@@ -59,7 +58,9 @@ public static class DocumentEndpoints
                 request.StartPage < 1 || request.EndPage < request.StartPage || request.EndPage > doc.PageCount)
                 return Results.Problem("Choose a title and a valid page range within this PDF.", statusCode: 400);
             var pages = await db.Sections.Where(s => s.DocumentId == id && s.StartPage >= request.StartPage && s.EndPage <= request.EndPage).ToListAsync(ct);
-            var originals = pages.Where(s => s.Locator?.StartsWith("page=", StringComparison.Ordinal) == true).OrderBy(s => s.StartPage).ToList();
+            var originals = pages.Where(s => !s.IsSuperseded && s.Locator?.StartsWith("page=", StringComparison.Ordinal) == true).OrderBy(s => s.StartPage).ToList();
+            if (originals.Count != request.EndPage - request.StartPage + 1)
+                return Results.Problem("These pages have not been extracted. Rebuild sections before adding this range, or use the original PDF.", statusCode: 409);
             var text = string.Join("\n\n", originals.Select(s => s.Text));
             if (text.Length > DocumentParser.MaxTextChars) return Results.Problem("Page range is too large.", statusCode: 400);
             var order = (await db.Sections.Where(s => s.DocumentId == id).MaxAsync(s => (int?)s.Order, ct) ?? 0) + 1;
@@ -119,7 +120,7 @@ public static class DocumentEndpoints
                 }
                 if (restored || existing.Status is "parsing" or "pending" or "failed" or "original-only")
                     await ProcessDocumentAsync(db, store, existing, original, false, ct);
-                return Results.Ok(new { document = PublicDocument(existing), sections = await db.Sections.Where(s => s.DocumentId == existing.Id).OrderBy(s => s.Order).ToListAsync(CancellationToken.None), duplicate = true });
+                return Results.Ok(new { document = PublicDocument(existing), sections = await ReadSectionsAsync(db, existing.Id, CancellationToken.None), duplicate = true });
             }
             var filename = Path.GetFileName(file.FileName.Replace('\\', '/'));
             var doc = new LibraryDocument
@@ -135,8 +136,8 @@ public static class DocumentEndpoints
             db.Documents.Add(doc);
             await db.SaveChangesAsync(CancellationToken.None);
             retained = true;
-            var sections = await ProcessDocumentAsync(db, store, doc, path, true, ct);
-            return Results.Ok(new { document = PublicDocument(doc), sections });
+            await ProcessDocumentAsync(db, store, doc, path, true, ct);
+            return Results.Ok(new { document = PublicDocument(doc), sections = await ReadSectionsAsync(db, doc.Id, CancellationToken.None) });
         }
         finally
         {
@@ -160,13 +161,13 @@ public static class DocumentEndpoints
                 await db.SaveChangesAsync(CancellationToken.None);
                 return Results.Problem(doc.Error, statusCode: 409);
             }
-            var sections = await ProcessDocumentAsync(db, store, doc, path, false, ct);
-            return Results.Ok(new { document = PublicDocument(doc), sections });
+            await ProcessDocumentAsync(db, store, doc, path, false, ct);
+            return Results.Ok(new { document = PublicDocument(doc), sections = await ReadSectionsAsync(db, doc.Id, CancellationToken.None) });
         }
         finally { ImportGate.Release(); }
     }
 
-    private static async Task<List<DocumentSection>> ProcessDocumentAsync(AppDbContext db, DocumentStore store,
+    private static async Task ProcessDocumentAsync(AppDbContext db, DocumentStore store,
         LibraryDocument doc, string path, bool initialImport, CancellationToken ct)
     {
         // Persist the attempt first. A terminated process leaves a visible, retryable parsing record.
@@ -195,7 +196,17 @@ public static class DocumentEndpoints
         foreach (var item in items.Values) item.ImportWarning = doc.Error;
         // Keep prior extracted text on failure, along with every section identity and user-created range.
         if (parsed.Sections.Count == 0 && sections.Count == 0) parsed.Sections.Add(new(doc.Title, "", "original"));
-        var nextOrder = sections.Count == 0 ? 0 : sections.Max(s => s.Order) + 1;
+        // A new parser may split an old whole-file EPUB section into actual chapters.
+        // Retain every old record and its text: notes, progress, saved links and trail nodes
+        // still refer to those identities. Only successful extraction changes navigation.
+        var hasText = parsed.Sections.Any(s => !string.IsNullOrWhiteSpace(s.Text));
+        var currentLocators = parsed.Sections.Select(s => s.Locator).ToHashSet(StringComparer.Ordinal);
+        if (hasText)
+        {
+            foreach (var section in sections.Where(s => s.Locator?.StartsWith("manual:", StringComparison.Ordinal) != true))
+                section.IsSuperseded = section.Locator == null || !currentLocators.Contains(section.Locator);
+        }
+        var nextOrder = hasText ? 0 : sections.Count == 0 ? 0 : sections.Max(s => s.Order) + 1;
         foreach (var parsedSection in parsed.Sections)
         {
             var existing = sections.FirstOrDefault(s => s.Locator == parsedSection.Locator);
@@ -206,22 +217,46 @@ public static class DocumentEndpoints
             }
             if (!string.IsNullOrWhiteSpace(parsedSection.Text) || string.IsNullOrWhiteSpace(existing.Text))
             {
+                var previousTitle = existing.Title;
+                existing.Title = parsedSection.Title;
                 existing.Text = parsedSection.Text;
                 existing.StartPage = parsedSection.StartPage;
                 existing.EndPage = parsedSection.EndPage;
                 if (items.TryGetValue(existing.ItemId, out var item))
                 {
+                    // Section.Title tracks the source label; an independently edited item
+                    // title takes precedence in navigation and must survive every rebuild.
+                    if (item.Title == previousTitle) item.Title = parsedSection.Title;
                     item.Body = parsedSection.Text;
                     item.Excerpt = parsedSection.Text[..Math.Min(600, parsedSection.Text.Length)];
                     item.UpdatedAt = DateTimeOffset.UtcNow;
                     await TopicClassification.AssignAsync(db, item, [], CancellationToken.None);
                 }
             }
+            if (hasText)
+            {
+                existing.Order = nextOrder++;
+                existing.IsSuperseded = false;
+            }
+        }
+        if (hasText)
+        {
+            // Keep manual ranges and the previous extraction reachable after the new TOC.
+            foreach (var section in sections.Where(s => s.IsSuperseded || s.Locator?.StartsWith("manual:", StringComparison.Ordinal) == true))
+                section.Order = nextOrder++;
         }
         // Finish even after a disconnected request, so cancellation cannot strand a retained file.
         await db.SaveChangesAsync(CancellationToken.None);
-        return sections;
     }
+
+    private static Task<List<SectionSummary>> ReadSectionsAsync(AppDbContext db, Guid documentId, CancellationToken ct) =>
+        db.Sections.AsNoTracking().Where(s => s.DocumentId == documentId).OrderBy(s => s.Order)
+            .Select(s => new SectionSummary(s.Id, s.DocumentId, s.ItemId,
+                db.Items.Where(i => i.Id == s.ItemId).Select(i => i.Title).FirstOrDefault() ?? s.Title,
+                s.Order, s.StartPage, s.EndPage, s.Locator, s.IsSuperseded)).ToListAsync(ct);
+
+    private sealed record SectionSummary(Guid Id, Guid DocumentId, Guid ItemId, string Title,
+        int Order, int? StartPage, int? EndPage, string? Locator, bool IsSuperseded);
 
     private static async Task<DocumentSection> AddSectionAsync(AppDbContext db, LibraryDocument doc, ParsedSection parsed, int order, CancellationToken ct)
     {

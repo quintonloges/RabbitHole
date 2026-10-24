@@ -36,12 +36,14 @@ test('concept tags, honest explanations, curated origins and intentional revisit
   expect(saved.nodes.find((n: { id: string }) => n.id === branch.id).origin).toBe('curated');
   expect(saved.nodes.find((n: { itemId: string }) => n.itemId === third.id).origin).toBe('user');
   await page.goto(`/items/${start.id}`);
+  await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await page.getByText('Concepts & tags', { exact: true }).click();
   await page.getByRole('button', { name: 'Edit concepts', exact: true }).click();
   await page.getByLabel('Your concept tags').fill('acoustic history');
   await page.getByRole('button', { name: 'Save concepts', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit concepts', exact: true })).toBeVisible();
   await page.reload();
+  await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await page.getByText('Concepts & tags', { exact: true }).click();
   await expect(page.getByText('acoustic history · your tag', { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });

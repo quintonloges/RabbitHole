@@ -2,33 +2,48 @@
 
 A private discovery feed with a memory. Follow real articles, research, books, videos and music into branching trails; keep notes and revisit ideas when you choose. There are no accounts, analytics, streaks or fabricated feed entries.
 
-## Start on Windows
+## Desktop environments
 
-Install Docker Desktop with Linux containers, then open PowerShell in this repository:
+Both environments use the existing Docker Desktop installation with Linux containers:
+
+| Environment | Address | Compose project | Data |
+|---|---|---|---|
+| Personal production | **[http://localhost:47831](http://localhost:47831)** | `rabbithole` | Existing library, original database/uploads volumes |
+| Development | **[http://localhost:47832](http://localhost:47832)** | `rabbithole-dev` | Independent database/uploads volumes, initially empty |
+
+Open PowerShell in this repository:
 
 ```powershell
-Copy-Item .env.example .env   # Only on first setup; do not overwrite an existing .env
-docker compose up --build -d
+./scripts/production.ps1 start   # Starts preserved production images; never builds
+./scripts/dev.ps1 start          # Builds this checkout and starts development
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)**. Only Caddy publishes a host port, bound to `127.0.0.1`. PostgreSQL and uploaded documents live in named Docker volumes. Rebuilding or `docker compose down` preserves them.
+Both scripts also accept `status`, `logs`, `stop`, and `restart`. Production is a private deployment snapshot in ignored `.local/production/`, with pinned image IDs and its own Caddyfile. Keep that folder. Development uses the working checkout's `compose.yaml` and `.env`; ordinary `docker compose` commands now target development. Production updates are deliberate; rebuilding development cannot deploy new code to production.
 
-On macOS/Linux, use `cp .env.example .env` before the same Compose command. No host .NET or Node installation is needed for Docker startup.
+For a fresh development checkout, first copy `.env.example` to `.env` without overwriting existing configuration, then run `docker compose up --build -d --wait`. No host .NET or Node installation is needed for Docker startup. The private production snapshot is desktop-specific and is not in Git.
+
+Only each Caddy gateway publishes a host port, bound to `127.0.0.1`. The database and uploaded files persist across container rebuilds and normal stops. See [environment operations](docs/environments.md) for separation, releases, backups and restore. Protected phone/LAN access is a separate deployment step; it is not enabled here.
 
 ## First visit
 
 1. Open **Settings**. Edit the starter topics, select a verified suggested feed or enter your own RSS/Atom/site URL, and add it. Sources are never silently subscribed.
 2. Refresh the source. Its actual imported count, last success and error appear alongside persistent jobs. Use **New selection** on Discover to include newly imported items immediately.
 3. Open a source, save it, write a note, or choose **Follow the rabbit hole**. Each branch and your current position persist. Questions are visibly user-authored; recommended links always refer to catalog records.
-4. Use **Library → Books & files** to import a personal PDF or EPUB, navigate its actual sections and save a reading position. Scanned/encrypted/unparseable files retain an original-file fallback.
+4. Use **Library → Books & files** to import a personal PDF or EPUB, navigate its actual sections and save a reading position. PDF bookmarks and named ranges appear first; individual pages have a separate searchable list. **Rebuild sections** applies improved extraction to an existing book while preserving notes and progress. Scanned/encrypted/unparseable files retain an original-file fallback.
 5. **Search** queries the local catalog and your notes. **Search research** requests real provider results; import selected results to keep them. Individual YouTube and SoundCloud URLs can be imported here.
 6. **Practice** starts off. Enable it when you choose, pick a source and a prompt kind, write a response, reveal its passage and self-rate. Opening or reading never awards understanding or recall automatically.
+
+The item reader puts the source text, abstract or consented media player first. Books have compact previous/next navigation and a searchable **Contents** dialog. **Notes**, **Explore** and **Details** sit below the content; select source text to highlight it or quote it in a note. Unsaved note drafts stay with their item for the current browser session. PDF text wraps to the reader width; **Details → Preserve PDF line breaks** restores extracted line breaks when layout matters, and **Original file** opens the PDF at the current page.
 
 Fresh installations start empty. Deterministic fixtures live only under `tests/`; they are never inserted into the real database. The existing local instance was explicitly populated in October 2026; see the [feed curation report](docs/feed-curation-report.md) for actual counts, verified sources, editorial findings, and limitations.
 
 ## Recommendations and exploration
 
-Discover explains its choices with your actual topic settings and recorded interactions. Curated starting trails stay labeled as curated; opening a card is not reading or understanding. Specific concept matches connect the existing catalog without AI. Use **Concepts & tags** in an item's reader to add your tags or exclude a mistaken match. These tags describe an item without changing your lasting interests.
+Discover uses a compact, numbered list. Click a headline to open its item; the format sits beside it in plain text. A single metadata line identifies the source or parent book, author, page location and any content limitation, followed by a short supplied excerpt. Original-source, save, mark-read and hide actions sit underneath. **Why this?** opens a small dismissible explanation without moving the rows. On wide screens, saved trails sit beside the feed. Related discoveries, Library and local Search use the same source context and existing light/dark theme.
+
+**Today’s picks** returns to your finite daily selection. **Browse topic** searches that topic across your imported collection, excluding hidden items, with 30 items per page. Newest imports come first; sections within a book follow reading order. Topic and page stay in the URL for refresh and browser Back. Browsing a topic does not replace the daily selection or change your interests.
+
+Discover explains its choices with your actual topic settings and recorded interactions. Curated starting trails stay labeled as curated; opening an item is not reading or understanding. Specific concept matches connect the existing catalog without AI. Use **Details → Concepts & tags** in an item's reader to add your tags or exclude a mistaken match. These tags describe an item without changing your lasting interests.
 
 Rabbit-hole suggestions exclude sources already on that trail. **Include sources already in this trail** allows an intentional revisit; existing branches and navigation remain available. **Why this?** links to the records behind a connection. Broad suggestions are labeled, and a sparse collection can return fewer suggestions. Routine release/announcement patterns receive a small daily ranking reduction; they remain searchable and can surface through your preferences.
 
@@ -45,9 +60,9 @@ python scripts/import-reading-pack.py
 python scripts/import-reading-pack.py --apply
 ```
 
-The default is a read-only plan. Applying [curated-source-pack.json](config/curated-source-pack.json) verifies and refreshes new sources before enabling them. It preserves matching existing subscriptions, topic preferences, and personal state. Applying [curated-reading-pack.json](config/curated-reading-pack.json) imports only missing selected real links/papers through the normal API, recognizing stored provider aliases before requesting an import. Neither pack runs automatically at startup. Failed new sources stay disabled; failed refreshes of existing sources also print the error and return a nonzero exit code without changing their settings.
+The default is a read-only plan against development. Applying [curated-source-pack.json](config/curated-source-pack.json) verifies and refreshes new sources before enabling them. It preserves matching existing subscriptions, topic preferences, and personal state. Applying [curated-reading-pack.json](config/curated-reading-pack.json) imports only missing selected real links/papers through the normal API, recognizing stored provider aliases before requesting an import. Neither pack runs automatically at startup. Failed new sources stay disabled; failed refreshes of existing sources also print the error and return a nonzero exit code without changing their settings.
 
-Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts accept `--base http://127.0.0.1:3000/api` and `--report PATH`. They use only Python's standard library. Pack edits do not overwrite existing user configuration; use **Settings** for that. After imports, choose **New selection** on Discover.
+Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts default to `--base http://127.0.0.1:47832/api`; use `--base http://127.0.0.1:47831/api` explicitly to target your production library. Both accept `--report PATH` and use only Python's standard library. Pack edits do not overwrite existing user configuration; use **Settings** for that. After imports, choose **New selection** on Discover.
 
 ## Configuration
 
@@ -55,7 +70,7 @@ The app works without any API key: RSS/Atom, public arXiv, low-volume OpenAlex w
 
 | Variable | Purpose |
 |---|---|
-| `PORT` | Loopback gateway port, default `3000` |
+| `PORT` | Development loopback gateway port, default `47832`; production's saved manifest uses `47831` |
 | `POSTGRES_PASSWORD` | Local database credential; set before the first database initialization. Changing it later requires changing the database user's password too. |
 | `OPENALEX_API_KEY` | Optional OpenAlex key for a larger budget and cursor continuation; absent keys use bounded newest-page watch samples |
 | `AI_BASE_URL` | Optional OpenAI-compatible base URL ending in `/v1`, for example `https://api.openai.com/v1` |
@@ -64,7 +79,7 @@ The app works without any API key: RSS/Atom, public arXiv, low-volume OpenAlex w
 | `AI_ALLOW_LOCAL` | `true` for a deliberately configured local compatible model endpoint; an API key may then be empty |
 | `AI_TOKEN_PARAMETER` | `max_completion_tokens` by default; `max_tokens` for compatible servers that require it |
 
-After environment changes: `docker compose up -d --force-recreate api`. Also enable AI explicitly in Settings. AI is only called for an action you request. A remote provider receives bounded source passages and your submitted response. Inside Docker, a host model server can be addressed as `http://host.docker.internal:11434/v1` if that server exposes a compatible endpoint. The default model is intentionally unspecified.
+The table describes development's `.env`. Production retains its effective settings in private `.local/production/compose.json`; changing development's `.env` has no effect on production. After development environment changes: `./scripts/dev.ps1 start`. For production settings, see [environment operations](docs/environments.md). Also enable AI explicitly in that environment's Settings. AI is only called for an action you request. A remote provider receives bounded source passages and your submitted response. Inside Docker, a host model server can be addressed as `http://host.docker.internal:11434/v1` if that server exposes a compatible endpoint. The default model is intentionally unspecified.
 
 AI summaries, comparisons, reading aids and critique are labeled synthesis and carry real source IDs. Insufficient text, invalid output, timeouts, missing configuration and provider errors fail plainly. Original sources and all non-AI features remain available. There is no unrestricted autonomous tool execution or model-generated source import.
 
@@ -98,11 +113,11 @@ For development without PostgreSQL, an explicit **development-only** SQLite data
 $env:DATABASE_PROVIDER = 'sqlite'
 $env:ConnectionStrings__Default = 'Data Source=rabbithole-dev.db'
 $env:Documents__Path = "$PWD/data/dev-uploads"
-$env:RABBITHOLE_ALLOWED_ORIGIN = 'http://127.0.0.1:3000'
+$env:RABBITHOLE_ALLOWED_ORIGIN = 'http://127.0.0.1:47834'
 dotnet run --project apps/api --urls http://127.0.0.1:5080
 # In another terminal:
 $env:NEXT_TELEMETRY_DISABLED = '1'
-npm --prefix apps/web run dev
+npm --prefix apps/web run dev -- --port 47834
 ```
 
 Production uses PostgreSQL and forward migrations. SQLite is for tests/development; an additive schema upgrade preserves older development databases. Both paths transactionally backfill identities, multiple source origins and explicit topic choices before serving traffic. Never point the test host at your personal database.
@@ -117,23 +132,26 @@ Use **Settings → Export your data** for portable JSON notes, highlights, topic
 ./scripts/backup.ps1
 ```
 
-This briefly stops the API while copying a PostgreSQL custom-format dump and the uploads directory into an ignored timestamped `backups/` folder, then restarts it. Keep your private `.env` separately. Backups contain private book text and personal notes; store them accordingly.
+This defaults to **production** and briefly stops its API while copying a PostgreSQL custom-format dump and the uploads directory into an ignored timestamped `backups/` folder. It restores the API's previous running/stopped state. Use `-Environment dev` for a development backup. Keep `.local/production/` (private production configuration) and `.env` (development configuration) separately; credentials are not copied into the backup. Backups contain private book text and personal notes; store them accordingly.
 
 Take a backup before upgrading. The catalog upgrade preserves original IDs and resolves merged duplicate links to a surviving item. Restoring the pre-upgrade database and uploads together is the supported way to return to older code; migration downgrades are intentionally blocked because the old model cannot represent the new provenance and aliases.
 
 To restore **into a fresh separate project** without overwriting the current app:
 
 ```powershell
-$env:PORT = '3002'
-docker compose -p rabbithole-restored up -d db
-docker compose -p rabbithole-restored cp ./backups/YOUR-TIMESTAMP/database.dump db:/tmp/restore.dump
-docker compose -p rabbithole-restored exec -T db pg_restore -U rabbithole -d rabbithole --no-owner /tmp/restore.dump
-docker compose -p rabbithole-restored create api
-docker compose -p rabbithole-restored cp ./backups/YOUR-TIMESTAMP/uploads/. api:/data/uploads
-docker compose -p rabbithole-restored up -d
+$previousPort = $env:PORT
+try {
+    $env:PORT = '47833'
+    docker compose -p rabbithole-restored -f compose.yaml up -d --wait db
+    docker compose -p rabbithole-restored -f compose.yaml cp ./backups/YOUR-TIMESTAMP/database.dump db:/tmp/restore.dump
+    docker compose -p rabbithole-restored -f compose.yaml exec -T db pg_restore -U rabbithole -d rabbithole --no-owner /tmp/restore.dump
+    docker compose -p rabbithole-restored -f compose.yaml create api
+    docker compose -p rabbithole-restored -f compose.yaml cp ./backups/YOUR-TIMESTAMP/uploads/. api:/data/uploads
+    docker compose -p rabbithole-restored -f compose.yaml up --build -d --wait
+} finally { $env:PORT = $previousPort }
 ```
 
-Open `http://localhost:3002`. Use a new project name for each restore. Do not use `--clean` against an existing personal database. Restore the database and files from the same backup, using the same database credential. Migration history in the dump is preserved and newer forward migrations apply on startup.
+Open `http://localhost:47833`. Use a new project name for each restore and an unused port. Do not use `--clean` against an existing personal database. Restore the database and files from the same backup. This builds the current checkout and uses development's `.env` credential for the separate server; the dump does not change PostgreSQL role passwords. Migration history is preserved and newer forward migrations apply on startup. Never use the production manifest for a temporary restore: its volumes deliberately refer to the real personal library.
 
 To verify a backup containing imported items using a temporary isolated installation:
 
@@ -141,12 +159,12 @@ To verify a backup containing imported items using a temporary isolated installa
 ./scripts/verify-restore.ps1 -BackupFolder ./backups/YOUR-TIMESTAMP
 ```
 
-This uses the already built `rabbithole-api` and `rabbithole-web` images on port 3002, checks PostgreSQL search, state/trail persistence and a real PDF across restart, then removes only its uniquely named verification containers and volumes. The main installation and backup are preserved.
+This uses production's exact preserved images on port `47833` with separate temporary volumes. It disables source ingestion in that copy, checks PostgreSQL search, state/trail persistence and a real PDF across restart, then removes only its uniquely named verification containers and volumes. Both installed environments and the backup are preserved.
 
 ## Current limits
 
 - Daily editions roll over at midnight UTC; publication dates are displayed in UTC so date-only research records retain their source calendar day.
-- EPUB sections follow spine documents. Several TOC fragments within one XHTML document remain one section. Scanned PDFs need the original-file fallback; there is no OCR or DRM removal.
+- EPUB sections follow spine order and actual EPUB 3 navigation/EPUB 2 NCX anchors, including several chapters within one XHTML file. Unlabelled text retains a heading or filename label; missing anchors or malformed markup fall back to the file's text with a warning. Image-only sections remain in the original. PDF bookmarks define chapters when present; otherwise use individual pages or mark your own ranges. There is no OCR or DRM removal.
 - OpenAlex/arXiv supply available metadata and abstracts. An access link does not mean a paper's full text was retrieved. Provider citation references link out; they do not automatically import other papers.
   OpenAlex watches search titles/abstracts, or titles only with a `title:` prefix. They seed a bounded newest page from the last two years, then revisit a seven-day overlap. Without `OPENALEX_API_KEY`, each refresh samples only the first page and can miss papers in busy queries. With a key, fixed-window cursor continuation persists across restarts; failed pages retain progress and report errors. Interactive search remains relevance ranked. Papers indexed more than seven days late may require manual search.
 - YouTube channel feeds and known video URLs, and SoundCloud track/playlist URLs, are supported. Authenticated global search, captions, media downloads, Semantic Scholar and OPML import are not implemented.
@@ -157,15 +175,16 @@ This uses the already built `rabbithole-api` and `rabbithole-web` images on port
 ## Troubleshooting and deliberate reset
 
 ```powershell
-docker compose ps
-docker compose logs --tail 100 api
-docker compose logs -f
-docker compose restart api web
-docker compose down       # Stops containers; keeps data
+./scripts/production.ps1 status
+./scripts/production.ps1 logs
+./scripts/production.ps1 restart
+./scripts/dev.ps1 status
+./scripts/dev.ps1 logs
+./scripts/dev.ps1 stop     # Stops development only; keeps its data
 ```
 
-If port 3000 is occupied, set `PORT=3002` in `.env`. Provider errors are in Settings; retry after backoff or correct the source. Uploaded files without extracted text remain downloadable; OCR and DRM removal are not provided. For an interrupted or failed upload, use **Library → Retry extraction**, or upload the same file again. The existing document/section IDs, notes, edited metadata and reading progress are retained. Reuploading the same file also restores a missing original.
+To change development's port, edit `PORT` in `.env` and run `./scripts/dev.ps1 start`. Production's port is `services.gateway.ports[0].published` in its private manifest; after an intentional change, run `./scripts/production.ps1 start`. Keep both bindings on `127.0.0.1` and ports distinct. Provider errors are in Settings; retry after backoff or correct the source. Uploaded files without extracted text remain downloadable; OCR and DRM removal are not provided. For an interrupted or failed upload, use **Library → Retry extraction**, or upload the same file again. For a ready book with old section boundaries, choose **Rebuild sections**. Existing IDs, notes, edited metadata and reading progress are retained; replaced sections stay under **Previous extraction** with their original text. Reuploading the same file also restores a missing original.
 
-**Destructive reset:** only after taking a backup and deciding to erase this installation, `docker compose down --volumes` deletes the database and uploads. Never use it for routine rebuilds or troubleshooting.
+**Destructive development reset:** only after deciding to erase development, `docker compose -p rabbithole-dev --env-file .env -f compose.yaml down --volumes` deletes its database and uploads. Never use it for routine rebuilds or troubleshooting. Production volumes are external and are not removed by Compose; deleting them manually would erase the personal library.
 
 This is a single-user loopback application with no login. Exposing it to LAN/internet requires independent authentication and careful proxy configuration. Do not change the host binding to `0.0.0.0`. The API also validates Host and mutation origins; an explicitly configured `RABBITHOLE_ALLOWED_ORIGIN` is for a trusted local development proxy.

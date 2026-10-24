@@ -98,10 +98,12 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     await page.getByRole('link', { name: 'Read', exact: true }).first().click();
     await expect(page.getByText(/This is the first actual chapter/).last()).toBeVisible();
     const sectionId = page.url().split('/').pop()!;
+    await page.locator('summary').filter({ hasText: /^Progress within this/ }).click();
     await page.getByRole('slider').fill('42');
     await page.getByRole('slider').blur();
     await expect.poll(async () => (await (await request.get(`/api/items/${sectionId}`)).json()).state.progress).toBe(0.42);
     await page.reload();
+    await page.locator('summary').filter({ hasText: /^Progress within this/ }).click();
     await expect(page.getByRole('slider')).toHaveValue('42');
     expect((await request.get(`/api/library/books/${book}/file`)).ok()).toBe(true);
     await page.goto('/library');
@@ -148,6 +150,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     expect(paper.doi).toBe('10.1234/rabbithole.fixture');
     expect(paper.publishedAt).toContain('2001-02-03');
     expect(paper.textProvenance).toBe('provider-abstract');
+    await page.getByRole('tab', { name: 'Details', exact: true }).click();
     await expect(page.getByText('DOI: 10.1234/rabbithole.fixture', { exact: false })).toBeVisible();
     await expect(page.locator('.reader-body')).toContainText('This fixture abstract discusses consciousness');
   });

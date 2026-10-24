@@ -1,4 +1,6 @@
-name: rabbithole
+# The working checkout is always development. Production is a pinned local snapshot;
+# use scripts/production.ps1 to manage it without rebuilding application images.
+name: rabbithole-dev
 services:
   db:
     image: postgres:17-alpine
@@ -65,7 +67,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - '127.0.0.1:${PORT:-3000}:80'
+      - '127.0.0.1:${PORT:-47832}:80'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:

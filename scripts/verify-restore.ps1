@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)][string]$BackupFolder,
-    [int]$Port = 3002
+    [int]$Port = 47833
 )
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -11,14 +11,18 @@ $project = 'rabbithole-verify-' + (Get-Date -Format 'yyyyMMddHHmmss')
 $cache = Join-Path $repo '.cache'
 New-Item -ItemType Directory -Path $cache -Force | Out-Null
 $override = Join-Path $cache "$project.yaml"
-@'
-services:
-  api:
-    image: rabbithole-api
-  web:
-    image: rabbithole-web
-'@ | Set-Content -LiteralPath $override
-$compose = @('compose', '-p', $project, '-f', (Join-Path $repo 'compose.yaml'), '-f', $override)
+$productionFile = Join-Path $repo '.local/production/compose.json'
+if (!(Test-Path -LiteralPath $productionFile)) { throw 'A preserved production deployment is required to verify its backup.' }
+$production = Get-Content -LiteralPath $productionFile -Raw | ConvertFrom-Json
+@{ services = @{
+    db = @{ image = $production.services.db.image; pull_policy = 'never' }
+    api = @{ image = $production.services.api.image; pull_policy = 'never' }
+    web = @{ image = $production.services.web.image; pull_policy = 'never' }
+    gateway = @{ image = $production.services.gateway.image; pull_policy = 'never' }
+} } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $override
+# Use development's isolated volume definitions, with production's exact images.
+# Never include the production manifest: it names the real external volumes.
+$compose = @('compose', '-p', $project, '--env-file', (Join-Path $repo '.env'), '-f', (Join-Path $repo 'compose.yaml'), '-f', $override)
 function Compose {
     & docker @compose @args
     if ($LASTEXITCODE -ne 0) { throw "Docker failed: $args" }
@@ -38,6 +42,9 @@ try {
     Compose up -d --wait db
     Compose cp (Join-Path $backup 'database.dump') db:/tmp/restore.dump
     Compose exec -T db pg_restore -U rabbithole -d rabbithole --no-owner /tmp/restore.dump
+    # The restored copy is only for local verification; prevent scheduled network ingestion.
+    'UPDATE "Sources" SET "Enabled" = false;' | & docker @compose exec -T db psql -U rabbithole -d rabbithole -v ON_ERROR_STOP=1
+    if ($LASTEXITCODE -ne 0) { throw 'Could not disable background ingestion in the verification copy.' }
     Compose create --no-build api
     Compose cp (Join-Path $backup 'uploads/.') api:/data/uploads
     Compose up -d --wait --no-build

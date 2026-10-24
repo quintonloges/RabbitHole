@@ -6,6 +6,7 @@
 **/bin
 **/obj
 .cache
+.local
 data
 backups
 test-results

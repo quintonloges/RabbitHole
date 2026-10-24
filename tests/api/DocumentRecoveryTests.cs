@@ -17,6 +17,7 @@ using Xunit;
 
 namespace RabbitHole.Tests;
 
+[Collection("Document imports")]
 public class DocumentRecoveryTests
 {
     private sealed class Factory : WebApplicationFactory<Program>

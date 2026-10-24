@@ -11,8 +11,8 @@ export function PaperProvenance({ item }: { item: Item }) {
   const venue = typeof metadata.venue === "string" ? metadata.venue : null;
   const accessUrl = typeof metadata.openAccessUrl === "string" ? metadata.openAccessUrl : null;
   const references = Array.isArray(metadata.referencedWorks) ? metadata.referencedWorks.filter((value): value is string => typeof value === "string" && /^https:\/\/openalex\.org\/W\d+$/.test(value)) : [];
-  return <div className="panel panel-pad" style={{ marginBottom: 24 }}>
-    <span className="eyebrow">PAPER RECORD</span>
+  return <div className="paper-record">
+    <h3>Paper record</h3>
     <p className="subtle" style={{ lineHeight: 1.8, overflowWrap: "anywhere" }}>
       {item.provider}{item.providerId ? ` · ${item.providerId}` : ""}
       {venue && <><br/>{venue}</>}

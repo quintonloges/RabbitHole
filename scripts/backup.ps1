@@ -1,20 +1,21 @@
-param([string]$Destination = (Join-Path $PSScriptRoot '../backups'))
+param(
+    [string]$Destination = (Join-Path $PSScriptRoot '../backups'),
+    [ValidateSet('dev', 'production')][string]$Environment = 'production'
+)
 $ErrorActionPreference = 'Stop'
-$folder = Join-Path ([IO.Path]::GetFullPath($Destination)) (Get-Date -Format 'yyyyMMdd-HHmmss')
+. (Join-Path $PSScriptRoot 'environment-common.ps1')
+$compose = @(Get-RabbitHoleCompose $Environment)
+$folder = Join-Path ([IO.Path]::GetFullPath($Destination)) ((Get-Date -Format 'yyyyMMdd-HHmmss') + "-$Environment")
 New-Item -ItemType Directory -Path $folder -Force | Out-Null
-Push-Location (Join-Path $PSScriptRoot '..')
+$running = @(Invoke-RabbitHoleCompose $compose @('ps', '--status', 'running', '--services'))
+$resumeApi = $running -contains 'api'
 try {
     # Stop writers for a consistent database/files pair. Database stays online.
-    docker compose stop api
-    if ($LASTEXITCODE -ne 0) { throw 'Could not stop API.' }
-    docker compose exec -T db pg_dump -U rabbithole -d rabbithole -Fc -f /tmp/rabbithole.dump
-    if ($LASTEXITCODE -ne 0) { throw 'Database backup failed.' }
-    docker compose cp db:/tmp/rabbithole.dump (Join-Path $folder 'database.dump')
-    if ($LASTEXITCODE -ne 0) { throw 'Could not copy database backup.' }
-    docker compose cp api:/data/uploads (Join-Path $folder 'uploads')
-    if ($LASTEXITCODE -ne 0) { throw 'Upload backup failed.' }
-    Write-Output "Backup saved to $folder. Keep your private .env separately; it is not included."
+    if ($resumeApi) { Invoke-RabbitHoleCompose $compose @('stop', 'api') }
+    Invoke-RabbitHoleCompose $compose @('exec', '-T', 'db', 'pg_dump', '-U', 'rabbithole', '-d', 'rabbithole', '-Fc', '-f', '/tmp/rabbithole.dump')
+    Invoke-RabbitHoleCompose $compose @('cp', 'db:/tmp/rabbithole.dump', (Join-Path $folder 'database.dump'))
+    Invoke-RabbitHoleCompose $compose @('cp', 'api:/data/uploads', (Join-Path $folder 'uploads'))
+    Write-Output "$Environment backup saved to $folder. Keep private deployment settings separately; they are not included."
 } finally {
-    docker compose start api
-    Pop-Location
+    if ($resumeApi) { Invoke-RabbitHoleCompose $compose @('start', 'api') }
 }

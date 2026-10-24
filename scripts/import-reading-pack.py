@@ -41,7 +41,7 @@ def matches_reading(item, reading):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pack', default='config/curated-reading-pack.json')
-    parser.add_argument('--base', default='http://127.0.0.1:3000/api')
+    parser.add_argument('--base', default='http://127.0.0.1:47832/api')
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--report', default='data/curation/reading-pack-run.json')
     args = parser.parse_args()

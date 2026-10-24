@@ -197,6 +197,9 @@ namespace RabbitHole.Data.Migrations
                     b.Property<int?>("EndPage")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsSuperseded")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
 

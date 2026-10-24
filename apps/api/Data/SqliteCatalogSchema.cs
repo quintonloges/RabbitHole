@@ -40,6 +40,8 @@ public static class SqliteCatalogSchema
             await ExecuteAsync("ALTER TABLE \"Nodes\" ADD COLUMN \"Origin\" TEXT NOT NULL DEFAULT 'legacy-unknown';");
         if (!(await ColumnsAsync("Entries")).Contains("RationaleJson"))
             await ExecuteAsync("ALTER TABLE \"Entries\" ADD COLUMN \"RationaleJson\" TEXT NULL;");
+        if (!(await ColumnsAsync("Sections")).Contains("IsSuperseded"))
+            await ExecuteAsync("ALTER TABLE \"Sections\" ADD COLUMN \"IsSuperseded\" INTEGER NOT NULL DEFAULT 0;");
         if (!itemColumns.Contains("MergedIntoId"))
             await ExecuteAsync("ALTER TABLE \"Items\" ADD COLUMN \"MergedIntoId\" TEXT NULL REFERENCES \"Items\" (\"Id\") ON DELETE RESTRICT;");
         var sourceColumns = await ColumnsAsync("Sources");

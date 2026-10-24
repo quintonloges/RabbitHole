@@ -129,6 +129,16 @@ External source availability changes. **Consult official API documentation durin
 
 ## Engineering workflow and definition of done
 
+### Desktop development and production
+
+- The working checkout's `compose.yaml` and `.env` are **development**: project `rabbithole-dev`, loopback port `47832`, separate database/uploads volumes. Use `./scripts/dev.ps1 start` to build and start it.
+- The existing personal instance remains **production**: project `rabbithole`, loopback port `47831`, original `rabbithole_database` and `rabbithole_uploads` volumes. Use `./scripts/production.ps1` for status or `./scripts/production.ps1 start` to start its preserved images.
+- Production's private deployment snapshot is in ignored `.local/production/`. It has immutable image IDs, no build contexts, a separate gateway configuration, and external data volumes. Do not delete this folder, point development at these volumes, or regenerate the snapshot from the working checkout as a routine coding step.
+- Apply code changes and tests to development. Updating production requires a user-requested deployment and a preceding `./scripts/backup.ps1`; follow `docs/environments.md`. Existing authorization for a deployment remains valid.
+- Pack/audit scripts default to development. Use an explicit `--base http://127.0.0.1:47831/api` only when the requested operation targets the personal production library.
+
+### Checks and delivery
+
 1. Inspect the repository and these instructions. Make the smallest number of coherent architectural choices necessary; **implement, don't stop at a plan**. For the initial one-shot, complete as much of the full companion specification as possible without seeking routine confirmation.
 2. Create real domain/database migrations and typed endpoints, then connect actual UI interactions. Follow with integrations, ranking, paths, optional AI, import, learning, and quality assurance. Prefer deep vertical completion over shallow placeholders.
 3. Use repository scripts to run format, lint, TypeScript check, backend build, unit/integration tests, production frontend build, and end-to-end tests. Fix failures before declaring success.

@@ -159,6 +159,7 @@ public class DocumentSection
     public int? EndPage { get; set; }
     public string Text { get; set; } = "";
     public string? Locator { get; set; }
+    public bool IsSuperseded { get; set; }
 }
 
 public class RabbitHole

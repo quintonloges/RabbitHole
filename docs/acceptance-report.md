@@ -1,5 +1,126 @@
 # RabbitHole acceptance report
 
+## Item-page UX review and revision — 23 October 2026
+
+An independent agent reviewed the actual PDF item page, the implementation and desktop/mobile screenshots. It found that source text started more than two screens down, expanded contents and equal-weight management actions dominated reading, excerpts repeated the body, and item navigation could carry drafts or delayed results into another item. The revised page was reviewed again; no remaining visual blocker was found.
+
+- The parent title/page, plain source metadata, Save/Mark read, secondary More actions and original link precede a compact Previous/Contents/Next bar. The full searchable contents list lives in a bounded dialog, with Escape/outside/close dismissal and focus restoration. Navigation repeats after the text.
+- Source text or the consented media player comes before Notes/Explore/Details. Abstracts are labeled; duplicate excerpts are omitted; link-only and extraction failures explain the available fallback. Notes, related discoveries, trails, AI tools, metadata, topics and concepts remain connected to their existing endpoints.
+- PDF presentation removes extraction tabs and reflows physical line wraps while preserving every word, hyphen and existing blank-line paragraph boundary. Stored source text is unchanged. Details offers original line breaks, remembered for that document during the browser session; the original PDF link includes the actual page. Extraction without blank paragraphs remains a continuous paragraph rather than inventing structure.
+- Each item has its own reader session and browser-session note draft. Late AI/note responses cannot populate a different item. Highlighting accepts source-only selections, reports saved/error states locally and does not duplicate a quoted draft. Quote-in-note is disabled while a note save is pending. Read, understood and per-item progress stay separate.
+
+Actual verification:
+
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `$env:CI = '1'; npm run test:e2e -- --reporter=line`: **26 passed**, with one new test assertion incorrectly treating a trailing space as changed source text. After correcting that assertion, `npm run test:e2e -- --last-failed --reporter=line`: **1 passed in 7.5 seconds**. All 27 checks passed across those final runs. New coverage includes 1440/1024/390px layout, navigation failure/retry, contents search and keyboard dismissal, PDF reflow/original-line preference across pages, item-specific drafts, failed/pending note saves, source-only highlights, consented media, abstracts/link-only items and a delayed AI response across navigation. Existing real-backend journeys verified persisted notes, reading state, EPUB/PDF progress, metadata, trails and practice. Earlier runs exposed a search-input Escape handling issue and outdated selectors for collapsed controls; these were fixed before the final checks.
+- `./scripts/dev.ps1 start`: rebuilt the optimized Next frontend and started the development stack successfully; API, web, gateway and database were healthy. The initial sandbox attempt could not access Docker's named pipe; the local-process run passed. A sandbox E2E startup that produced no test output was stopped; the isolated local-process run above completed.
+- Inspected the rebuilt real PDF page and Contents/Details/Notes interactions in the in-app browser. The text begins at **y359**, compared with **y2575** before the revision at the same desktop viewport. Browser error logs were empty. Inspected the light-theme fixture screenshots at 1440px and 390px; layout checks also covered 1024px, with no horizontal overflow. Actual dark-theme screenshots are in ignored `.cache/ux-review/item-final.png`, `item-contents-final.png` and `item-tools-final.png`; fixture screenshots are `test-results/item-reader-*.png`.
+- `docker compose logs --since 10m --tail 80 api web`: no application errors; no pending database migrations. `git diff --check`: passed. Backend logic and schema were not changed in this revision; previous backend results remain recorded below.
+
+Running in **development only** at `http://localhost:47832`. Test mutations and fixtures used isolated servers. No production deployment, new source import or live AI/provider request was part of this revision.
+
+## Denser rows and plain metadata — 23 October 2026
+
+Removed the routine “Read here”/player-availability labels and the duplicate reader action. Headlines open items. Formats now appear as plain text beside the headline; source, author, page location and useful limitations share one metadata line. Removed the discovery eyebrow heading and row badges. Excerpts use one line on desktop and two on mobile, with tighter row padding and controls. Related, Library and Search rows use the same compact presentation.
+
+- `npm run lint` and `npm run typecheck` in `apps/web`: passed.
+- `$env:CI = '1'; npm run test:e2e -- --reporter=line`: **22 passed in 54.4 seconds**. Updated existing mixed-content expectations; topic navigation, popover/focus behavior, saved state, reader/document flows and mobile checks passed.
+- `./scripts/dev.ps1 start`: optimized frontend build and development startup passed; all development services started successfully.
+- Inspected the actual dark-theme daily feed and light-theme mixed-content desktop/mobile screenshots. At the same **1210 × 1062** browser viewport, the first six real rows decreased from **189px to 105px each** (44% shorter), with no horizontal overflow or “Read here” text. Final actual-library screenshot: ignored `.cache/ux-review/compact-feed-final.png`.
+- `git diff --check`: passed. Backend logic and schema were not changed in this follow-up; the preceding backend results remain recorded below.
+
+Running in **development only** at `http://localhost:47832`.
+
+## Discovery UX counter-review and revision — 23 October 2026
+
+An independent counter-review identified three problems in the first list design: topic tabs only filtered the small daily edition, paired disclosures hid essential row context and moved the list, and document rows mislabeled pages as chapters without identifying their parent book. The revision addresses those findings while retaining the theme and numbered list.
+
+- **Topic navigation:** separate Today’s picks and Browse topic controls. Topic browsing uses the whole imported collection, excludes hidden items before counting/pagination, and preserves topic/page in the URL. New imports come first; each book's sections stay in reading order. Returning to the daily edition preserves its selection and evidence.
+- **Immediate row context:** accurate PDF page/section, EPUB section, document, research, video and audio labels; actual text/player/original-only availability; source or parent book, author, page bounds and a visible source excerpt. Generic page and parser-filename headings display the real parent and page/section position. Local uploads no longer show an irrelevant unknown publication date or the internal provider name.
+- **Interactions:** removed Preview; Why this? opens a bounded native popover without expanding the row, supports Escape/outside/close dismissal, and closes when the page scrolls. Read/open actions describe the content being opened. Library, local Search and related rows reuse the same context helpers.
+- **API projection:** batched parent/section metadata plus an explicit `hasText` flag, even when list payloads omit the body. No schema migration, text synthesis or private storage-path exposure was introduced.
+
+Actual verification:
+
+- `npm run lint` and `npm run typecheck` in `apps/web`: passed.
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore -v:minimal`: **194 passed**. New coverage checks parent metadata, page/section distinctions, missing text, private-field omission, reading-order pagination, hidden-item filtering and stable daily editions.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore`: passed. The sandbox initially denied the build-host pipe; the same check passed with local process access.
+- `$env:CI = '1'; npm run test:e2e -- --reporter=line`: **22 passed in 58.6 seconds**. Added mixed-format rows and topic navigation tests cover visible excerpts, truthful availability, no row movement, Escape/focus behavior, scroll dismissal, mobile popover bounds, pagination, reload, browser Back, empty topics and returning to the same daily picks.
+- `./scripts/dev.ps1 start`: rebuilt the API and optimized Next frontend and started development successfully. API, web and database were healthy; gateway remained bound to `127.0.0.1:47832`. Recent API/web logs contained no application errors; no migrations were pending.
+- Inspected the rebuilt app in the in-app browser with the actual PDF/EPUB library: daily rows, topic rows in reading order, parent/author/page context, and explanation open/close. Final screenshots are in ignored `.cache/ux-review/live-dark-final.png`, `live-topic-final.png` and `live-popover-final.png`. Inspected the isolated mixed-type fixture screenshots at desktop and mobile; E2E also checked 1440, 1024 and 390px for horizontal overflow. Test screenshots are in `test-results/discovery-context-*.png`.
+- `git diff --check`: passed. Preexisting checkout work was preserved.
+
+Running in **development only** at `http://localhost:47832`. Fixtures and state-changing checks used isolated test servers. No production deployment or new live-provider smoke request was part of this UI revision. Source excerpts remain the supplied text; missing chapter names or abstracts are not invented.
+
+## Compact discovery layout — 23 October 2026
+
+Replaced the oversized featured item and two-column discovery cards with a single numbered list inspired by Hacker News and old Reddit. Each row keeps the headline, original source domain, source-reported date/author/type, and inline save/read/pass actions. Supplied excerpts and recommendation evidence expand through keyboard-accessible **Preview** and **Why this?** disclosures. Topic filters use compact tabs; resumable trails sit beside the feed on wide screens. Related discoveries share the list component, and Library/local Search rows use the matching headline/metadata treatment. Existing theme colors, reading typography, navigation, state endpoints and ranking remain in place.
+
+Actual verification:
+
+- `./scripts/check.ps1` passed: **7 script tests**, **185 backend tests**, frontend dependency installation, ESLint, TypeScript, and optimized Next build. Backend compilation succeeded as part of the Release test run.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` passed.
+- `CI=1 npm run test:e2e -- --reporter=line` passed **20 tests** in 48.7 seconds, including source imports, persistent save/read state, branching, document navigation, practice, failure recovery, and mobile navigation.
+- `./scripts/dev.ps1 start` rebuilt and started the development stack successfully at `http://localhost:47832`. All services were healthy. Recent API/web logs showed no application errors; the database reported no pending migrations.
+- `node .cache/desktop-layout/review.cjs` passed against the production-built development frontend with a separately spawned, temporary fixture API. Eight checks covered **1440, 1024, 720 and 390px** in **light and dark** themes: single-column rows, no horizontal overflow, and no browser exceptions. Inline save/read/pass survived reload; opening/reading did not mark understanding. Original-source links, keyboard disclosures, topic selection, surprise, related routes, Search, API-error retry and empty states were checked. The first review run stopped on an ambiguous test selector matching Next's hidden route announcer; narrowing it to the application's error alert completed the review without an application change.
+- Inspected desktop, expanded-details, mobile-dark, and Search screenshots. Review images and the actual result JSON are in ignored `.cache/desktop-layout/`; the standard E2E desktop screenshot is in `test-results/desktop-discover.png`. These previews contain explicitly labeled test fixtures. The development catalog was identical before and after review; fixtures and mutations went only to the temporary test API.
+- `git diff --check` passed. Existing unrelated work in the checkout was preserved.
+
+This change is running in **development only**. No production release, provider integration, external-source request, database migration, or AI behavior change was part of this layout work.
+
+## Production promotion of document fixes — 19 October 2026
+
+Deployed the already tested development API/web images to the personal production instance at `http://localhost:47831` on the owner's explicit request. The owner also explicitly waived the backup for this release; **no database, uploads, export or deployment-manifest backup was taken**. Verification snapshots were held in memory and only counts/check results were retained.
+
+- Promoted API image `sha256:1e92aa88250c8b98adf2e03a0b138aff6a9d5694c8607e875be339b0bb469f6a` and web image `sha256:7fe61e5581a0f70e254a9aaa7582885832652cd4f35f6d3f31d08f6cea976f06`, retaining unique local production release tags. Only the two image fields in the private manifest changed; provider settings, database/uploads volumes, network, loopback port and database/gateway containers were preserved.
+- `./scripts/production.ps1 start` passed with all services healthy. The additive section-history migration applied successfully. Pre/post deployment checksums matched for documents, original sections, notes, saved/read/progress state, trails, practice records and settings; every prior item ID remained.
+- Rebuilt the existing affected EPUB through its production retry endpoint. It now has **26 active sections and six preserved previous extractions**. All existing section/item references remain; superseded sections retain their original text. Personal-state checksums still match after rebuilding. Both documents retain their original metadata/file identities.
+- Counts changed from **716 to 728 items** and **423 to 435 sections**, reflecting 12 newly separated EPUB sections while retaining old records. The **two documents, 13 personal-state records, two trails and zero notes** were preserved.
+- `node .cache/document-repair/verify-production-ui.mjs` passed **four book/viewport checks** at 1440px and 390px: clean text encoding, 34 PDF bookmark ranges before the separate page list, corrected EPUB navigation and previous-extraction access, no horizontal overflow, no browser/API errors and no UI state mutations. Production screenshots and validation summaries remain under ignored `.cache/document-repair/`.
+- Recent production logs contained zero application failure-pattern matches. The private deployment audit under `.local/production/deployments/` records image IDs, backup waiver, counts and preservation checks without copying library contents or secrets.
+
+## Library encoding and document sections — 19 October 2026
+
+Corrected the library's corrupted UTF-8 interface literals. PDF bookmark/manual ranges now precede a separate searchable, paginated page list; original-file access, rebuild and range controls remain accessible. EPUB navigation uses actual EPUB 3/NCX fragment targets in spine/document order, including multiple chapters in one file. Missing/malformed TOC links and markup retain readable text with an explicit fallback; image-only entries remain in the original. Ready documents expose **Rebuild sections**.
+
+The additive `DocumentSectionHistory` migration and equivalent SQLite upgrade retain old section IDs and text under **Previous extraction** when chapter boundaries change. Notes, saved/read/progress state, owner-edited titles and trail references remain on their original records. Current source labels and reading order refresh without duplicating sections. Section responses now return compact metadata rather than copying entire book bodies back into the library.
+
+Actual verification:
+
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore -v:minimal --blame-hang-timeout 60s` — **185 passed**, zero failed/skipped. Includes EPUB fragment/nested/duplicate TOC tests, malformed navigation, local entity handling, encoded filename collisions, and rebuild preservation of notes/state/trails/titles. The final build had no compiler warnings.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` and `dotnet ef migrations has-pending-model-changes --project apps/api/RabbitHole.Api.csproj --no-build` — passed; no pending model changes.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck` — passed. `./scripts/dev.ps1 start` built the Release API and optimized Next frontend and started all four development services successfully.
+- `CI=1 npm run test:e2e -- --reporter=line` — **20 passed** in 46.6 seconds. Five new UI regressions cover large PDF navigation, clean encoding, loading/failure/rebuild states, reupload cache refresh, chapter/page navigation, preserved extractions and EPUB order. External network responses remain isolated deterministic fixtures.
+- `python -m unittest discover -s tests/scripts -v` — **7 passed**. `git diff --check` passed.
+- Read-only copies of the two reported production originals were placed in ignored `.cache/document-repair/` and imported into **development only**. The PDF has **369 pages and 34 genuine bookmark ranges**; those ranges were previously buried after the page records. The EPUB now has **26 nonempty sections**, including its previously merged first chapter. All text from its 19 readable spine files is preserved without duplication when whitespace is normalized. No warnings or duplicate locators were produced for either file.
+- `node .cache/document-repair/verify-live.mjs` passed against development: same-hash reuploads reuse the same documents, repeated rebuilds preserve section IDs/order, original-file downloads are byte-identical, and actual section reading endpoints work. A second pass after container recreation matched the prior section snapshot exactly.
+- `node .cache/document-repair/verify-ui.mjs` passed: all six main routes at 1440px and 390px (**12/12 HTTP 200**, no horizontal overflow, browser exceptions or failed local responses), plus actual PDF/EPUB section reading and next-section navigation. Dark desktop/mobile screenshots are in `.cache/document-repair/live-*.png`; library layouts were visually inspected. Deterministic UI screenshots are in `test-results/document-sections-*.png`.
+- Development health checks passed and recent logs contained zero application failure-pattern matches. Production's preserved containers remain healthy on `127.0.0.1:47831`; they were not rebuilt, restarted or deployed. Development is available at `http://localhost:47832`.
+
+Local .NET build-host pipes, test-host sockets, browser loopback access and Docker required execution outside the default sandbox; those checks completed with the required access. No external provider or AI behavior changed. Untitled EPUB continuation text still uses an honest heading/filename fallback; no missing chapter title is invented. PDFs without bookmarks require individual pages or user-defined ranges, and OCR/DRM removal remain unsupported. Production deployment requires a separate explicit request and backup per `docs/environments.md`.
+
+## Desktop environment separation — 18 October 2026
+
+The original `rabbithole` Docker project is now personal production at `http://localhost:47831`. All four running image IDs were preserved; no application upgrade or database migration was introduced. The original `rabbithole_database` and `rabbithole_uploads` volumes remain attached and are now declared external. Private runtime settings and a separate Caddyfile are captured under ignored `.local/production/`, with immutable image IDs, no build contexts and `pull_policy: never`.
+
+The working checkout defaults to independent `rabbithole-dev` on `http://localhost:47832`, with different database credentials, image names, network and database/uploads volumes. It has no imported items, subscriptions or copied provider keys. Scripts now explicitly select the intended environment; ordinary builds, pack scripts and PostgreSQL recommendation checks target development. Backups default to production. Both gateways remain loopback-only; host port 3000 is free and no LAN/firewall configuration was changed.
+
+Actual verification:
+
+- Took a complete pre-change database/uploads backup at `backups/20261018-010644`. Captured a private API export baseline and retained original deployment metadata locally.
+- `./scripts/production.ps1 start` and `./scripts/dev.ps1 start` passed. Both full stacks are running; database, API and web health checks pass, and both gateway health requests return `ok`.
+- Exact pre/post export comparisons passed across every exported collection except the intentionally changing export timestamp: **276 items, 35 sources, 8 topics, 9 personal-state rows, 2 trails, 10 nodes, 628 identities, 259 item origins, 2,208 item-topic rows, 3 editions and 53 edition entries**, with notes/documents/sections/practice collections remaining empty. The final comparison after all checks also passed.
+- `./scripts/check-environments.ps1` passed: distinct live containers, networks, database/uploads volumes, loopback ports and pinned production images; temporary development topic/branches/navigation persisted across restart; production containers and personal state were unaffected. Temporary development records were removed.
+- Updated `./scripts/backup.ps1` passed against production, creating `backups/20261018-011521-production`. Its dump/files copy and API resume completed successfully.
+- `./scripts/verify-restore.ps1 -BackupFolder ./backups/20261018-010644` passed on temporary port 47833 using production's exact images. Restored all **276 items**, disabled ingestion only in the copy, verified PostgreSQL note search, saved/read/progress, sibling branches, PDF parsing/original-file hash/export and database/API/web restart. Only the temporary verification containers, network and volumes were removed.
+- `./scripts/check-recommendations-postgres.ps1` passed **2 HTTP tests** against a disposable database on the **development** PostgreSQL server. That test database was removed.
+- `python -m unittest discover -s tests/scripts -v`: **7 passed**. Backend Release build passed with zero warnings/errors; **159 backend tests passed** and `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` passed. The sandbox initially prevented the host backend build; the same checks passed with runtime access outside that sandbox.
+- Frontend lint and TypeScript checks passed. The Docker development build completed a production Next build. `CI=1 npm run test:e2e -- --reporter=line`: **15 passed** in 41.6 seconds on the isolated fixture host.
+- Live Playwright checks visited Discover, Rabbit Holes, Library, Practice, Search and Settings in both environments at 1440px and 390px: **24/24 route responses were HTTP 200**, with no browser exceptions or failed local requests after the backup pause. Screenshots and results are under `.cache/environment-ui/`. The first pass overlapped the intentional API backup pause and saw two transient 502s; the post-backup pass had none.
+- PowerShell parsing, ignored-private-file checks and `git diff --check` passed. Final live counts are **276 production items / 0 development items**. Listening-port checks confirmed only `127.0.0.1:47831` and `127.0.0.1:47832` for these deployments, with no listener on 3000 or the temporary restore port 47833.
+
+Known existing UI issue: production Settings with the populated source/job list has horizontal overflow at 390px (the full-page screenshot is 706px wide); the other 23 route/viewport checks fit. This environment-only change preserves the existing production application version. The layout issue is recorded for the subsequent phone-access work. No new provider integration or AI behavior was introduced, so no additional external provider calls were required. Docker Desktop startup after an OS reboot was not exercised; both stacks retain their `unless-stopped` policies.
+
 ## Recommendation quality pass — 18 October 2026
 
 Implemented concept-based related ranking, editable concept tags, path-aware exclusions and intentional revisits, bounded routine-announcement penalties, structured explanations and per-trail/per-turn provenance. Curated/example/unknown-origin nodes and passive opens no longer become personal exploration evidence. No source, external integration, AI dependency or credibility policy was added.

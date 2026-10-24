@@ -30,7 +30,7 @@ def identity(source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pack', default='config/curated-source-pack.json')
-    parser.add_argument('--base', default='http://127.0.0.1:3000/api')
+    parser.add_argument('--base', default='http://127.0.0.1:47832/api')
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--refresh', action='store_true')
     parser.add_argument('--only', help='Only a named source; exact match')

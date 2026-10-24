@@ -6,6 +6,7 @@
 **/bin/
 **/obj/
 .cache/
+.local/
 **/uploads/
 /data/
 /backups/

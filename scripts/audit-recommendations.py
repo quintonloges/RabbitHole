@@ -24,7 +24,7 @@ SEEDS = {
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base", default="http://127.0.0.1:3000/api")
+    parser.add_argument("--base", default="http://127.0.0.1:47832/api")
     parser.add_argument("--output", required=True)
     parser.add_argument("--snapshot", help="Existing snapshot to verify unchanged catalog/settings")
     parser.add_argument("--path-aware", action="store_true")

@@ -122,6 +122,19 @@ public static class CoreEndpoints
         if (bool.TryParse(request.Query["saved"], out var saved)) all = all.Where(i => states.GetValueOrDefault(i.Id)?.Saved == saved).ToList();
         if (bool.TryParse(request.Query["read"], out var read)) all = all.Where(i => (states.GetValueOrDefault(i.Id)?.Read ?? false) == read).ToList();
         if (bool.TryParse(request.Query["opened"], out var opened)) all = all.Where(i => (states.GetValueOrDefault(i.Id)?.LastOpenedAt != null) == opened).ToList();
+        if (bool.TryParse(request.Query["dismissed"], out var dismissed)) all = all.Where(i => (states.GetValueOrDefault(i.Id)?.Dismissed ?? false) == dismissed).ToList();
+        if (request.Query["order"] == "reading")
+        {
+            var documentIds = all.Where(i => i.DocumentId.HasValue).Select(i => i.DocumentId!.Value).Distinct().ToList();
+            var itemIds = all.Select(i => i.Id).ToList();
+            var imported = await db.Documents.AsNoTracking().Where(d => documentIds.Contains(d.Id))
+                .Select(d => new { d.Id, d.CreatedAt }).ToDictionaryAsync(d => d.Id, d => d.CreatedAt, ct);
+            var positions = await db.Sections.AsNoTracking().Where(s => itemIds.Contains(s.ItemId))
+                .Select(s => new { s.ItemId, s.Order }).ToDictionaryAsync(s => s.ItemId, s => s.Order, ct);
+            // A book is one import. Extraction timestamps must not put its index ahead of its chapters.
+            all = all.OrderByDescending(i => i.DocumentId.HasValue && imported.TryGetValue(i.DocumentId.Value, out var added) ? added : i.IngestedAt)
+                .ThenBy(i => i.DocumentId ?? i.Id).ThenBy(i => positions.GetValueOrDefault(i.Id, int.MaxValue)).ThenBy(i => i.Id).ToList();
+        }
         var total = all.Count;
         var offset = Math.Clamp(int.TryParse(request.Query["offset"], out var o) ? o : 0, 0, 100000);
         var limit = Math.Clamp(int.TryParse(request.Query["limit"], out var l) ? l : 30, 1, 100);

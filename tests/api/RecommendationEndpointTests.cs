@@ -18,6 +18,44 @@ namespace RabbitHole.Tests;
 // repository's recommendation verification container. Never target production.
 public class RecommendationEndpointTests
 {
+    [Fact]
+    public async Task Topic_browsing_pages_in_reading_order_and_excludes_dismissed_items_without_changing_the_edition()
+    {
+        using var factory = new Factory(); using var client = factory.CreateClient();
+        var ids = await Seed(factory);
+        Guid topicId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var topic = new Topic { Name = "TEST FIXTURE browsing" };
+            var document = new LibraryDocument { Title = "TEST FIXTURE ordered book", Sha256 = Guid.NewGuid().ToString(), MimeType = "application/pdf" };
+            topicId = topic.Id;
+            db.Topics.Add(topic); db.Documents.Add(document);
+            foreach (var item in await db.Items.Where(i => ids.Contains(i.Id)).ToListAsync())
+            {
+                var position = Array.IndexOf(ids, item.Id);
+                var section = new DocumentSection { DocumentId = document.Id, ItemId = item.Id, Order = position };
+                item.TopicIds = [topicId]; item.DocumentId = document.Id; item.SectionId = section.Id;
+                item.IngestedAt = DateTimeOffset.UtcNow.AddDays(position);
+                db.Sections.Add(section);
+            }
+            await db.SaveChangesAsync();
+        }
+        await Read(await client.PatchAsJsonAsync($"/api/items/{ids[0]}/state", new { dismissed = true, saved = true }));
+        var edition = await Read(await client.GetAsync("/api/discover/today"));
+        var first = await Read(await client.GetAsync($"/api/items?topicId={topicId}&dismissed=false&order=reading&limit=1"));
+        var second = await Read(await client.GetAsync($"/api/items?topicId={topicId}&dismissed=false&order=reading&limit=1&offset=1"));
+        Assert.Equal(2, first.GetProperty("total").GetInt32());
+        Assert.Equal(ids[1], first.GetProperty("items")[0].GetProperty("id").GetGuid());
+        Assert.Equal(ids[2], second.GetProperty("items")[0].GetProperty("id").GetGuid());
+        Assert.DoesNotContain(first.GetProperty("items").EnumerateArray(), i => i.GetProperty("id").GetGuid() == ids[0]);
+        var unfiltered = await Read(await client.GetAsync($"/api/items?topicId={topicId}"));
+        Assert.Equal(3, unfiltered.GetProperty("total").GetInt32());
+        Assert.Equal(edition.GetRawText(), (await Read(await client.GetAsync("/api/discover/today"))).GetRawText());
+        var hidden = await Read(await client.GetAsync($"/api/items/{ids[0]}"));
+        Assert.True(hidden.GetProperty("state").GetProperty("saved").GetBoolean());
+    }
+
     private sealed class Factory : WebApplicationFactory<Program>
     {
         private readonly string path = Path.Combine(Path.GetTempPath(), $"rabbithole-recommendations-{Guid.NewGuid():N}.db");

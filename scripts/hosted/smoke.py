@@ -1,6 +1,6 @@
 """Authenticated, read-only launch checks. Run on the host with public maintenance active.
 
-Use --base https://quintonloges.me/api. Password is prompted. Public API probes run
+Use --base https://rabbithole.quintonloges.me/api. Password is prompted. Public API probes run
 inside the API container so the public maintenance response can remain in place.
 """
 import argparse

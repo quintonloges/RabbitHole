@@ -1,5 +1,13 @@
 # RabbitHole acceptance report
 
+## Public hostname and firewall preparation — 24 October 2026
+
+The owner selected `rabbithole.quintonloges.me`. Updated repository configuration examples, CI validation inputs, operational scripts and current documentation. Updated only `PUBLIC_HOST` in both server configurations and `STAGING_ORIGIN` in staging over verified SSH; the atomic replacements preserved ownership, mode 600 and every unrelated setting. Both certificate-contact emails are configured. No email, password or key value was returned to chat. The server's effective SSH configuration has public-key authentication enabled and password/keyboard-interactive authentication disabled.
+
+Both Caddy configurations validated with the new hostname; the updated CI workflow passed `actionlint 1.7.7`, the restore-rehearsal script passed Bash syntax validation, and all **3 maintenance-boundary tests passed**. The first maintenance-test attempt hit a sandbox temporary-directory permission error; the rerun with normal local process access passed. `git diff --check` passed. These checks did not start the hosted application or issue a public certificate.
+
+The DNS lookup returned no record for the new subdomain. Add the `rabbithole` A record pointing to `68.183.97.155`, preserving the apex domain's existing records. DigitalOcean's official documentation confirms its Cloud Firewall has no additional cost; the hosting guide records the required inbound TCP 22/80/443 rules and the GitHub runner SSH consideration. The Cloud Firewall was not inspected or attached by this change. Staging deployment/restore and final cutover/launch checks remain pending.
+
 ## DigitalOcean prerequisite setup — 24 October 2026
 
 Verified the new Droplet over SSH using the owner's existing key and strict host-key checking: Ubuntu **24.04.5 LTS**, x86_64, approximately 2 GB RAM/50 GB disk. Installed Docker Engine **29.9.2**, Compose **5.6.1** and restic **0.16.4**, using Docker's official signed Ubuntu package repository; Python **3.12.3** was already installed. Enabled Docker and verified a fresh `rabbithole-deploy` SSH session can query the daemon and Compose without sudo.

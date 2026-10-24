@@ -4,7 +4,7 @@ A public catalog with a private learning workspace. Visitors browse real publish
 
 Public routes are `/`, `/search`, `/items/{id}`. Personal features are under `/admin`, with sign-in at `/admin/login`. Public records expose approved metadata and bounded source excerpts. Uploads, full stored text, notes, history, trails, practice and AI output stay private. Control visibility with **Show publicly** in item Details and the Library visibility filter. The upgrade publishes eligible existing external records; document-derived records are always private.
 
-See [public hosting and migration](docs/public-hosting.md) for DigitalOcean and GitHub Actions setup for `quintonloges.me`. Configure SSH through GitHub Actions secrets. Backups default to encrypted storage on the server; off-server storage is optional. Live release requires server/DNS configuration and successful migration/backup gates.
+See [public hosting and migration](docs/public-hosting.md) for DigitalOcean and GitHub Actions setup for `rabbithole.quintonloges.me`. Configure SSH through GitHub Actions secrets. Backups default to encrypted storage on the server; off-server storage is optional. Live release requires server/DNS configuration and successful migration/backup gates.
 
 ## Desktop environments
 
@@ -67,7 +67,7 @@ python scripts/import-reading-pack.py --apply
 
 The default is a read-only plan against development. Applying [curated-source-pack.json](config/curated-source-pack.json) verifies and refreshes new sources before enabling them. It preserves matching existing subscriptions, topic preferences, and personal state. Applying [curated-reading-pack.json](config/curated-reading-pack.json) imports only missing selected real links/papers through the normal API, recognizing stored provider aliases before requesting an import. Neither pack runs automatically at startup. Failed new sources stay disabled; failed refreshes of existing sources also print the error and return a nonzero exit code without changing their settings.
 
-Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts prompt for the administrator password, retain cookies only in memory, and default to `--base http://127.0.0.1:47832/api`. Use `--base https://quintonloges.me/api` explicitly for the hosted library; remote HTTP is refused. The new clients require the authenticated API and do not target the preserved legacy production image. Both accept `--report PATH` and use Python's standard library. Pack edits do not overwrite existing preferences; use **Settings** for that. After imports, choose **New selection** on admin Discover.
+Use `--only "EarLevel Engineering"` to select one source, or `--apply --refresh` to explicitly refresh matching subscriptions without changing their settings. Both scripts prompt for the administrator password, retain cookies only in memory, and default to `--base http://127.0.0.1:47832/api`. Use `--base https://rabbithole.quintonloges.me/api` explicitly for the hosted library; remote HTTP is refused. The new clients require the authenticated API and do not target the preserved legacy production image. Both accept `--report PATH` and use Python's standard library. Pack edits do not overwrite existing preferences; use **Settings** for that. After imports, choose **New selection** on admin Discover.
 
 ## Configuration
 

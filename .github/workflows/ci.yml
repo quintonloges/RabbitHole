@@ -55,5 +55,5 @@ jobs:
           for file in scripts/hosted/*.sh; do bash -n "$file"; done
           python3 -m py_compile scripts/hosted/*.py scripts/preservation-manifest.py
           python3 -m unittest discover -s scripts/hosted -p 'test_*.py' -v
-          docker run --rm -v "$PWD/Caddyfile.hosted:/etc/caddy/Caddyfile:ro" -e PUBLIC_HOST=quintonloges.me -e ACME_EMAIL=fixture@example.org -e PUBLIC_INDEXING_ENABLED=false caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
-          docker run --rm -v "$PWD/Caddyfile.staging:/etc/caddy/Caddyfile:ro" -e PUBLIC_HOST=quintonloges.me -e STAGING_ORIGIN=https://quintonloges.me:47834 caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+          docker run --rm -v "$PWD/Caddyfile.hosted:/etc/caddy/Caddyfile:ro" -e PUBLIC_HOST=rabbithole.quintonloges.me -e ACME_EMAIL=fixture@example.org -e PUBLIC_INDEXING_ENABLED=false caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+          docker run --rm -v "$PWD/Caddyfile.staging:/etc/caddy/Caddyfile:ro" -e PUBLIC_HOST=rabbithole.quintonloges.me -e STAGING_ORIGIN=https://rabbithole.quintonloges.me:47834 caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile

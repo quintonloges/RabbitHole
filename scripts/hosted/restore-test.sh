@@ -62,7 +62,7 @@ source,target,networks,project,state=sys.argv[1:]
 used=[ipaddress.ip_network(c['Subnet'],strict=False) for n in json.loads(pathlib.Path(networks).read_text()) for c in n.get('IPAM',{}).get('Config',[]) if c.get('Subnet')]
 subnet=next((ipaddress.ip_network(f'172.29.{n}.0/24') for n in range(1,255) if not any(ipaddress.ip_network(f'172.29.{n}.0/24').overlaps(u) for u in used)),None)
 if subnet is None: raise SystemExit('No free restore-test subnet; configure one explicitly.')
-overrides={'PROJECT_NAME':project,'STATE_PATH':state,'APP_SUBNET':str(subnet),'GATEWAY_IP':str(subnet.network_address+2),'WEB_IP':str(subnet.network_address+3),'API_IP':str(subnet.network_address+4),'STAGING_ORIGIN':'https://quintonloges.me:47834','INGESTION_PAUSED':'true','PUBLIC_INDEXING_ENABLED':'false'}
+overrides={'PROJECT_NAME':project,'STATE_PATH':state,'APP_SUBNET':str(subnet),'GATEWAY_IP':str(subnet.network_address+2),'WEB_IP':str(subnet.network_address+3),'API_IP':str(subnet.network_address+4),'STAGING_ORIGIN':'https://rabbithole.quintonloges.me:47834','INGESTION_PAUSED':'true','PUBLIC_INDEXING_ENABLED':'false'}
 lines=[x for x in pathlib.Path(source).read_text().splitlines() if x.split('=',1)[0] not in overrides]
 pathlib.Path(target).write_text('\n'.join(lines+[k+'='+v for k,v in overrides.items()])+'\n')
 PY

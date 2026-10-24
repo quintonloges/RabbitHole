@@ -21,7 +21,7 @@ class MaintenanceBoundaries(unittest.TestCase):
                      'https://example.org/api?key=secret', 'https://example.org/other', 'file:///api'):
             with self.subTest(base=base), self.assertRaises(ValueError):
                 validate_base(base)
-        self.assertEqual('https://quintonloges.me/api', validate_base('https://quintonloges.me/api/'))
+        self.assertEqual('https://rabbithole.quintonloges.me/api', validate_base('https://rabbithole.quintonloges.me/api/'))
         self.assertEqual('http://127.0.0.1:47832/api', validate_base('http://127.0.0.1:47832/api'))
 
     def test_redirects_never_forward_credentials(self):

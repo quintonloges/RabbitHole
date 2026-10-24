@@ -1,6 +1,6 @@
 # Public catalog, private workspace, and DigitalOcean operations
 
-The public site is `https://quintonloges.me`; the GitHub repository is `https://github.com/quintonloges/RabbitHole`. The hostname identifies Caddy's certificate, validated host/origin and canonical public links. Configure the Droplet's SSH details and credentials in GitHub Actions secrets; they do not need to be shared in chat. Live deployment also needs the matching CPU architecture and DNS pointing to that server. Encrypted backups stay on the Droplet by default; no off-server destination or storage account is required.
+The public site is `https://rabbithole.quintonloges.me`; the GitHub repository is `https://github.com/quintonloges/RabbitHole`. The hostname identifies Caddy's certificate, validated host/origin and canonical public links. Configure the Droplet's SSH details and credentials in GitHub Actions secrets; they do not need to be shared in chat. Live deployment also needs the matching CPU architecture and DNS pointing to that server. Encrypted backups stay on the Droplet by default; no off-server destination or storage account is required.
 
 ## Application boundaries
 
@@ -30,16 +30,18 @@ For an API client: GET `/api/auth/csrf` with a cookie jar; POST `/api/auth/login
 Pack/audit scripts now prompt for the password and keep cookies only in process memory. They default to `http://127.0.0.1:47832/api`; hosted targets must be explicitly HTTPS:
 
 ```powershell
-python scripts/apply-source-pack.py --base https://quintonloges.me/api
-python scripts/import-reading-pack.py --base https://quintonloges.me/api --apply
-python scripts/audit-recommendations.py --base https://quintonloges.me/api --output data/hosted-audit
+python scripts/apply-source-pack.py --base https://rabbithole.quintonloges.me/api
+python scripts/import-reading-pack.py --base https://rabbithole.quintonloges.me/api --apply
+python scripts/audit-recommendations.py --base https://rabbithole.quintonloges.me/api --output data/hosted-audit
 ```
 
 These clients target the new authenticated app, not the unchanged legacy desktop production image. The legacy rollback verification intentionally uses that image's original API.
 
 ## Server setup
 
-Use a Linux Droplet with Docker Engine, Docker Compose **2.24.4 or newer**, Bash, Python **3.11+**, curl, gzip, tar, util-linux (`flock`), restic, and systemd. Permit inbound SSH and Caddy's TCP 80/443 through the DigitalOcean firewall; PostgreSQL, API and Next never publish host ports. An A record for `quintonloges.me` must point to the Droplet; only add AAAA when that server's IPv6 routing works. Do not enable a CDN cache for dynamic catalog/admin responses.
+Use a Linux Droplet with Docker Engine, Docker Compose **2.24.4 or newer**, Bash, Python **3.11+**, curl, gzip, tar, util-linux (`flock`), restic, and systemd. Permit inbound SSH and Caddy's TCP 80/443 through the DigitalOcean firewall; PostgreSQL, API and Next never publish host ports. An A record for `rabbithole.quintonloges.me` must point to the Droplet; only add AAAA when that server's IPv6 routing works. Do not enable a CDN cache for dynamic catalog/admin responses.
+
+For this deployment, add an A record named `rabbithole` in the `quintonloges.me` zone pointing to `68.183.97.155`; keep the apex domain's existing records. DigitalOcean Cloud Firewalls are [free](https://docs.digitalocean.com/products/networking/firewalls/details/pricing/). Allow inbound TCP 22, 80 and 443 from all IPv4 addresses, with IPv6 equivalents when enabled, and retain the default outbound rules. SSH uses keys with password and keyboard-interactive authentication disabled. Standard GitHub-hosted runners use changing address ranges, so restricting SSH to the owner's home IP would block deployments; see [GitHub runner networking](https://docs.github.com/en/actions/reference/runners/github-hosted-runners#ip-addresses). Leave database, application and staging ports closed to public traffic.
 
 The deployment account needs permission to run Docker, write `/srv/rabbithole` and read/write its private configuration in `/etc/rabbithole`. For a non-root SSH account, assign that account ownership of these dedicated paths and set the backup service User to the same account so operation locks remain writable; Docker access is privileged server access. Configure trusted host keys out of band. Do not use `StrictHostKeyChecking=no` or an unverified `ssh-keyscan` result in CI.
 
@@ -76,7 +78,7 @@ On first install, deploy loads images and sets the current release pointer **wit
 
 Staging uses `/etc/rabbithole/staging.env`, project `rabbithole-staging`, current pointer `/srv/rabbithole/current-staging`, a dedicated `STATE_PATH` (for example `/srv/rabbithole/staging-state`), subnet `172.30.6.0/24`, gateway `172.30.6.2`, web `172.30.6.3` and API `172.30.6.4`. Set `STAGING_ORIGIN` to the explicit HTTPS browser/tunnel origin. Staging Compose binds only `127.0.0.1:47833` (HTTP) and `127.0.0.1:47834` (HTTPS), uses Caddy's private CA, and forces ingestion paused and indexing off. It cannot pass the public launch command.
 
-Reach staging with SSH forwarding, for example `ssh -L 127.0.0.1:8443:127.0.0.1:47834 USER@SERVER`; set `STAGING_ORIGIN=https://quintonloges.me:8443`. Resolve that hostname to loopback on the inspecting machine for this private tunnel. Export Caddy's **public** staging CA certificate (`/data/caddy/pki/authorities/local/root.crt`) through SSH and use it with `curl --cacert`; do not bypass verification for production. Never expose the staging ports or its private CA key.
+Reach staging with SSH forwarding, for example `ssh -L 127.0.0.1:8443:127.0.0.1:47834 USER@SERVER`; set `STAGING_ORIGIN=https://rabbithole.quintonloges.me:8443`. Resolve that hostname to loopback on the inspecting machine for this private tunnel. Export Caddy's **public** staging CA certificate (`/data/caddy/pki/authorities/local/root.crt`) through SSH and use it with `curl --cacert`; do not bypass verification for production. Never expose the staging ports or its private CA key.
 
 Desktop rehearsal preserves the current personal library and uses independent disposable volumes:
 

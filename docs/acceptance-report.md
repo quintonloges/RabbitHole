@@ -1,5 +1,13 @@
 # RabbitHole acceptance report
 
+## Corrected hosted release installed — 24 October 2026
+
+[GitHub production deployment 40119643244](https://github.com/quintonloges/RabbitHole/actions/runs/40119643244) **passed** for `a48b5d4`: the complete validation suite, image build, verified SSH transfer, encrypted pre-upgrade backup, maintenance upgrade and record/file preservation all completed. The Droplet's current pointer is this release and all services are healthy. The previous initial release remains available separately.
+
+Before that installation, the corrected restore script was also tested directly against the server's real encrypted snapshots without modifying its immutable release files. It restored **21 tables and 2 uploaded files** in a disposable project and verified authentication-key, recovery-setting and certificate-file hashes, then removed only the temporary project's containers and volumes. The hosted public certificate is trusted, issued by Let's Encrypt and valid through 22 January 2027. The nightly backup timer is **enabled and active**, running as `rabbithole-deploy` with its next run scheduled for 25 October at 03:43 UTC.
+
+The site is still in maintenance while the owner performs the private interactive password step. The prepared mode-700 `/srv/rabbithole/finish-launch.sh` provisions the account through the real interactive CLI, then creates and restores a new encrypted snapshot pair for the current release including that account. It finally runs the authenticated HTTPS launch gate, asking for the same password through hidden terminal input. No owner password is supplied through chat, environment variables or command arguments. Original desktop production and staging remain stopped.
+
 ## Live DigitalOcean cutover in progress — 24 October 2026
 
 [GitHub deployment run 40117763402](https://github.com/quintonloges/RabbitHole/actions/runs/40117763402) validated, built and installed release `5911f38`. Its first release attempt failed because `SSH_USER` contained a transposed deployment-account name; corrected only that secret through GitHub's encrypted-secret API and successfully reran the release job. SSH keys were unchanged.

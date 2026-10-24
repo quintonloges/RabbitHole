@@ -151,6 +151,8 @@ bash scripts/hosted/launch.sh
 
 Launch requires initial preservation evidence, a backup less than 24 hours old, a successful restoration of that exact snapshot pair/release, an active/enabled backup timer, a valid HTTPS certificate and an interactive authenticated privacy smoke check. A verified local backup satisfies the backup checks. It then enables indexing and ingestion and removes maintenance. Failed opening checks re-enable maintenance and pause ingestion. Do not create evidence markers by hand or bypass these checks.
 
+After entering the administrator password, the privacy check can run quietly for several minutes. It probes every private item and waits 61 seconds when the public API rate limiter returns HTTP 429. Keep the SSH terminal open until the check prints its result and the launch command reports that RabbitHole is live.
+
 ## Rollback and troubleshooting
 
 Keep maintenance enabled during recovery. If hosted activity has occurred, first capture it with `bash scripts/hosted/backup.sh --keep-stopped`; the frozen desktop copy only contains pre-cutover state. Select the **matching** release archive, database/files backup and recovery payload, restore into a fresh server/project, provision/recover admin if needed, rerun restore/smoke checks and then switch DNS/traffic. Never downgrade schema by swapping images or overwrite the frozen local copy with unverified hosted data. `restore.sh` deliberately refuses to overwrite existing volumes.

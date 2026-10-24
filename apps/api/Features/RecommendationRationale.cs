@@ -10,7 +10,7 @@ public sealed record RecommendationRationale
 {
     public int Version { get; init; } = 2;
     public string Kind { get; init; } = "catalog";
-    public string Summary { get; init; } = "From your imported collection";
+    public string Summary { get; init; } = "From your collection";
     public string? Direction { get; init; }
     public string? Detail { get; init; }
     public List<RecommendationEvidence> Evidence { get; init; } = [];
@@ -26,8 +26,8 @@ public sealed record RecommendationRationale
     public static RecommendationRationale LegacyEdition(ContentItem item, IEnumerable<Topic> topics) => new()
     {
         Kind = "legacy-edition",
-        Summary = "In your saved edition" + (topics.FirstOrDefault(t => item.TopicIds.Contains(t.Id)) is { } topic ? $" · {topic.Name}" : ""),
-        Detail = "This selection predates recorded ranking evidence. Its order is preserved; New selection uses the current recommendations."
+        Summary = "From an earlier selection" + (topics.FirstOrDefault(t => item.TopicIds.Contains(t.Id)) is { } topic ? $" · {topic.Name}" : ""),
+        Detail = "No explanation was saved for this older selection. Choose New selection to get picks with explanations."
     };
 }
 

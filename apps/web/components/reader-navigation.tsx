@@ -30,7 +30,7 @@ export function ReaderNavigation({ sections, currentItemId, isPdf, loading, erro
       {next ? <Link className="text-link" href={`/items/${next.itemId}`} aria-label={`Next ${label}`}>Next →</Link> : <span/>}
     </nav>
     {!footer && <>
-      {current?.isSuperseded && <p className="subtle">You are reading a previous extraction. Your notes and progress are preserved.</p>}
+      {current?.isSuperseded && <p className="subtle">This is an earlier version with your saved notes and progress.</p>}
       <dialog ref={dialog} className="reader-contents-dialog" aria-labelledby={heading} onClose={() => trigger.current?.focus()} onKeyDownCapture={event => {
         if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); dialog.current?.close(); }
       }} onClick={event => {

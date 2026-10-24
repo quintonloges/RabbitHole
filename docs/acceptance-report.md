@@ -1,5 +1,19 @@
 # RabbitHole acceptance report
 
+## Interface copy edit — 23 October 2026
+
+Rewrote the interface copy across Discover, Rabbit Holes, Library, Practice, Search, Settings, and the reader. Removed the repeated slogans and decorative headings; shortened instructions, empty states, placeholders, recommendation explanations, and AI error messages. Buttons and field labels now name their actions directly. Source tests display a readable count instead of raw JSON, and a library filter with no matches has its own empty-state message. Source excerpts, uploaded text, stored user content, ranking calculations, and database schema were not edited.
+
+Actual verification:
+
+- `./scripts/check.ps1`: **7 script tests and 194 backend tests passed**, followed by dependency installation, ESLint, TypeScript, and the optimized frontend build. The initial sandbox run could not connect to the .NET test host; the run with local process access passed.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore`: passed.
+- `$env:CI = '1'; npm run test:e2e -- --reporter=line`: **25 passed**; two assertions still expected the old interface text. Updated those selectors, then `npm run test:e2e -- --last-failed --reporter=line`: **2 passed in 13.4 seconds**. All 27 checks passed across these runs. Coverage includes persisted saved/read state, notes, trails, practice answers, imports, failure recovery, and all six main routes at 390px. Reader and discovery layouts also passed at 1024px and 1440px.
+- `./scripts/dev.ps1 start`: rebuilt the API and optimized web app and started all four development services successfully. Docker required access to its local named pipe. Rebuilt once more after a final sentence edit in Settings.
+- Reviewed all six main pages and the reader in the in-app browser against development. Inspected the mobile discovery and Settings screenshots from the fixture tests. The longer labels fit without horizontal overflow. Recent API/web logs contained no application errors and reported no pending migrations. `git diff --check`: passed.
+
+Running in **development only** at `http://localhost:47832`. Production was not deployed. No live provider or AI calls were needed for this copy edit; integration and failure checks used the existing isolated fixtures. Previously saved recommendation explanations retain their original text until a new selection is requested.
+
 ## Item-page UX review and revision — 23 October 2026
 
 An independent agent reviewed the actual PDF item page, the implementation and desktop/mobile screenshots. It found that source text started more than two screens down, expanded contents and equal-weight management actions dominated reading, excerpts repeated the body, and item navigation could carry drafts or delayed results into another item. The revised page was reviewed again; no remaining visual blocker was found.

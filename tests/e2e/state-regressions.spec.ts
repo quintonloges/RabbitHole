@@ -98,18 +98,18 @@ test('snoozing another prompt submits an empty response and preserves the active
   await page.goto('/practice');
   const firstCard = promptCard(page, first);
   const secondCard = promptCard(page, second);
-  await firstCard.getByRole('button', { name: 'Reflect', exact: true }).click();
-  await firstCard.getByLabel('What comes to mind?').fill('TEST FIXTURE: first prompt draft only');
-  await secondCard.getByRole('button', { name: 'Reflect', exact: true }).click();
-  await expect(secondCard.getByLabel('What comes to mind?')).toHaveValue('');
-  await secondCard.getByLabel('What comes to mind?').fill('TEST FIXTURE: second prompt draft only');
-  await firstCard.getByRole('button', { name: 'Reflect', exact: true }).click();
-  await expect(firstCard.getByLabel('What comes to mind?')).toHaveValue('TEST FIXTURE: first prompt draft only');
+  await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
+  await firstCard.getByLabel('Your answer').fill('TEST FIXTURE: first prompt draft only');
+  await secondCard.getByRole('button', { name: 'Answer', exact: true }).click();
+  await expect(secondCard.getByLabel('Your answer')).toHaveValue('');
+  await secondCard.getByLabel('Your answer').fill('TEST FIXTURE: second prompt draft only');
+  await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
+  await expect(firstCard.getByLabel('Your answer')).toHaveValue('TEST FIXTURE: first prompt draft only');
   const saved = page.waitForResponse(r => r.url().endsWith(`/practice/prompts/${second.id}/attempts`) && r.request().method() === 'POST');
   await secondCard.getByRole('button', { name: 'Not now', exact: true }).click();
   expect((await (await saved).json()).attempts[0].response).toBe('');
   await expect(secondCard).toHaveCount(0);
-  await expect(firstCard.getByLabel('What comes to mind?')).toHaveValue('TEST FIXTURE: first prompt draft only');
+  await expect(firstCard.getByLabel('Your answer')).toHaveValue('TEST FIXTURE: first prompt draft only');
   const prompts = await (await request.get('/api/practice/prompts')).json() as Prompt[];
   expect(prompts.find(p => p.id === first.id)?.attempts).toHaveLength(0);
 });
@@ -119,24 +119,24 @@ test('failed reflection preserves its draft and a later save leaves another acti
   await page.goto('/practice');
   const firstCard = promptCard(page, first);
   const secondCard = promptCard(page, second);
-  await firstCard.getByRole('button', { name: 'Reflect', exact: true }).click();
-  await firstCard.getByLabel('What comes to mind?').fill('TEST FIXTURE: retry this answer');
+  await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
+  await firstCard.getByLabel('Your answer').fill('TEST FIXTURE: retry this answer');
   const endpoint = `**/api/practice/prompts/${first.id}/attempts`;
   await page.route(endpoint, route => route.fulfill({ status: 503, json: { detail: 'TEST FIXTURE: reflection failed' } }), { times: 1 });
   await firstCard.getByRole('button', { name: 'Good', exact: true }).click();
   await expect(page.locator('.error[role="alert"]')).toContainText('TEST FIXTURE: reflection failed');
-  await expect(firstCard.getByLabel('What comes to mind?')).toHaveValue('TEST FIXTURE: retry this answer');
+  await expect(firstCard.getByLabel('Your answer')).toHaveValue('TEST FIXTURE: retry this answer');
   const commit = gate();
   await page.route(endpoint, async route => { await commit.promise; await route.continue(); });
   const started = page.waitForRequest(r => r.url().endsWith(`/practice/prompts/${first.id}/attempts`) && r.method() === 'POST');
   await firstCard.getByRole('button', { name: 'Good', exact: true }).click();
   await started;
   try {
-    await secondCard.getByRole('button', { name: 'Reflect', exact: true }).click();
-    await secondCard.getByLabel('What comes to mind?').fill('TEST FIXTURE: keep second answer');
+    await secondCard.getByRole('button', { name: 'Answer', exact: true }).click();
+    await secondCard.getByLabel('Your answer').fill('TEST FIXTURE: keep second answer');
   } finally { commit.release(); }
   await expect(firstCard).toHaveCount(0);
-  await expect(secondCard.getByLabel('What comes to mind?')).toHaveValue('TEST FIXTURE: keep second answer');
+  await expect(secondCard.getByLabel('Your answer')).toHaveValue('TEST FIXTURE: keep second answer');
   const prompts = await (await request.get('/api/practice/prompts')).json() as Prompt[];
   expect(prompts.find(p => p.id === first.id)?.attempts?.[0].response).toBe('TEST FIXTURE: retry this answer');
 });
@@ -152,20 +152,20 @@ test('late AI critique stays with its prompt and is discarded when that draft ch
   await page.goto('/practice');
   const firstCard = promptCard(page, first);
   const secondCard = promptCard(page, second);
-  await firstCard.getByRole('button', { name: 'Reflect', exact: true }).click();
-  await firstCard.getByLabel('What comes to mind?').fill('TEST FIXTURE: first answer');
+  await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
+  await firstCard.getByLabel('Your answer').fill('TEST FIXTURE: first answer');
   const started = page.waitForRequest(r => r.url().endsWith(`/items/${item.id}/ai`));
-  await firstCard.getByRole('button', { name: 'Ask AI to compare with source', exact: true }).click();
+  await firstCard.getByRole('button', { name: 'Compare with source using AI', exact: true }).click();
   await started;
   const finished = page.waitForResponse(r => r.url().endsWith(`/items/${item.id}/ai`));
   try {
-    await secondCard.getByRole('button', { name: 'Reflect', exact: true }).click();
-    await secondCard.getByLabel('What comes to mind?').fill('TEST FIXTURE: second answer');
+    await secondCard.getByRole('button', { name: 'Answer', exact: true }).click();
+    await secondCard.getByLabel('Your answer').fill('TEST FIXTURE: second answer');
   } finally { reply.release(); }
   await (await finished).finished();
-  await expect(secondCard.getByRole('button', { name: 'Ask AI to compare with source', exact: true })).toBeEnabled();
+  await expect(secondCard.getByRole('button', { name: 'Compare with source using AI', exact: true })).toBeEnabled();
   await expect(secondCard).not.toContainText('TEST FIXTURE: critique of first draft');
-  await firstCard.getByRole('button', { name: 'Reflect', exact: true }).click();
+  await firstCard.getByRole('button', { name: 'Answer', exact: true }).click();
   await expect(firstCard).toContainText('TEST FIXTURE: critique of first draft');
   const stale = gate();
   await page.route(`**/api/items/${item.id}/ai`, async route => {
@@ -173,13 +173,13 @@ test('late AI critique stays with its prompt and is discarded when that draft ch
     await route.fulfill({ json: { text: 'TEST FIXTURE: obsolete critique', evidenceItemIds: [item.id] } });
   });
   const restarted = page.waitForRequest(r => r.url().endsWith(`/items/${item.id}/ai`));
-  await firstCard.getByRole('button', { name: 'Ask AI to compare with source', exact: true }).click();
+  await firstCard.getByRole('button', { name: 'Compare with source using AI', exact: true }).click();
   await restarted;
   const staleFinished = page.waitForResponse(r => r.url().endsWith(`/items/${item.id}/ai`));
-  try { await firstCard.getByLabel('What comes to mind?').fill('TEST FIXTURE: revised first answer'); }
+  try { await firstCard.getByLabel('Your answer').fill('TEST FIXTURE: revised first answer'); }
   finally { stale.release(); }
   await (await staleFinished).finished();
-  await expect(firstCard.getByRole('button', { name: 'Ask AI to compare with source', exact: true })).toBeEnabled();
+  await expect(firstCard.getByRole('button', { name: 'Compare with source using AI', exact: true })).toBeEnabled();
   await expect(firstCard).not.toContainText('TEST FIXTURE: obsolete critique');
   await expect(firstCard).not.toContainText('TEST FIXTURE: critique of first draft');
 });

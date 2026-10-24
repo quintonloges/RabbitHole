@@ -93,7 +93,7 @@ test('topic browsing reaches the collection, paginates and survives navigation w
   await expect(page.getByRole('heading', { name: mind.name, exact: true })).toBeVisible();
   await expect(page.locator('.story-row')).toHaveCount(30);
   await expect(page.getByRole('link', { name: 'TEST FIXTURE: Topic source 1', exact: true })).toBeVisible();
-  await expect(page.getByText('Across your collection', { exact: true })).toBeVisible();
+  await expect(page.getByText('All items in this topic', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Next', exact: true }).click();
   await expect(page.locator('.story-row')).toHaveCount(4);
   await page.reload();

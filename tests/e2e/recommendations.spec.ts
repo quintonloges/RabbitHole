@@ -19,7 +19,7 @@ test('concept tags, honest explanations, curated origins and intentional revisit
   const branch = await (await request.post(`/api/holes/${hole.id}/nodes`, { data: { parentId: root, itemId: second.id, origin: 'curated' } })).json();
   await request.post(`/api/holes/${hole.id}/navigate`, { data: { nodeId: root } });
   await page.goto(`/holes/${hole.id}`);
-  await expect(page.getByText(/A curated starting trail/)).toBeVisible();
+  await expect(page.getByText(/A suggested trail/)).toBeVisible();
   await expect(page.locator('.recommendation-reason').first()).toBeVisible();
   await expect(page.locator('.recommendation-reason')).not.toContainText(['Connected to something you explored']);
   await page.getByLabel('Include sources already in this trail').check();
@@ -39,7 +39,7 @@ test('concept tags, honest explanations, curated origins and intentional revisit
   await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await page.getByText('Concepts & tags', { exact: true }).click();
   await page.getByRole('button', { name: 'Edit concepts', exact: true }).click();
-  await page.getByLabel('Your concept tags').fill('acoustic history');
+  await page.getByLabel('Your tags').fill('acoustic history');
   await page.getByRole('button', { name: 'Save concepts', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Edit concepts', exact: true })).toBeVisible();
   await page.reload();

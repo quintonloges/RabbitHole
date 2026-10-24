@@ -25,7 +25,7 @@ export function RecommendationExplanation({ item, compact = false }: { item: Ite
   const overview = <>
     {rationale?.direction && <span className={compact ? "reason-direction" : "eyebrow"}>{rationale.direction}</span>}
     <p className="subtle">{item.reason}</p>
-    {item.revisit && <p className="subtle">Already in this trail · revisit intentionally</p>}
+    {item.revisit && <p className="subtle">Already in this trail</p>}
   </>;
   if (compact) return <div className="recommendation-reason compact-reason">
     <button className="story-action reason-trigger" popoverTarget={id} onClick={event => {
@@ -40,7 +40,7 @@ export function RecommendationExplanation({ item, compact = false }: { item: Ite
       {rationale?.evidence.map((evidence, index) => <p key={`${evidence.itemId}-${index}`}>
         {evidence.itemId === item.id ? <span>This source</span> : <Link className="text-link" href={`/items/${evidence.itemId}`}>{evidence.title}</Link>}
         {evidence.match ? <> · {evidence.field === "user-tag" ? "your tag" : evidence.field === "source-text" ? "source text" : evidence.field}: {evidence.match}</> : evidence.concept ? <> · {evidence.concept}</> : null}
-        {evidence.relationship === "saved" ? " · saved when selected" : evidence.relationship === "read" ? " · marked read when selected" : evidence.relationship === "user-trail" ? " · chosen for a trail" : evidence.relationship === "positive-feedback" ? " · More like this feedback" : null}
+        {evidence.relationship === "saved" ? " · saved when selected" : evidence.relationship === "read" ? " · marked read when selected" : evidence.relationship === "user-trail" ? " · chosen for a trail" : evidence.relationship === "positive-feedback" ? " · you chose More like this" : null}
       </p>)}
     </div>
   </div>;
@@ -51,7 +51,7 @@ export function RecommendationExplanation({ item, compact = false }: { item: Ite
       {rationale?.evidence.map((evidence, index) => <p key={`${evidence.itemId}-${index}`}>
         {evidence.itemId === item.id ? <span>This source</span> : <Link className="text-link" href={`/items/${evidence.itemId}`}>{evidence.title}</Link>}
         {evidence.match ? <> · {evidence.field === "user-tag" ? "your tag" : evidence.field === "source-text" ? "text match" : `${evidence.field} match`}: {evidence.match}</> : evidence.concept ? <> · {evidence.concept}</> : null}
-        {evidence.relationship === "saved" ? " · saved when selected" : evidence.relationship === "read" ? " · marked read when selected" : evidence.relationship === "user-trail" ? " · chosen for a trail" : evidence.relationship === "positive-feedback" ? " · More like this feedback" : null}
+        {evidence.relationship === "saved" ? " · saved when selected" : evidence.relationship === "read" ? " · marked read when selected" : evidence.relationship === "user-trail" ? " · chosen for a trail" : evidence.relationship === "positive-feedback" ? " · you chose More like this" : null}
       </p>)}
       {!rationale && <p>{item.reason}</p>}
     </details>

@@ -9,7 +9,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
   test('add a source, import genuine fixture responses, save/read and keep a stable edition', async ({ page, request }) => {
     await page.goto('/settings');
     await page.getByLabel('Items per day', { exact: false }).fill('5');
-    await page.getByLabel('Optional practice', { exact: true }).check();
+    await page.getByLabel('Enable practice', { exact: true }).check();
     await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
     await expect.poll(async () => (await (await request.get('/api/settings')).json()).editionSize).toBe(5);
     await page.getByRole('combobox', { name: 'Frontier AI weight', exact: true }).selectOption('4');
@@ -33,7 +33,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     await page.reload();
     const after = await (await request.get('/api/discover/today')).json();
     expect(after.items.map((i: { id: string }) => i.id)).toEqual(before.items.map((i: { id: string }) => i.id));
-    await page.getByRole('button', { name: 'Show me a little more', exact: true }).click();
+    await page.getByRole('button', { name: 'Show more', exact: true }).click();
     const more = await (await request.get('/api/discover/today')).json();
     expect(new Set(more.items.map((i: { id: string }) => i.id)).size).toBe(3);
     await page.getByText('Why this?', { exact: true }).first().click();
@@ -51,17 +51,17 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
 
   test('notes, actual branches, sibling preservation and a saved position', async ({ page, request }) => {
     await page.goto(`/items/${first}`);
-    await page.getByLabel('A thought to keep').fill('TEST NOTE: a connection worth returning to');
+    await page.getByLabel('Your note').fill('TEST NOTE: a connection worth returning to');
     await page.getByRole('button', { name: 'Save note', exact: true }).click();
     await expect(page.getByText('TEST NOTE: a connection worth returning to', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Follow the rabbit hole', exact: true }).click();
     await expect(page).toHaveURL(/\/holes\/[a-z0-9-]+/);
     hole = page.url().split('/').pop()!;
-    await page.getByLabel('Find a real item for this branch').fill('Myth and memory');
+    await page.getByLabel('Find an item to add').fill('Myth and memory');
     await page.getByRole('button', { name: 'Find sources', exact: true }).click();
     await page.getByRole('button', { name: 'Branch here', exact: true }).last().click();
     await page.getByRole('button', { name: /Back to TEST FIXTURE: Consciousness/ }).click();
-    await page.getByLabel('Find a real item for this branch').fill('Architectural tradeoffs');
+    await page.getByLabel('Find an item to add').fill('Architectural tradeoffs');
     await page.getByRole('button', { name: 'Find sources', exact: true }).click();
     await page.getByRole('button', { name: 'Branch here', exact: true }).last().click();
     await page.reload();
@@ -70,11 +70,11 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     const children = detail.nodes.filter((n: { parentId: string | null }) => n.parentId);
     expect(children[0].parentId).toBe(children[1].parentId);
     expect(detail.lastNodeId).toBe(children[1].id);
-    await page.getByLabel('Branch with a question').fill('TEST QUESTION: where might this lead?');
+    await page.getByLabel('New question').fill('TEST QUESTION: where might this lead?');
     await page.getByRole('button', { name: 'Add question', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'TEST QUESTION: where might this lead?', exact: true })).toBeVisible();
     await page.goto('/search');
-    await page.getByLabel('A subject, title, or idea').fill('TEST NOTE');
+    await page.getByLabel('Search terms').fill('TEST NOTE');
     await page.getByRole('button', { name: 'Search your collection' }).click();
     await expect(page.getByRole('link', { name: 'TEST FIXTURE: Consciousness and machines', exact: true })).toBeVisible();
     await page.getByText('Filter your collection', { exact: true }).click();
@@ -139,7 +139,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     const track = await (await request.get(`/api/items/${page.url().split('/').pop()}`)).json();
     expect(new URL(track.embedUrl).hostname).toBe('w.soundcloud.com');
     await page.goto('/search');
-    await page.getByLabel('A subject, title, or idea').fill('consciousness');
+    await page.getByLabel('Search terms').fill('consciousness');
     await page.getByRole('button', { name: 'Search research', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'TEST FIXTURE: A consciousness paper', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Import', exact: true }).click();
@@ -158,11 +158,11 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
   test('opt-in reflection, self-rating and snooze persist without claiming mastery', async ({ page, request }) => {
     await page.goto('/practice');
     await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption(first);
-    await page.getByRole('button', { name: 'Create reflection', exact: true }).click();
-    await page.getByText('Reveal source passage', { exact: true }).click();
+    await page.getByRole('button', { name: 'Add question', exact: true }).click();
+    await page.getByText('Show source passage', { exact: true }).click();
     await expect(page.locator('blockquote')).toContainText('This TEST FIXTURE discusses consciousness');
-    await page.getByRole('button', { name: 'Reflect', exact: true }).first().click();
-    await page.getByLabel('What comes to mind?').fill('TEST RESPONSE: I recall an attributed claim about consciousness.');
+    await page.getByRole('button', { name: 'Answer', exact: true }).first().click();
+    await page.getByLabel('Your answer').fill('TEST RESPONSE: I recall an attributed claim about consciousness.');
     await page.getByRole('button', { name: 'Good', exact: true }).click();
     await expect(page.getByText('Nothing due right now')).toBeVisible();
     const prompts = await (await request.get('/api/practice/prompts')).json();
@@ -173,8 +173,8 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     expect(snooze.ok()).toBe(true);
     expect((await snooze.json()).reviews).toBe(1);
     await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption(first);
-    await page.getByRole('combobox', { name: 'Prompt kind', exact: true }).selectOption('architecture');
-    await page.getByRole('button', { name: 'Create architecture', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Question type', exact: true }).selectOption('architecture');
+    await page.getByRole('button', { name: 'Add question', exact: true }).click();
     await expect(page.getByRole('heading', { name: /What design decision would you make/ })).toBeVisible();
   });
 

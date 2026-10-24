@@ -41,7 +41,7 @@ public static partial class AiEndpoints
                 model = config["AI:Model"],
                 local = config.GetValue<bool>("AI:AllowLocal"),
                 keyConfigured = !string.IsNullOrEmpty(config["AI:ApiKey"]),
-                privacy = "Explicit AI actions send up to 12,000 characters of selected source text and your response to your configured provider. No background AI requests.",
+                privacy = "When you use an AI tool, your provider receives up to 12,000 characters of source text, plus your answer if you ask for feedback. AI runs only when you request it.",
                 maxInputCharacters = 12000,
                 maxOutputTokens = 800
             });
@@ -65,10 +65,10 @@ public static partial class AiEndpoints
             views.AddRange(await ItemDto.RecommendationsAsync(db, related, ct));
             return Results.Ok(new
             {
-                title = "A short reading trail",
+                title = "Suggested reading order",
                 items = views,
-                question = "What connects these sources, and where do their accounts differ? Use the passages you have read.",
-                provenance = "Suggested connections from available source text and tags. No generated lesson text."
+                question = "What do these sources have in common? Where do they differ?",
+                provenance = "Matched by source text and tags."
             });
         });
         return routes;
@@ -79,23 +79,23 @@ public static partial class AiEndpoints
         if (request.Action is not ("summary" or "connections" or "challenge" or "lesson" or "critique") || request.Response?.Length > 4000)
             return Results.Problem("Choose a supported action and a response of at most 4,000 characters.", statusCode: 400);
         if (!(await SettingsService.ReadAsync(db, ct)).AiEnabled || !Configured(config))
-            return Results.Problem("AI is not enabled/configured. Original text, related items, notes and reflection practice remain available.", statusCode: 409);
+            return Results.Problem("AI is off or has no provider configured. See Settings for setup details.", statusCode: 409);
         var item = await ItemCatalog.ResolveAsync(db, id, ct);
         if (item == null) return Results.NotFound();
         id = item.Id;
         var evidence = new List<AiEvidence> { Evidence(item) };
         if (evidence[0].Text.Trim().Length < 100)
-            return Results.Problem("There is not enough available source text to ground this action. Open the original or add a personal document.", statusCode: 422);
+            return Results.Problem("This item has too little text for the AI tool. Open the original source to read it.", statusCode: 422);
         if (request.RelatedItemId is { } relatedId && relatedId != id)
         {
             var related = await ItemCatalog.ResolveAsync(db, relatedId, ct);
-            if (related == null) return Results.Problem("The related source was not found in your catalog.", statusCode: 400);
+            if (related == null) return Results.Problem("The related item wasn’t found in your collection.", statusCode: 400);
             if (related.Id != item.Id) evidence.Add(Evidence(related));
         }
         if (request.Action == "connections" && evidence.Count < 2)
-            return Results.Problem("Choose a second real source for a connection explanation.", statusCode: 400);
+            return Results.Problem("Choose a second item to compare.", statusCode: 400);
         if (request.Action == "critique" && string.IsNullOrWhiteSpace(request.Response))
-            return Results.Problem("Write your own response before requesting critique.", statusCode: 400);
+            return Results.Problem("Write an answer before asking for feedback.", statusCode: 400);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { evidence, request, model = config["AI:Model"], endpoint = config["AI:BaseUrl"] }))));
         var cacheKey = request.Action + ":" + hash;
         var cached = await db.AiResults.AsNoTracking().FirstOrDefaultAsync(a => a.ItemId == id && a.Action == cacheKey, ct);
@@ -116,7 +116,7 @@ public static partial class AiEndpoints
         }
         catch (Exception e) when (e is HttpRequestException or JsonException or InvalidDataException or TaskCanceledException)
         {
-            return Results.Problem("The AI provider did not return a usable grounded response. Your source text and personal data are unchanged. Retry later or check server configuration.", statusCode: 502);
+            return Results.Problem("The AI request failed or returned an invalid response. Try again or check the provider settings on your server.", statusCode: 502);
         }
         finally { Gate.Release(); }
     }

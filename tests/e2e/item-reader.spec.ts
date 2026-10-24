@@ -95,35 +95,35 @@ test('reading stays above the fold while contents and secondary actions remain a
 test('note drafts and quotes stay with their item and survive a failed save', async ({ page }) => {
   const records = await fixture(page);
   await page.goto(`/items/${first.id}`);
-  await page.getByLabel('A thought to keep').fill('TEST FIXTURE: Keep this draft with page 165.');
+  await page.getByLabel('Your note').fill('TEST FIXTURE: Keep this draft with page 165.');
   await selectText(page, '.reader-body', opening.length);
   await page.getByRole('button', { name: 'Quote in note', exact: true }).click();
   await expect(page.locator('#panel-notes .reader-note-quote')).toContainText(opening);
   await page.getByRole('navigation', { name: 'Document navigation', exact: true }).getByRole('link', { name: 'Next page', exact: true }).click();
-  await expect(page.getByLabel('A thought to keep')).toHaveValue('');
+  await expect(page.getByLabel('Your note')).toHaveValue('');
   await expect(page.locator('#panel-notes .reader-note-quote')).toHaveCount(0);
   await page.getByRole('navigation', { name: 'Document navigation', exact: true }).getByRole('link', { name: 'Previous page', exact: true }).click();
-  await expect(page.getByLabel('A thought to keep')).toHaveValue('TEST FIXTURE: Keep this draft with page 165.');
+  await expect(page.getByLabel('Your note')).toHaveValue('TEST FIXTURE: Keep this draft with page 165.');
   await page.route(`**/api/items/${first.id}/notes`, route => route.fulfill({ status: 503, json: { detail: 'TEST FIXTURE: note save unavailable' } }), { times: 1 });
   await page.getByRole('button', { name: 'Save note', exact: true }).click();
   await expect(page.getByRole('tabpanel', { name: 'Notes', exact: true }).getByRole('alert')).toContainText('note save unavailable');
-  await expect(page.getByLabel('A thought to keep')).toHaveValue('TEST FIXTURE: Keep this draft with page 165.');
+  await expect(page.getByLabel('Your note')).toHaveValue('TEST FIXTURE: Keep this draft with page 165.');
   let complete!: () => void;
   const pending = new Promise<void>(resolve => { complete = resolve; });
   await page.route(`**/api/items/${first.id}/notes`, async route => { await pending; await route.fallback(); }, { times: 1 });
   await page.getByRole('button', { name: 'Save note', exact: true }).click();
   try {
-    await expect(page.getByLabel('A thought to keep')).toBeDisabled();
+    await expect(page.getByLabel('Your note')).toBeDisabled();
     await selectText(page, '.reader-body', opening.length);
     await expect(page.getByRole('button', { name: 'Quote in note', exact: true })).toBeDisabled();
   } finally { complete(); }
-  await expect(page.getByLabel('A thought to keep')).toHaveValue('');
+  await expect(page.getByLabel('Your note')).toHaveValue('');
   expect(records.get(first.id)!.notes).toHaveLength(1);
   expect(records.get(first.id)!.notes[0].quote).toBe(opening);
   expect(records.get(second.id)!.notes).toHaveLength(0);
   await page.reload();
   await expect(page.locator('.reader-note')).toContainText('Keep this draft with page 165.');
-  await expect(page.getByLabel('A thought to keep')).toHaveValue('');
+  await expect(page.getByLabel('Your note')).toHaveValue('');
 });
 
 test('highlights accept only source selections and report persistence without duplicating a note draft', async ({ page }) => {
@@ -164,7 +164,7 @@ test('media, abstracts and link-only items present the content they actually con
   await expect(page.getByText('DOI: 10.1234/fixture', { exact: false })).toBeVisible();
   await page.goto(`/items/${link.id}`);
   await expect(page.getByRole('link', { name: 'Open original source', exact: true })).toHaveAttribute('href', link.canonicalUrl);
-  await expect(page.locator('.reader-content-notice')).toContainText('link and source details');
+  await expect(page.locator('.reader-content-notice')).toContainText('The text isn’t available here.');
 });
 
 test('an AI response that finishes after page navigation never appears on the next item', async ({ page }) => {

@@ -53,10 +53,10 @@ public sealed class Ranking(AppDbContext db)
             }).Where(h => h.Concept != null || h.Topic != null).OrderByDescending(h => h.Concept != null).ThenBy(h => h.Item.Id).Take(1).ToList();
             var evidence = new List<RecommendationEvidence>();
             var continuity = 0.0;
-            var summary = topic is null ? "An unexpected discovery from your collection" : topic.CuriosityOnly
-                ? $"For your temporary curiosity in {topic.Name}" : $"From your interest in {topic.Name}";
+            var summary = topic is null ? "Outside your selected topics" : topic.CuriosityOnly
+                ? $"From a topic you’re trying: {topic.Name}" : $"Matches your interest in {topic.Name}";
             var kind = topic is null ? "serendipity" : topic.CuriosityOnly ? "curiosity" : "interest";
-            if (topic is { Weight: 0, Pinned: false }) { summary = $"A discovery in {topic.Name}"; kind = "catalog"; }
+            if (topic is { Weight: 0, Pinned: false }) { summary = $"In {topic.Name}"; kind = "catalog"; }
             if (concepts[item.Id].FirstOrDefault() is { } subject) summary += $" · {subject.Label}";
             foreach (var connection in connections)
             {
@@ -67,7 +67,7 @@ public sealed class Ranking(AppDbContext db)
                 if (connection.Concept is { } concept)
                 {
                     var verb = relationship switch { "saved" => "saved", "read" => "marked read", "positive-feedback" => "liked", _ => "chose for a trail" };
-                    summary = $"More on {concept.Label}, from a source you {verb}";
+                    summary = $"Shares {concept.Label} with an item you {verb}";
                     kind = relationship;
                 }
             }
@@ -84,7 +84,7 @@ public sealed class Ranking(AppDbContext db)
                 Detail = string.Join(" ", new[] {
                     age > 180 ? "An older source from the collection." : double.IsNaN(age) ? "The source's publication date is unknown." : null,
                     format.Detail,
-                    connections.Any(c => c.Concept == null) ? $"A small continuity signal comes from the broad topic {connections[0].Topic?.Name}; no closer concept match was found." : null
+                    connections.Any(c => c.Concept == null) ? $"Shares the broad topic {connections[0].Topic?.Name} with an item you chose. No closer subject match was found." : null
                 }.Where(x => x != null)),
                 Signals = [new("interest", interest, topic is null ? "No matching enabled topic" : $"{topic.Name}: weight {topic.Weight}; {(topic.CuriosityOnly ? "temporary curiosity" : "lasting interest")}"),
                     new("explicit-preference", preference, "Bounded saved-item and More/Less like this feedback"),
@@ -166,7 +166,7 @@ public sealed class Ranking(AppDbContext db)
                 {
                     tier = pair.A.Id is "robotics" or "uap-reports" ? 1 : 0;
                     score = (tier == 0 ? 6 : 4) + Math.Min(2, shared.Count - 1) * 0.5;
-                    summary = $"Continue with {pair.A.Label}"; direction = "Close continuation"; kind = "shared-concept";
+                    summary = $"More on {pair.A.Label}"; direction = "Same subject"; kind = "shared-concept";
                 }
                 else
                 {
@@ -175,7 +175,7 @@ public sealed class Ranking(AppDbContext db)
                     score = adjacent.Count > 0 ? 3.5 : 1.8;
                     if (adjacent.Count > 0) score -= Math.Min(4, Concepts.EdgeOrder(pair.A.Id, pair.B.Id)) * 0.25;
                     var cross = Concepts.Family(pair.A.Id) != Concepts.Family(pair.B.Id);
-                    direction = cross ? "Across disciplines" : tier == 2 ? "Broader context" : "Adjacent subject";
+                    direction = cross ? "Across subjects" : tier == 2 ? "Broader context" : "Related subject";
                     kind = tier == 2 ? "concept-family" : "adjacent-concept";
                     summary = $"{pair.A.Label} → {pair.B.Label}";
                 }
@@ -188,20 +188,20 @@ public sealed class Ranking(AppDbContext db)
                 usedConcepts = matches.Select(m => m.Id).ToList();
                 evidence.Add(new(item.Id, item.Title, "starting-item", pair.A.Label, pair.A.Field, pair.A.Match));
                 evidence.Add(new(other.Id, other.Title, "candidate", pair.B.Label, pair.B.Field, pair.B.Match));
-                detail = shared.Count > 0 ? "Both records name this concept in their available text or your tags." : "A suggested subject connection, not a claim that the sources agree or cite one another.";
+                detail = shared.Count > 0 ? "Both items mention this subject in their text or tags." : "These subjects are related. The sources may not agree or cite each other.";
             }
             else if (sharedWords.Count >= 2 && phrases.Count > 0 && (seedConcepts.Count == 0 || matches.Count == 0 && sharedWords.Count >= 3) && format.Value >= 0)
             {
                 tier = 2; score = 1.4 + Math.Min(0.8, sharedWords.Sum(Rarity) / Math.Sqrt(Math.Max(1, words.Count) * Math.Max(1, tokens[other.Id].Count)));
-                summary = "Shared subject phrase: " + string.Join("; ", phrases.Take(2)); direction = "Text connection"; kind = "phrase";
-                detail = "Matching words in the available source text; no stronger concept relationship was recognized.";
+                summary = "Shared phrase: " + string.Join("; ", phrases.Take(2)); direction = "Text connection"; kind = "phrase";
+                detail = "The source text contains matching words. No closer subject match was found.";
                 evidence.Add(new(item.Id, item.Title, "starting-item", Field: "title", Match: phrases[0]));
                 evidence.Add(new(other.Id, other.Title, "candidate", Field: "source-text", Match: phrases[0]));
             }
             else if (sharedTopics.Count > 0 && format.Value >= 0)
             {
                 tier = 3; score = 0.3; summary = $"Shared broad topic: {topics[sharedTopics[0]]}"; direction = "Broad topic"; kind = "broad-topic";
-                detail = "No close concept match was found. This is a broader catalog suggestion.";
+                detail = "These items share a broad topic. No closer subject match was found.";
                 evidence.Add(new(item.Id, item.Title, "starting-item", topics[sharedTopics[0]], "topic"));
             }
             else continue;
@@ -271,12 +271,12 @@ public sealed class Ranking(AppDbContext db)
     {
         var title = item.Title.ToLowerInvariant();
         if (Regex.IsMatch(title, @"\b(servicing|maintenance release|patch tuesday|release notes|security updates|monthly roundup|call for papers|journal announcements|graduate showcase|staff appointments)\b|\bllm-[\w-]+\s+\d+\.\d+"))
-            return (-0.45, "The title resembles a routine update or notice; a small ranking reduction, not a quality judgment.");
+            return (-0.45, "The title looks like a routine update or notice, so it ranks slightly lower.");
         if (Regex.IsMatch(title, @"\b(announcing|introducing|partnership|collaborate|our next era|responsibly and safely)\b"))
-            return (-0.2, "The title resembles an announcement; specific interests and explicit feedback can outweigh this.");
-        if (item.Kind == "paper" && (item.Excerpt?.Length ?? 0) > 180) return (0.15, "A research record with an available abstract.");
+            return (-0.2, "The title looks like an announcement, so it ranks slightly lower. Your interests and feedback can outweigh this.");
+        if (item.Kind == "paper" && (item.Excerpt?.Length ?? 0) > 180) return (0.15, "A paper with an abstract available to read.");
         if (Regex.IsMatch(title, @"\b(how|why|principles|tutorial|explained|guide|theory)\b") && (item.Excerpt?.Length ?? 0) > 100)
-            return (0.1, "The title and available description suggest an explanatory piece.");
+            return (0.1, "The title and description suggest an explainer or guide.");
         return (0, "No format preference applied.");
     }
     private static readonly HashSet<string> StopWords = "the and for with this that from have what when where which their there about these those into your they been being would could should will than then also more most some such only other each both through across using used uses first new how why all our are can not but its his her who had has does may one two you was were after before under over between without within toward towards article post posted read reading subscribe newsletter copyright rights reserved appears appeared het bericht verscheen eerst foundation abstract paper study research introduction based results show presents work works approach time information encyclopedia blog latest version search project general report sheet model models release announces announcement introducing intelligence system systems test fixture".Split(' ').ToHashSet();

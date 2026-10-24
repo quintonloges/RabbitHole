@@ -76,10 +76,10 @@ function DiscoverFeed() {
 
   return <>
     <div className="page-heading discover-heading">
-      <div><h1 className="hero-title">Follow what <em>pulls you in.</em></h1><p>Today’s picks, or a closer look at a topic in your collection.</p></div>
+      <div><h1 className="hero-title">Discover</h1><p>Browse today’s picks or choose a topic.</p></div>
       <div className="action-row"><button className="btn" onClick={findSurprise} disabled={!!busy}><Shuffle size={15}/>Surprise me</button>{!topicId && <button className="btn" onClick={newSelection} disabled={!!busy}><RefreshCw size={15}/>New selection</button>}</div>
     </div>
-    {surprise && <div className="panel panel-pad" style={{ marginBottom: 24, background: "var(--lilac)" }}><div className="action-row" style={{ justifyContent: "space-between" }}><span className="subtle">A little detour</span><button className="icon-button" onClick={() => setSurprise(null)} aria-label="Close surprise"><X size={16}/></button></div><h2 className="section-title" style={{ marginTop: 12 }}><Link href={`/items/${surprise.id}`}>{surprise.title}</Link></h2><SourceLine item={surprise}/><RecommendationExplanation item={surprise}/><div style={{ marginTop: 16 }}><Link className="btn primary" href={`/items/${surprise.id}`}>Follow this thread <ArrowRight size={14}/></Link></div></div>}
+    {surprise && <div className="panel panel-pad" style={{ marginBottom: 24, background: "var(--lilac)" }}><div className="action-row" style={{ justifyContent: "space-between" }}><span className="subtle">Something different</span><button className="icon-button" onClick={() => setSurprise(null)} aria-label="Close surprise"><X size={16}/></button></div><h2 className="section-title" style={{ marginTop: 12 }}><Link href={`/items/${surprise.id}`}>{surprise.title}</Link></h2><SourceLine item={surprise}/><RecommendationExplanation item={surprise}/><div style={{ marginTop: 16 }}><Link className="btn primary" href={`/items/${surprise.id}`}>Open item <ArrowRight size={14}/></Link></div></div>}
     <div className="discover-toolbar">
       <button className={`btn daily-picks${!topicId ? " accent" : ""}`} aria-pressed={!topicId} onClick={() => browseTopic("")}>Today’s picks</button>
       <label className="topic-picker">Browse topic<select value={topicId} onChange={event => browseTopic(event.target.value)} disabled={!topics.data}>
@@ -87,25 +87,25 @@ function DiscoverFeed() {
         {invalidTopic && <option value={topicId}>Unavailable topic</option>}
         {topics.data?.filter(topic => topic.enabled || topic.id === topicId).map(topic => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
       </select></label>
-      <span className="browse-scope">{topicId ? "Across your collection" : "A finite daily selection"}</span>
+      <span className="browse-scope">{topicId ? "All items in this topic" : "Picked from your collection"}</span>
     </div>
     <Notice error={activeError || actionError} onRetry={retry}/>
     {!topicId && topics.error && <Notice error={topics.error} onRetry={() => void topics.reload()}/>}
     <div className={`discover-layout${trails.length ? " has-trails" : ""}`}>
       <section className="discover-feed" aria-label={topicId ? "Topic discoveries" : "Daily discoveries"} aria-busy={loading}>
-        <div className="edition-heading"><h2>{topicId ? selectedTopic?.name || "Browse topic" : "Today’s selection"}</h2><span role="status">{loading ? "Loading items…" : topicId ? `${total} item${total === 1 ? "" : "s"} · Newest imports · books in reading order` : `${total} selected · ${readableDate(edition.data?.day)}`}</span></div>
-        {loading ? <Loading/> : invalidTopic ? <Empty title="This topic is no longer available" body="Choose another topic, or return to your daily selection." action={<button className="btn primary" onClick={() => browseTopic("")}>Today’s picks</button>}/>
-          : !visible.length && !activeError ? <Empty icon={<Compass size={22}/>} title={topicId ? total ? "No items on this page" : "No items in this topic yet" : edition.data?.items.length ? "You’ve finished this selection" : "Your trail starts with a source"}
-            body={topicId ? "Browse another topic or return to today’s picks. Topic browsing uses your whole imported collection." : edition.data?.items.length ? "Choose a topic to browse your collection, or ask for a new selection." : "Add a feed, import a link, or look for research. RabbitHole only shows material from real sources you choose."}
-            action={<div className="action-row" style={{ justifyContent: "center" }}>{topicId ? <><button className="btn primary" onClick={() => browseTopic("")}>Today’s picks</button>{page > 1 && <Link className="btn" href={topicPageUrl(1)}>First page</Link>}</> : <><Link className="btn primary" href="/settings">Add a source <ArrowRight size={15}/></Link><Link className="btn" href="/search">Explore research</Link></>}</div>}/>
+        <div className="edition-heading"><h2>{topicId ? selectedTopic?.name || "Browse topic" : "Today’s selection"}</h2><span role="status">{loading ? "Loading items…" : topicId ? `${total} item${total === 1 ? "" : "s"} · Newest first · books in reading order` : `${total} selected · ${readableDate(edition.data?.day)}`}</span></div>
+        {loading ? <Loading/> : invalidTopic ? <Empty title="This topic is no longer available" body="Choose another topic or return to today’s picks." action={<button className="btn primary" onClick={() => browseTopic("")}>Today’s picks</button>}/>
+          : !visible.length && !activeError ? <Empty icon={<Compass size={22}/>} title={topicId ? total ? "No items on this page" : "No items in this topic yet" : edition.data?.items.length ? "No picks left to show" : "Add your first source"}
+            body={topicId ? "Try another topic or return to today’s picks." : edition.data?.items.length ? "Choose another topic or use New selection to refresh your picks." : "Add a feed in Settings, import a link, or search for papers."}
+            action={<div className="action-row" style={{ justifyContent: "center" }}>{topicId ? <><button className="btn primary" onClick={() => browseTopic("")}>Today’s picks</button>{page > 1 && <Link className="btn" href={topicPageUrl(1)}>First page</Link>}</> : <><Link className="btn primary" href="/settings">Add a source <ArrowRight size={15}/></Link><Link className="btn" href="/search">Search research</Link></>}</div>}/>
           : visible.length > 0 && <ArticleList items={visible} onChange={update} label={topicId ? `${selectedTopic?.name} items` : "Today's selection"} start={topicId ? offset + 1 : 1}/>}
         {!loading && !activeError && visible.length > 0 && (topicId ? <nav className="topic-pagination" aria-label="Topic pages">
           {page > 1 ? <Link className="btn small" href={topicPageUrl(page - 1)}>Previous</Link> : <span/>}
           <span className="subtle">{offset + 1}–{Math.min(offset + visible.length, total)} of {total}</span>
           {offset + pageSize < total ? <Link className="btn small" href={topicPageUrl(page + 1)}>Next</Link> : <span/>}
-        </nav> : <div className="edition-end"><p className="subtle">You’ve reached the end of this selection.</p><button className="btn" onClick={getMore} disabled={!!busy}><Sparkles size={15}/>{busy === "more" ? "Looking…" : "Show me a little more"}</button></div>)}
+        </nav> : <div className="edition-end"><p className="subtle">That’s all for today’s picks.</p><button className="btn" onClick={getMore} disabled={!!busy}><Sparkles size={15}/>{busy === "more" ? "Looking…" : "Show more"}</button></div>)}
       </section>
-      {trails.length > 0 && <aside className="discover-rail" aria-label="Saved trails"><h2>Saved trails</h2>{trails.map(hole => <div className="trail-resume" key={hole.id}><h3><Link href={`/holes/${hole.id}`}>{hole.title}</Link></h3><p>{hole.nodeCount || 1} stops · {hole.origin === "curated" || hole.origin === "example" ? "Curated starting trail" : hole.origin === "legacy-unknown" ? "Earlier saved trail" : "Your place is saved"}</p><Link className="text-link" href={`/holes/${hole.id}`}>{hole.origin === "curated" || hole.origin === "example" ? "Explore" : "Continue"} <ArrowRight size={13}/></Link></div>)}<Link className="all-trails text-link" href="/holes">All rabbit holes <ArrowRight size={13}/></Link></aside>}
+      {trails.length > 0 && <aside className="discover-rail" aria-label="Saved trails"><h2>Saved trails</h2>{trails.map(hole => <div className="trail-resume" key={hole.id}><h3><Link href={`/holes/${hole.id}`}>{hole.title}</Link></h3><p>{hole.nodeCount || 1} stops · {hole.origin === "curated" || hole.origin === "example" ? "Suggested trail" : hole.origin === "legacy-unknown" ? "Earlier trail" : "Saved trail"}</p><Link className="text-link" href={`/holes/${hole.id}`}>{hole.origin === "curated" || hole.origin === "example" ? "Explore" : "Continue"} <ArrowRight size={13}/></Link></div>)}<Link className="all-trails text-link" href="/holes">All rabbit holes <ArrowRight size={13}/></Link></aside>}
     </div>
   </>;
 }

@@ -111,7 +111,7 @@ test('reader navigation keeps chapters and pages separate and retains earlier ex
   await expect(navigation.getByRole('link', { name: 'Next page', exact: true })).toHaveAttribute('href', `/items/${fixture.pages[1].itemId}`);
   await expect(page.getByRole('link', { name: 'Next chapter', exact: true })).toHaveCount(0);
   await page.goto(`/items/${previous.itemId}`);
-  await expect(page.getByText('You are reading a previous extraction. Your notes and progress are preserved.', { exact: true })).toBeVisible();
+  await expect(page.getByText('This is an earlier version with your saved notes and progress.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Contents', exact: true }).click();
   await expect(page.getByRole('link', { name: previous.title, exact: true })).toBeVisible();
 });

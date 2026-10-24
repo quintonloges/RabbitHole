@@ -32,7 +32,7 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_SECRET }}
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY SSH_KNOWN_HOSTS; do
@@ -69,7 +69,7 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_SECRET }}
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
           DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
         run: |

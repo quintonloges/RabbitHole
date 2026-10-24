@@ -1,5 +1,15 @@
 # RabbitHole acceptance report
 
+## DigitalOcean prerequisite setup — 24 October 2026
+
+Verified the new Droplet over SSH using the owner's existing key and strict host-key checking: Ubuntu **24.04.5 LTS**, x86_64, approximately 2 GB RAM/50 GB disk. Installed Docker Engine **29.9.2**, Compose **5.6.1** and restic **0.16.4**, using Docker's official signed Ubuntu package repository; Python **3.12.3** was already installed. Enabled Docker and verified a fresh `rabbithole-deploy` SSH session can query the daemon and Compose without sudo.
+
+Created the dedicated release/state/backup directories and separate `/etc/rabbithole/hosted.env` and `staging.env` configurations. Generated independent database passwords entirely on the server, with mode-600 files owned by the deployment account; no secret values were returned to chat or committed. Both configurations keep ingestion paused and indexing disabled, use separate projects/networks/state, and default to local encrypted backups. Prepared a systemd service override to run future backup jobs as the same deployment account. The setup script at ignored `.cache/prepare-droplet.sh` passed Bash syntax validation, then completed successfully on the Droplet; its temporary server-side copies were removed. Docker confirmed no application containers or data volumes exist yet.
+
+Repository metadata showed the private-key secret was registered as `SSH_SECRET`. The deployment workflow now accepts that name as a fallback for `SSH_PRIVATE_KEY`, and `actionlint 1.7.7` plus `git diff --check` passed. The preceding implementation commit `bb4274d` passed [GitHub Validate run 40064525024](https://github.com/quintonloges/RabbitHole/actions/runs/40064525024).
+
+Still pending: fill `ACME_EMAIL` privately in both server configuration files before starting Compose, run the staging release/restore, and complete final cutover and launch checks. DNS currently resolves the public hostname to a different server and must be updated for public launch. UFW is inactive; DigitalOcean cloud-firewall rules were not inspected. No application deployment, admin password provisioning, final desktop freeze, library transfer, live HTTPS check or live-server backup/restore has been performed in this setup step.
+
 ## GitHub SSH secrets and local backups — 24 October 2026
 
 The deployment workflow now reads `SSH_HOST`, `SSH_USER`, optional `SSH_PORT`, `SSH_PRIVATE_KEY` and `SSH_KNOWN_HOSTS` from repository or environment Actions secrets. Existing connection variables remain a fallback. It checks required names and connection formats before image building without printing values. No SSH details need to be supplied in chat.

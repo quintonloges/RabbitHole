@@ -50,6 +50,8 @@ jobs:
         with: { name: browser-failure-evidence, path: 'test-results/', retention-days: 7 }
       - name: Hosted configuration and script validation
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends restic
           for file in scripts/hosted/*.sh; do bash -n "$file"; done
           python3 -m py_compile scripts/hosted/*.py scripts/preservation-manifest.py
           python3 -m unittest discover -s scripts/hosted -p 'test_*.py' -v

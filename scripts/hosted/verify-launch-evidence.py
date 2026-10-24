@@ -1,4 +1,4 @@
-"""Require a verified restoration of the exact off-server snapshot pair and release."""
+"""Require a verified restoration of the exact encrypted snapshot pair and release."""
 import hashlib
 import datetime
 import json
@@ -12,7 +12,7 @@ def verify(state, release, project):
     restored = json.loads((state / 'backup-restore-verified.json').read_text())
     digest = hashlib.sha256(Path(release).read_bytes()).hexdigest()
     if backup.get('project') != project or backup.get('releaseSha256') != digest:
-        raise ValueError('Complete an off-server backup of this project and pinned release first.')
+        raise ValueError('Complete an encrypted backup of this project and pinned release first.')
     captured = datetime.datetime.fromisoformat(backup['capturedAt'])
     if not datetime.timedelta(0) <= datetime.datetime.now(datetime.timezone.utc) - captured <= datetime.timedelta(hours=24):
         raise ValueError('The pre-launch backup must be less than 24 hours old.')
@@ -20,7 +20,7 @@ def verify(state, release, project):
         if restored.get(key) != backup.get(key) or not backup.get(key):
             raise ValueError('Restore-test evidence does not match the latest backup and pinned release.')
     if restored.get('passed') is not True:
-        raise ValueError('The off-server backup restore test has not passed.')
+        raise ValueError('The encrypted backup restore test has not passed.')
 
 
 if __name__ == '__main__':

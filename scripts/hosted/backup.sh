@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Consistent encrypted off-server content and separately protected recovery backups.
+# Consistent encrypted content and separately protected recovery backups.
 source "$(dirname "$0")/common.sh"
 [[ $# == 0 || ($# == 1 && "$1" == --keep-stopped) ]] || { echo 'Usage: backup.sh [--keep-stopped]' >&2; exit 1; }
 keep_stopped=false; [[ ${1:-} != --keep-stopped ]] || keep_stopped=true
 operation_lock
-source "$(dirname "$0")/restic-config.sh"
+source "$(dirname "$0")/restic-config.sh" --initialize
 restic cat config >/dev/null
 restic -r "$RECOVERY_REPOSITORY" --password-file "$RECOVERY_PASSWORD_FILE" cat config >/dev/null
 work=$(mktemp -d /var/tmp/rabbithole-backup.XXXXXXXX)
@@ -77,4 +77,4 @@ manifest=state/'last-backup-manifest.json.tmp'; manifest.write_bytes((work/'cont
 temporary=state/'last-backup.json.tmp'; temporary.write_text(json.dumps(record,indent=2)); temporary.replace(state/'last-backup.json')
 PY
 date -u +%FT%TZ >"$STATE_PATH/last-backup"
-echo 'Encrypted content and recovery snapshots stored off-server; seven daily and four weekly retained.'
+echo "Encrypted content and recovery snapshots stored ($BACKUP_MODE mode); seven daily and four weekly retained."

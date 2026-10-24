@@ -26,7 +26,7 @@ maintenance
 if docker volume inspect "${PROJECT_NAME}_database" >/dev/null 2>&1; then
   [[ -L "$CURRENT_LINK" ]] || { echo 'Existing database has no prior pinned release. Refusing upgrade without a known backup command.' >&2; exit 1; }
   # A stopped stack still holds the only personal data. Start its old DB if needed,
-  # take and upload a consistent backup, then keep all old services stopped.
+  # store a consistent encrypted backup, then keep all old services stopped.
   previous=$(readlink -f "$CURRENT_LINK")
   RH_RELEASE="$previous" bash "$previous/scripts/hosted/backup.sh" --keep-stopped
   # Invalidate prior verification before applying migrations to the preserved data.

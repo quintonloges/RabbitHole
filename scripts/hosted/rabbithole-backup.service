@@ -1,5 +1,5 @@
 [Unit]
-Description=Encrypted RabbitHole off-server backup
+Description=Encrypted RabbitHole content and recovery backup
 Requires=docker.service
 After=docker.service network-online.target
 

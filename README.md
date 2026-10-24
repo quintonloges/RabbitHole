@@ -4,7 +4,7 @@ A public catalog with a private learning workspace. Visitors browse real publish
 
 Public routes are `/`, `/search`, `/items/{id}`. Personal features are under `/admin`, with sign-in at `/admin/login`. Public records expose approved metadata and bounded source excerpts. Uploads, full stored text, notes, history, trails, practice and AI output stay private. Control visibility with **Show publicly** in item Details and the Library visibility filter. The upgrade publishes eligible existing external records; document-derived records are always private.
 
-See [public hosting and migration](docs/public-hosting.md) for DigitalOcean and GitHub Actions setup for `quintonloges.me`. Live release requires server/DNS configuration and successful migration/backup gates.
+See [public hosting and migration](docs/public-hosting.md) for DigitalOcean and GitHub Actions setup for `quintonloges.me`. Configure SSH through GitHub Actions secrets. Backups default to encrypted storage on the server; off-server storage is optional. Live release requires server/DNS configuration and successful migration/backup gates.
 
 ## Desktop environments
 

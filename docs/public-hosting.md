@@ -1,6 +1,6 @@
 # Public catalog, private workspace, and DigitalOcean operations
 
-The public site is `https://quintonloges.me`; the GitHub repository is `https://github.com/quintonloges/RabbitHole`. The hostname identifies Caddy's certificate, validated host/origin and canonical public links. It does not provide an SSH connection or grant DNS access. Live deployment additionally needs the Droplet address/user/SSH port, matching CPU architecture, DNS pointing to that server, and off-server backup storage.
+The public site is `https://quintonloges.me`; the GitHub repository is `https://github.com/quintonloges/RabbitHole`. The hostname identifies Caddy's certificate, validated host/origin and canonical public links. Configure the Droplet's SSH details and credentials in GitHub Actions secrets; they do not need to be shared in chat. Live deployment also needs the matching CPU architecture and DNS pointing to that server. Encrypted backups stay on the Droplet by default; no off-server destination or storage account is required.
 
 ## Application boundaries
 
@@ -56,19 +56,21 @@ Hosted uses project `rabbithole-hosted`, PostgreSQL **17**, and separate `databa
 
 ## GitHub Actions release
 
-`Validate` runs script tests, backend tests, PostgreSQL migration/HTTP regressions, lint, TypeScript, optimized frontend build, Playwright and hosted config checks. `Deploy to DigitalOcean` is manually dispatched after choosing `staging` or `production` and `linux/amd64` or `linux/arm64`; it runs validation before building. Configure GitHub environments with release branch restrictions and the following values:
+`Validate` runs script tests, backend tests, PostgreSQL migration/HTTP regressions, lint, TypeScript, optimized frontend build, Playwright and hosted config checks. `Deploy to DigitalOcean` is manually dispatched after choosing `staging` or `production` and `linux/amd64` or `linux/arm64`; it runs validation before building. Add the following in [repository Actions secrets](https://github.com/quintonloges/RabbitHole/settings/secrets/actions), or as secrets in the chosen GitHub environment. Environment secrets can target separate staging and production servers. Configure environment release-branch restrictions as appropriate.
 
 | Type | Name | Value |
 |---|---|---|
-| Variable | `SSH_HOST` | Droplet hostname or IPv4 address |
-| Variable | `SSH_USER` | Deployment account |
-| Variable | `SSH_PORT` | SSH port, default 22 |
+| Secret | `SSH_HOST` | Droplet hostname or IPv4 address |
+| Secret | `SSH_USER` | Deployment account |
+| Secret, optional | `SSH_PORT` | SSH port; defaults to 22 |
 | Secret | `SSH_PRIVATE_KEY` | Dedicated deployment private key |
 | Secret | `SSH_KNOWN_HOSTS` | Independently verified server host-key entry; include `[host]:port` for nonstandard ports |
 
+The workflow uses these secrets directly. `SSH_HOST`, `SSH_USER` and `SSH_PORT` also accept Actions variables as a fallback, with secrets taking precedence. A configuration check reports missing names or invalid connection formats before building images, without printing secret values. See [GitHub's secrets instructions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) for adding them. Server runtime settings remain in private `/etc/rabbithole/hosted.env` as described above.
+
 The job builds commit-tagged API/web images, includes PostgreSQL 17 and Caddy, transfers a checksummed image archive over verified SSH and installs `/srv/rabbithole/releases/<git-sha>`. `release.env` pins all four runtime images by SHA-256 ID. Reusing a commit with different image IDs is rejected. Retain release directories/image archives and matching backups for rollback.
 
-On first install, deploy loads images and sets the current release pointer **without creating application data volumes**. Restore the personal library before starting the site. On later releases, deploy first creates an encrypted off-server backup of the previous pinned release even when its stack is stopped, then upgrades in maintenance mode. Deployment does not automatically open the public site.
+On first install, deploy loads images and sets the current release pointer **without creating application data volumes**. Restore the personal library before starting the site. On later releases, deploy first creates an encrypted backup of the previous pinned release even when its stack is stopped, then upgrades in maintenance mode. Backups use local storage unless `BACKUP_MODE=offserver` is explicitly configured. Deployment does not automatically open the public site.
 
 ## Isolated staging and local rehearsal
 
@@ -112,12 +114,11 @@ Restore refuses an existing destination database/uploads/auth volume, creates fr
 
 ## Encrypted nightly backups and verified restoration
 
-Install `scripts/hosted/backup.env.example` as private `/etc/rabbithole/backup.env` and edit it on the server. Use two private off-server restic repositories (for example separate private Spaces prefixes/buckets) and two independently stored encryption password files. Keep recovery passwords and storage access recovery information outside the Droplet too. `backup.env` is trusted shell configuration, mode 600, not an uploaded document. The script rejects local-path destinations, shared repository/password paths and insecure password-file permissions.
+`BACKUP_MODE=local` is the default, including when the setting is absent. The first backup creates independent encrypted content/recovery repositories under `/srv/rabbithole/backups/<PROJECT_NAME>/` and generates separate private encryption password files under `/etc/rabbithole/backup-keys/<PROJECT_NAME>/`. Subsequent runs reuse them. These paths are outside Caddy's mounted state directory. No `backup.env`, bucket, cloud credentials or off-server setup is required. The deployment account must be able to create these dedicated directories. Preserve the repositories and their password files together when moving the server; these same-server backups do not survive loss of the Droplet.
+
+Enable the timer and verify a real restore:
 
 ```bash
-set -a; source /etc/rabbithole/backup.env; set +a
-restic init
-restic -r "$RECOVERY_REPOSITORY" --password-file "$RECOVERY_PASSWORD_FILE" init
 sudo install -m 644 scripts/hosted/rabbithole-backup.service /etc/systemd/system/
 sudo install -m 644 scripts/hosted/rabbithole-backup.timer /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -128,13 +129,23 @@ bash scripts/hosted/restore-test.sh
 
 Backups stop writers for a consistent database/files copy, then restore the previous service state. Content snapshots include database, uploads and hash manifest; the separate recovery repository contains hosted configuration, auth keys and certificate data. Restic encrypts both. Retention keeps seven daily and four weekly snapshots; each backup verifies repository integrity. The timer runs around 03:30 UTC with up to 15 minutes of randomized delay; inspect failures with `systemctl status rabbithole-backup.service` and `journalctl -u rabbithole-backup.service`.
 
-`restore-test.sh` downloads the **actual recorded off-server snapshot pair**, restores DB/API in disposable non-public volumes, compares record/upload/key/recovery hashes, and records evidence bound to that release and snapshot pair. It does not merely check that backup files exist. It cleans up only its generated rehearsal project. Initial import preservation is insufficient for this gate.
+`restore-test.sh` reads the **actual recorded snapshot pair** from the selected repositories, restores DB/API in disposable non-public volumes, compares record/upload/key/recovery hashes, and records evidence bound to that release and snapshot pair. It does not merely check that backup files exist. It cleans up only its generated rehearsal project. Initial import preservation is insufficient for this gate.
+
+Off-server storage is optional. To enable it, set `BACKUP_MODE=offserver` in `hosted.env`, install `scripts/hosted/backup.env.example` as private mode-600 `/etc/rabbithole/backup.env`, and configure two private remote restic repositories with separate encryption password files. That configuration is trusted shell input. Initialize the two repositories once:
+
+```bash
+set -a; source /etc/rabbithole/backup.env; set +a
+restic init
+restic -r "$RECOVERY_REPOSITORY" --password-file "$RECOVERY_PASSWORD_FILE" init
+```
+
+Off-server mode rejects local destinations, shared repository/password paths and insecure password-file permissions. Run `backup.sh` and `restore-test.sh` after switching repositories. No off-server destination is required in local mode.
 
 ```bash
 bash scripts/hosted/launch.sh
 ```
 
-Launch requires initial preservation evidence, a backup less than 24 hours old, a successful restoration of that exact snapshot pair/release, an active/enabled backup timer, a valid HTTPS certificate and an interactive authenticated privacy smoke check. It then enables indexing and ingestion and removes maintenance. Failed opening checks re-enable maintenance and pause ingestion. Do not create evidence markers by hand or bypass these checks. A configured-but-unverified backup destination is not enough.
+Launch requires initial preservation evidence, a backup less than 24 hours old, a successful restoration of that exact snapshot pair/release, an active/enabled backup timer, a valid HTTPS certificate and an interactive authenticated privacy smoke check. A verified local backup satisfies the backup checks. It then enables indexing and ingestion and removes maintenance. Failed opening checks re-enable maintenance and pause ingestion. Do not create evidence markers by hand or bypass these checks.
 
 ## Rollback and troubleshooting
 
@@ -142,6 +153,6 @@ Keep maintenance enabled during recovery. If hosted activity has occurred, first
 
 For a pre-cutover desktop rollback, `./scripts/production.ps1 start` starts the preserved images and volumes; run it only after stopping hosted writers. For an ordinary hosted restart, source `common.sh` and run `compose up -d --wait --no-build --pull never`. For bounded logs: `compose logs --tail 100 api web gateway`. Use `/api/healthz` to check readiness. A `401` on a private endpoint is expected without login; `400 CSRF validation failed` requires a fresh identity-bound token; `429` respects `Retry-After`; `403 Host not allowed` requires correct explicit host/proxy configuration, not a wildcard. Account recovery uses the interactive command above, with no email dependency.
 
-The current public catalog computes eligibility and public metadata filtering in memory after database projection. This preserves privacy and is suitable for the measured personal library, but large catalogs need profiling before promising high public traffic. No off-server backup, DNS/ACME issuance or real DigitalOcean cutover is considered verified until the corresponding commands actually run; current evidence is in [acceptance-report.md](acceptance-report.md).
+The current public catalog computes eligibility and public metadata filtering in memory after database projection. This preserves privacy and is suitable for the measured personal library, but large catalogs need profiling before promising high public traffic. Live-server backup/restoration, DNS/ACME issuance and real DigitalOcean cutover are not considered verified until the corresponding commands actually run; current evidence is in [acceptance-report.md](acceptance-report.md).
 
 Implementation references: [ASP.NET cookie authentication](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/cookie?view=aspnetcore-10.0), [antiforgery](https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-10.0), [Data Protection persistence](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview?view=aspnetcore-10.0), [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https), [GitHub deployment environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments), [restic retention](https://restic.readthedocs.io/en/stable/060_forget.html).

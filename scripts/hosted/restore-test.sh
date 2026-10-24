@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Download the real encrypted snapshots and restore in disposable, non-public volumes.
+# Retrieve the real encrypted snapshots and restore in disposable, non-public volumes.
 source "$(dirname "$0")/common.sh"
 operation_lock
 source "$(dirname "$0")/restic-config.sh"
-[[ -f "$STATE_PATH/last-backup.json" ]] || { echo 'Run an encrypted off-server backup first.' >&2; exit 1; }
+[[ -f "$STATE_PATH/last-backup.json" ]] || { echo 'Run an encrypted backup first.' >&2; exit 1; }
 work=$(mktemp -d /var/tmp/rabbithole-restore-test.XXXXXXXX)
 test_project="rabbithole-rehearsal-$(python3 -c 'import uuid;print(uuid.uuid4().hex[:12])')"
 test_compose=(docker compose --project-name "$test_project" --project-directory "$RH_RELEASE" --env-file "$work/hosted.env" --env-file "$RH_RELEASE/release.env" -f "$RH_RELEASE/compose.hosted.yaml" -f "$RH_RELEASE/compose.staging.yaml")
@@ -84,4 +84,4 @@ import datetime,json,pathlib,sys
 record=json.loads(pathlib.Path(sys.argv[1]).read_text()); record.update(passed=True,verifiedAt=datetime.datetime.now(datetime.timezone.utc).isoformat())
 target=pathlib.Path(sys.argv[2]); temporary=target.with_suffix('.tmp'); temporary.write_text(json.dumps(record,indent=2)); temporary.replace(target)
 PY
-echo 'PASS: actual off-server content and recovery snapshots restored; database, uploads, keys, recovery settings, and certificate file hashes verified.'
+echo "PASS: actual content and recovery snapshots restored ($BACKUP_MODE mode); database, uploads, keys, recovery settings, and certificate file hashes verified."

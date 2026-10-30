@@ -1,5 +1,29 @@
 # RabbitHole acceptance report
 
+## Blackjack card-face decoration fix — 30 October 2026
+
+The card-back arrow now renders only while a card is face down, preventing its decoration from appearing over face-up ranks and suits. The existing flip animation remains. `npm --prefix apps/web run lint` and `./scripts/dev.ps1 start` passed, including the optimized frontend build and TypeScript check; all development services are healthy. `npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser: (motion\|reduced motion\|public navigation)'` passed **5 tests** against the rebuilt app. `node .cache/blackjack-card-faces.cjs` verified that face-up cards have no back decoration in Learn, Practice and Play, face-down cards retain it, and revealing the dealer removes it. Desktop and 320px dark/reduced-motion screenshots in ignored `.cache/blackjack-faces-*.png` were visually inspected. `git diff --check` passed. Production was not deployed.
+
+## Blackjack Lab animation and pacing — 30 October 2026
+
+Play now deals its opening cards in order over about 0.8 seconds, slides in hits/doubles and split cards, flips the dealer’s hole card before further draws, and gives settlement a short pause before showing payouts. Chips, active-hand borders, feedback and result panels have brief transitions; shared cards animate in Learn and Practice as well. Presentation frames sit above the unchanged engine. Controls and synchronous guards block extra actions during motion; undisplayed cards do not leak through totals or accessible names. Reduced motion skips CSS motion and presentation waits, including when enabled midway through a sequence. Mode switching retains the round, and timers clean up on reset/unmount.
+
+| Verification | Result |
+|---|---|
+| `npm --prefix apps/web run lint` | Passed |
+| `npm --prefix apps/web run typecheck` | Passed |
+| `npm run test:blackjack` | **100 passed** without retries; includes four new clock-controlled browser regressions for deal order, rapid clicks, delayed payouts, split Aces, mode switching and reduced motion |
+| `./scripts/dev.ps1 start` | Passed; optimized Next.js build and TypeScript check, all four development services healthy on port 47832 |
+| `npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser: (motion\|reduced motion)'` | **4 passed** against the optimized development build |
+| `node .cache/blackjack-development-smoke.cjs` | Passed; full round and $510 ledger, desktop/mobile layout, no browser errors or lab API calls, health 200 and existing private-route authentication |
+| `node .cache/blackjack-motion-preview.cjs` | Passed; actual CSS entry and flip captured midway through playback, including 320px dark mode without overflow |
+| `npm run test:api` | **240 passed, 2 skipped** (PostgreSQL-specific tests require their integration environment) |
+| `python -m unittest discover -s tests/scripts -v` | **10 passed** |
+| `python -m unittest discover -s scripts/hosted -p 'test_*.py' -v` | **8 passed, 12 skipped** (Linux/Bash/restic requirements) |
+| `git diff --check` | Passed |
+
+Actual desktop/mobile play, split-hand layouts, and intermediate deal/flip screenshots were visually inspected; captures are in ignored `.cache/blackjack-motion-*.png`, `.cache/blackjack-development-*.png` and the suite’s `test-results/` directory. Recent development startup logs contained no error-level entries and reported no pending migrations. Initial sandbox attempts could not access Docker, browser/test-host loopback communication or Python temporary fixtures; the listed successful checks used normal local process access. No production or hosted deployment was performed. No new dependencies, provider requests, environment variables or data migrations were introduced.
+
 ## Blackjack Lab review fix — 30 October 2026
 
 The Play browser regression now reapplies `fixedShuffle(page)` after reload and hydration, before its second deal. Reload had restored native randomness, allowing insurance offers or natural blackjacks to remove the expected Stand button and intermittently time out the test. The game code is unchanged.

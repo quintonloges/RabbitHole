@@ -41,7 +41,7 @@ export function PracticeMode() {
   return <div className="bj-practice">
     <div className="bj-mode-heading"><div><h2>One hand. One decision.</h2><p>Choose the strongest available move. Then deal yourself another.</p></div><div className="bj-score" aria-label="Practice score"><strong>{counts.correct}<span> / {counts.attempted}</span></strong><small>correct / attempted</small></div></div>
     <div className="bj-practice-toolbar"><label className="field">Drill category<select value={category} onChange={event => restart(event.target.value as Drill)}>{DRILLS.map(drill => <option key={drill}>{drill}</option>)}</select></label><button className="btn ghost" onClick={() => restart()}><RotateCcw size={15}/> Restart session</button></div>
-    <div className="bj-felt bj-drill-table">
+    <div className="bj-felt bj-drill-table" key={item?.id}>
       {item ? <><Cards cards={[item.dealer]} label="Dealer upcard" total={false}/><div className="bj-table-rule">DEALER BLACKJACK RULED OUT</div><Cards cards={item.hand.cards} label="Your hand"/>
         <p className="bj-table-note">{item.hand.fromSplit ? "After a split" : item.hand.cards.length > 2 ? "After a hit" : "Original two-card hand"} · {money(item.hand.bet)} wager · {money(item.bankroll)} available</p></> : <p role="status">Preparing your practice hands…</p>}
     </div>

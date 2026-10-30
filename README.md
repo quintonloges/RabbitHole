@@ -46,6 +46,8 @@ Fresh installations start empty. Deterministic fixtures live only under `tests/`
 
 Open **Blackjack Lab** in the navigation or visit [the development lab](http://localhost:47832/blackjack). Learn through seven interactive lessons, drill basic strategy by category, or play complete blackjack rounds with virtual chips and an optional coach. All modes are immediately available. A shared strategy evaluator powers the exercises, feedback, and reference chart for six-deck S17, American peek, DAS, late-surrender blackjack with 3:2 naturals.
 
+Play deals cards in a short sequence, animates hits and splits, flips the dealer’s hole card, and pauses briefly before showing the result. Reduced-motion preferences skip animations and their delays.
+
 No login, API, AI key, or database is needed for the lab. Lesson completion and the coaching preference stay in browser localStorage and can be reset in the footer. Virtual chips and practice counts last for the current visit. Run `npm run test:blackjack` for its independent engine, strategy, and browser suite. See [rules, architecture, and test coverage](docs/blackjack-lab.md).
 
 ## Recommendations and exploration

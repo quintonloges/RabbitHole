@@ -6,7 +6,7 @@
 
 - **Learn:** seven open-access lessons, 33 short sections, card-value and outcome exercises, strategy decisions, and replayable demonstrations of all six actions (including insurance). Completion requires attempting each section, but never locks navigation.
 - **Practice:** 660 distinct scenarios in a shuffled bag, with all hands, hard totals, soft totals, splitting, doubling, and surrender categories. Includes hands after hitting and splitting, plus counterexamples where a drill's named action is not best. Each scenario appears once before the bag refills. Correct/attempted counts reset with the session or category.
-- **Play:** a shuffled six-deck shoe, virtual wagers, full insurance/peek/player/dealer/settlement phases, up to four hands, and optional coaching enabled initially. The player’s chosen action always executes. Dealer cards appear in individual steps, with shorter waits for reduced-motion preferences. Switching modes retains the current session.
+- **Play:** a shuffled six-deck shoe, virtual wagers, full insurance/peek/player/dealer/settlement phases, up to four hands, and optional coaching enabled initially. The player’s chosen action always executes. Cards arrive in order, the hole card flips before dealer draws, and results follow a short settling pause. Reduced-motion preferences skip motion and presentation delays. Switching modes retains the current session.
 - **Reference:** complete hard/soft/pair charts render the exact typed strategy tables used by the evaluator. Rules, fallbacks, and source links are available in the interface.
 
 The browser key `rabbithole-blackjack-v1` stores only completed lesson indices, last lesson, and the coaching preference. Reads validate the shape and bounds. Missing, malformed, or blocked storage never prevents use. The footer resets these values; Play separately resets the table and virtual chips to $500 between rounds. Scores, hands, and chips are intentionally not persisted across reloads. No new environment variables or dependencies are required.
@@ -33,6 +33,7 @@ This is conventional **total-dependent basic strategy**, including the pair exce
 | `cards.ts` | Physical card identities, six-deck shoe, Fisher–Yates shuffle, scoring, natural detection |
 | `rules.ts` | Documented fixed rules, wager limits, integer-cent formatting |
 | `engine.ts` | Immutable transitions, legal moves, debit/credit ledger, dealer steps |
+| `table-motion.ts` | Presentation frames for completed engine transitions: card visibility, hole-card reveal, displayed balance and short waits |
 | `strategy.ts` | Typed hard/soft/pair matrices, legal-action fallbacks, recommendation |
 | `coaching.ts` | Authored explanations and feedback captured before the action |
 | `practice.ts` | Valid scenario enumeration and shuffled bags without replacement |
@@ -47,6 +48,12 @@ The completed-round breakdown shows each main wager and any insurance separately
 
 The shoe is retained between rounds and replaced before a new round when fewer than 104 cards remain. It never reshuffles during a round. Engine tests inject ordered full shoes; Play always uses a fresh random shuffle on first deal and at the threshold. Exhaustion of a malformed injected shoe fails atomically instead of generating an extra card.
 
+### Table pacing
+
+The opening four cards arrive 160 ms apart with a 280 ms slide, completing in about 0.8 seconds. Hits, doubles and split draws take about 320 ms per new card; splitting first gives the new hands 200 ms to separate. The dealer’s hole card flips over 360 ms before further draws, and settlement waits another 240 ms before showing returns and the result panel. Chips and feedback use small, brief transitions; shared card motion also applies to lessons and practice.
+
+The engine still executes each move atomically. Presentation frames reveal only the cards already drawn by that transition, in physical shoe order. Undealt slots reserve space but expose neither card names nor future totals. Bets debit visually at once; returns and final outcome labels wait until the sequence ends. Action controls are disabled during motion, with a synchronous guard against duplicate clicks before React renders. Timers clean up on reset/unmount, and switching modes preserves the ongoing round. Changing the system’s reduced-motion preference during a sequence immediately completes its presentation; future moves have no animation waits. No timing state is persisted.
+
 ## Run and verify
 
 ```powershell
@@ -59,6 +66,6 @@ npm run test:e2e
 
 `test:blackjack` uses the repository's existing Playwright runner on loopback port 3002, starting **only Next.js**. No backend or provider connectivity is required. The engine/strategy specs are ordinary TypeScript tests in the same runner. They also run under the standard full-app `test:e2e` configuration, so CI automatically includes them.
 
-Coverage includes every defined strategy cell against a separately authored oracle derived from the reference's written rules; available-action fallback combinations; deterministic engine sequences; 500 varied rounds checking the ledger and physical cards; every lesson exercise; browser lesson navigation/persistence/reset; practice feedback/counts; hidden cards and pre-action coaching; split sequencing; insurance; invalid wagers; keyboard mode navigation; 320–1440px layouts; light/dark presentation; denied storage; and continued play after browser networking is disabled. Screenshots are saved under ignored `test-results/` for visual inspection. See `acceptance-report.md` for actual run results.
+Coverage includes every defined strategy cell against a separately authored oracle derived from the reference's written rules; available-action fallback combinations; deterministic engine sequences; 500 varied rounds checking the ledger and physical cards; every lesson exercise; browser lesson navigation/persistence/reset; practice feedback/counts; hidden cards and pre-action coaching; split sequencing; insurance; invalid wagers; keyboard mode navigation; 320–1440px layouts; light/dark presentation; denied storage; and continued play after browser networking is disabled. Clock-controlled browser checks cover staged dealing/totals, duplicate clicks, dealer reveal before payouts, natural settlement, split-Ace draw order, mode switching during motion, and reduced motion toggled mid-deal. Screenshots are saved under ignored `test-results/` for visual inspection. See `acceptance-report.md` for actual run results.
 
 Initial page loading still requires the web app; this is not an installable offline PWA. Once loaded, the lab does not require a live API or network. Virtual chips have no monetary value.

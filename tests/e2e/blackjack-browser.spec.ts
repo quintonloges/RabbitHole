@@ -29,6 +29,127 @@ function randomFor(predicate: (game: Game) => boolean) {
   throw new Error('Could not find deterministic teaching deal');
 }
 
+async function pausedPlay(page: Page, random = .999999) {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.clock.install({ time: new Date('2026-10-30T12:00:00Z') });
+  await open(page, 'Play');
+  await fixedShuffle(page, random);
+  await page.clock.pauseAt(new Date('2026-10-30T13:00:00Z'));
+  return page.getByRole('tabpanel');
+}
+
+async function finishTableMotion(page: Page) {
+  const table = page.getByRole('tabpanel').getByLabel('Blackjack table', { exact: true });
+  for (let step = 0; step < 40 && await table.getAttribute('aria-busy') === 'true'; step++) {
+    await page.clock.runFor(200);
+  }
+  await expect(table).toHaveAttribute('aria-busy', 'false');
+}
+
+test('browser: motion deals in order, guards rapid actions and reveals the dealer before paying', async ({ page }) => {
+  const panel = await pausedPlay(page);
+  // Two clicks in one event turn exercise the synchronous guard, before React disables controls.
+  await panel.getByRole('button', { name: 'Deal · $10', exact: true }).evaluate(button => { button.click(); button.click(); });
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$490');
+  await expect(panel.locator('.bj-player-hand').getByRole('img')).toHaveCount(1);
+  await expect(panel.locator('.bj-dealer').getByRole('img')).toHaveCount(0);
+  await expect(panel.locator('.bj-player-hand .bj-total')).toHaveText('Hard 2');
+  await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeDisabled();
+  await page.clock.runFor(170);
+  await expect(panel.locator('.bj-dealer').getByRole('img', { name: '3 of clubs' })).toBeVisible();
+  await expect(panel.locator('.bj-player-hand').getByRole('img')).toHaveCount(1);
+  await page.clock.runFor(170);
+  await expect(panel.locator('.bj-player-hand').getByRole('img')).toHaveCount(2);
+  await expect(panel.locator('.bj-dealer').getByRole('img')).toHaveCount(1);
+  await page.clock.runFor(170);
+  await expect(panel.locator('.bj-dealer').getByRole('img', { name: 'Face-down card' })).toBeVisible();
+  await expect(panel.getByRole('img', { name: '5 of clubs' })).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeDisabled();
+  await finishTableMotion(page);
+  await panel.getByRole('button', { name: 'Hit', exact: true }).evaluate(button => { button.click(); button.click(); });
+  await expect(panel.locator('.bj-player-hand').getByRole('img')).toHaveCount(3);
+  await expect(panel.locator('.bj-player-hand .bj-total')).toHaveText('Hard 12');
+  await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeDisabled();
+  await finishTableMotion(page);
+  await panel.getByRole('button', { name: 'Stand', exact: true }).click();
+  await expect(panel.getByRole('img', { name: '5 of clubs' })).toHaveCount(0);
+  await page.clock.runFor(220);
+  await expect(panel.getByRole('img', { name: '5 of clubs' })).toBeVisible();
+  await expect(panel.locator('.bj-table-status')).toContainText('reveals the hole card');
+  await expect(panel.locator('.bj-round-result')).toHaveCount(0);
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$490');
+  await finishTableMotion(page);
+  await expect(panel.locator('.bj-round-result')).toContainText('+$10');
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$510');
+});
+
+test('browser: motion holds natural payouts until the deal and reveal finish', async ({ page }) => {
+  const fixed = randomFor(game => game.phase === 'settled' && game.hands[0].outcome === 'blackjack');
+  const panel = await pausedPlay(page, fixed.value);
+  await panel.getByRole('button', { name: 'Deal · $10', exact: true }).click();
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$490');
+  await expect(panel.locator('.bj-round-result')).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: /^Deal/ })).toHaveCount(0);
+  await expect(panel.locator('.bj-player-hand')).not.toContainText('Blackjack');
+  await finishTableMotion(page);
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$515');
+  await expect(panel.locator('.bj-round-result')).toContainText('+$15');
+  await expect(panel.locator('.bj-player-hand')).toContainText('Blackjack · 21');
+  // A following round has no leftover result or payout timer.
+  await panel.getByRole('button', { name: 'Deal · $10', exact: true }).click();
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$505');
+  await expect(panel.locator('.bj-round-result')).toHaveCount(0);
+});
+
+test('browser: motion keeps split Ace cards separate and survives mode switches', async ({ page }) => {
+  const fixed = randomFor(game => game.phase === 'player' && game.hands[0].cards.every(card => card.rank === 'A'));
+  const panel = await pausedPlay(page, fixed.value);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await panel.getByRole('button', { name: 'Deal · $10', exact: true }).click();
+  await finishTableMotion(page);
+  await panel.getByRole('button', { name: 'Split', exact: true }).click();
+  await expect(panel.locator('.bj-player-hand')).toHaveCount(2);
+  await expect(panel.locator('.bj-player-hand').nth(0).getByRole('img')).toHaveCount(1);
+  await expect(panel.locator('.bj-player-hand').nth(1).getByRole('img')).toHaveCount(1);
+  await page.clock.runFor(220);
+  await expect(panel.locator('.bj-player-hand').nth(0).getByRole('img')).toHaveCount(2);
+  await expect(panel.locator('.bj-player-hand').nth(1).getByRole('img')).toHaveCount(1);
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$480');
+  await page.getByRole('tab', { name: /^Learn/ }).click();
+  await page.clock.runFor(400);
+  await page.getByRole('tab', { name: /^Play/ }).click();
+  await finishTableMotion(page);
+  let expected = act(fixed.game, 'split');
+  while (expected.phase === 'dealer') expected = dealerStep(expected);
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText(money(expected.bankroll));
+  await expect(panel.locator('.bj-round-result')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('browser: reduced motion skips current and future animation delays', async ({ page }) => {
+  const panel = await pausedPlay(page);
+  await panel.getByRole('button', { name: 'Deal · $10', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeDisabled();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeEnabled();
+  await expect(panel.locator('.bj-player-hand').getByRole('img')).toHaveCount(2);
+  await panel.getByRole('button', { name: 'Hit', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeEnabled();
+  await expect(panel.locator('.bj-player-hand .bj-total')).toHaveText('Hard 12');
+  const style = await panel.locator('.bj-player-hand .bj-card').first().evaluate(card => ({
+    animation: getComputedStyle(card).animationName,
+    transition: getComputedStyle(card.querySelector('.bj-card-inner')!).transitionDuration,
+  }));
+  expect(style).toEqual({ animation: 'none', transition: '0s' });
+  await panel.getByRole('button', { name: 'Stand', exact: true }).click();
+  await finishTableMotion(page);
+  await expect(panel.getByTestId('blackjack-bankroll')).toHaveText('$510');
+  await panel.getByRole('button', { name: 'Reset table · $500' }).click();
+  await panel.getByRole('button', { name: 'Deal · $10', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeEnabled();
+  await expect(panel.getByLabel('Blackjack table', { exact: true })).toHaveAttribute('aria-busy', 'false');
+});
+
 test('browser: public navigation, all seven lessons, completion, persistence, reset and keyboard modes', async ({ page }) => {
   const apiRequests: string[] = [];
   page.on('request', request => { if (request.url().includes('/api/')) apiRequests.push(request.url()); });

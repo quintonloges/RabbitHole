@@ -34,6 +34,46 @@ Both environment scripts accept `status`, `logs`, `start`, `stop` and `restart`.
 
 The wrappers specify the project, Compose file, project directory and environment file explicitly. An unrelated current working directory or `COMPOSE_PROJECT_NAME` setting cannot redirect them. Plain `docker compose` now defaults to development, unless you explicitly override its project/configuration.
 
+## Impeccable live design sessions
+
+Impeccable needs a source-mounted Next development server for hot reload. The opt-in `compose.live.yaml` changes only the development web service and keeps the existing gateway at `http://127.0.0.1:47832`, development API, and development data. It uses a separate `rabbithole-dev-web-live` image and separate dependency/build-cache volumes. The standard development image remains available. Production and hosted manifests do not use this override.
+
+From the repository root, start the standard stack if needed, then enable hot reload:
+
+```powershell
+./scripts/dev.ps1 start
+docker compose -p rabbithole-dev --project-directory . --env-file .env -f compose.yaml -f compose.live.yaml up --build -d --no-deps --wait web
+```
+
+The installed Impeccable 4.3.1 skill uses engine 0.1.5. Its launcher downloads the pinned Windows binary from its release channel and verifies the SHA-256 sidecar before execution. It is cached outside the repository under `%USERPROFILE%\.impeccable\bin\0.1.5\impeccable.exe`. To verify or provision that version:
+
+```powershell
+$impeccableLauncher = Join-Path $env:USERPROFILE '.codex/plugins/cache/openai-curated-remote/impeccable/4.3.1/skills/impeccable/scripts/impeccable.cmd'
+& $impeccableLauncher engine-probe
+```
+
+Use the launcher belonging to the installed skill when upgrading versions. In Codex, ask for `$impeccable live` against the development app. The verified entry is:
+
+```powershell
+& $impeccableLauncher live --target apps/web/app/layout.tsx
+```
+
+The helper resolves the app root to `apps/web`; subsequent `live-poll`, `live-status`, and `live-server stop` commands run from that directory. The agent must keep servicing the foreground `live-poll` event loop while the browser session is active. Open the app on port **47832**; port **8400** belongs to the loopback helper, not RabbitHole.
+
+Root `PRODUCT.md`, `DESIGN.md`, and `.impeccable/design.json` describe the product and incumbent interface. App-relative injection settings live in `apps/web/.impeccable/live/config.json`. Next's `allowedDevOrigins` includes only the two explicit loopback hostnames used by desktop development. The development response has no CSP requiring a live-mode exception.
+
+The helper temporarily injects its local script into `apps/web/app/layout.tsx`. Stop it before building or deploying application images:
+
+```powershell
+Push-Location apps/web
+try { & $impeccableLauncher live-server stop } finally { Pop-Location }
+./scripts/dev.ps1 start
+```
+
+The stop command removes its injection; `dev.ps1 start` restores the standard compiled development service. For a verification session with no application changes, `docker compose -p rabbithole-dev --project-directory . --env-file .env -f compose.yaml up -d --no-deps --no-build --wait web` restores the already-built standard web image. Leave data and cache volumes intact. Helper tokens, machine paths, journals, and previews are ignored by Git, and the app Docker context excludes local Impeccable artifacts.
+
+If edits reload the entire document or do not appear, inspect development web logs for blocked `/_next/hmr` requests and confirm the explicit loopback origins. A visible toolbar alone does not prove hot reload; verification should cover a source change and restoration in the same browser document. Never solve local helper issues by changing the production gateway, public exposure, authentication, or CSP.
+
 ## What protects production
 
 Production has no build contexts or source-code mounts. Its web/API/database/gateway images are pinned to immutable IDs and retained under local `rabbithole-production-*:snapshot-*` tags. Development uses `rabbithole-dev-api` and `rabbithole-dev-web`, so rebuilding it does not retag production. Production's Caddyfile is a separate snapshot too. A separate source checkout is unnecessary for this deployment because production runs the frozen images rather than the editable source tree.

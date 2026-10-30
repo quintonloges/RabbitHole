@@ -20,3 +20,8 @@ playwright-report/
 *.db-shm
 *.db-wal
 .DS_Store
+
+# Local Impeccable helper tokens, machine roots, journals, and session previews.
+/.impeccable/live/
+/apps/web/.impeccable/live/*
+!/apps/web/.impeccable/live/config.json

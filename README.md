@@ -29,6 +29,8 @@ docker compose exec api dotnet RabbitHole.Api.dll --admin-password # Interactive
 
 Both scripts also accept `status`, `logs`, `stop`, and `restart`. Production is a private deployment snapshot in ignored `.local/production/`, with pinned image IDs and its own Caddyfile. Keep that folder. Development uses the working checkout's `compose.yaml` and `.env`; ordinary `docker compose` commands now target development. Production updates are deliberate; rebuilding development cannot deploy new code to production.
 
+For Impeccable live design sessions on the same development address, use the optional hot-reload override and cleanup commands in [the live-mode guide](docs/environments.md#impeccable-live-design-sessions).
+
 For a fresh development checkout, first copy `.env.example` to `.env` without overwriting existing configuration, then run `docker compose up --build -d --wait`. No host .NET or Node installation is needed for Docker startup. The private production snapshot is desktop-specific and is not in Git.
 
 Only each Caddy gateway publishes a host port, bound to `127.0.0.1`. The database and uploaded files persist across container rebuilds and normal stops. See [environment operations](docs/environments.md) for separation, releases, backups and restore. Protected phone/LAN access is a separate deployment step; it is not enabled here.

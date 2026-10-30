@@ -1,3 +1,7 @@
 node_modules
 .next
 npm-debug.log
+.impeccable
+.impeccable-live
+app/.impeccable-live
+src/.impeccable-live

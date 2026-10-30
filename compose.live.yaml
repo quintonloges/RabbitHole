@@ -1,0 +1,25 @@
+# Opt-in hot reload for the existing isolated development stack.
+# Run with compose.yaml; use scripts/dev.ps1 start to restore the normal build.
+services:
+  web:
+    image: rabbithole-dev-web-live
+    build:
+      target: deps
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - type: bind
+        source: ./apps/web
+        target: /app
+      - type: volume
+        source: live_node_modules
+        target: /app/node_modules
+      - type: volume
+        source: live_next
+        target: /app/.next
+
+volumes:
+  live_node_modules:
+  live_next:

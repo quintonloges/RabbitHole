@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-30T20:45:11.691Z",
+  "title": "Design System: RabbitHole",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "panel-dark",
+        "value": "0 12px 36px rgba(0,0,0,.16)",
+        "purpose": "Existing dark-theme panel shadow."
+      },
+      {
+        "name": "panel-light",
+        "value": "0 12px 36px rgba(43,36,27,.045)",
+        "purpose": "Existing light-theme panel shadow."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "720px"
+      },
+      {
+        "name": "narrow-desktop",
+        "value": "1040px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action.",
+      "html": "<button class=\"ds-btn ds-primary\">Save</button>",
+      "css": ".ds-btn{font:600 12px Arial,Helvetica,sans-serif;display:inline-flex;align-items:center;justify-content:center;min-height:39px;padding:10px 15px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);cursor:pointer;transition:.2s}.ds-btn:hover{border-color:var(--accent);color:var(--accent)}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.ds-btn:disabled{opacity:.55;cursor:not-allowed}.ds-primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}.ds-primary:hover{background:var(--accent);border-color:var(--accent);color:var(--paper)}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary action.",
+      "html": "<button class=\"ds-btn\">Cancel</button>",
+      "css": ".ds-btn{font:600 12px Arial,Helvetica,sans-serif;display:inline-flex;align-items:center;justify-content:center;min-height:39px;padding:10px 15px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);cursor:pointer;transition:.2s}.ds-btn:hover{border-color:var(--accent);color:var(--accent)}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.ds-btn:disabled{opacity:.55;cursor:not-allowed}"
+    },
+    {
+      "name": "Accent button",
+      "kind": "button",
+      "refersTo": "button-accent",
+      "description": "Selected state or related action.",
+      "html": "<button class=\"ds-btn ds-accent\">Saved</button>",
+      "css": ".ds-btn{font:600 12px Arial,Helvetica,sans-serif;display:inline-flex;align-items:center;justify-content:center;min-height:39px;padding:10px 15px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);cursor:pointer;transition:.2s}.ds-btn:hover{border-color:var(--accent);color:var(--accent)}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.ds-btn:disabled{opacity:.55;cursor:not-allowed}.ds-accent{background:var(--accentsoft);border-color:transparent;color:var(--accent)}"
+    },
+    {
+      "name": "Search input",
+      "kind": "input",
+      "description": "Labeled text field.",
+      "html": "<label class=\"ds-field\">Search<input placeholder=\"Title, author, or idea\"></label>",
+      "css": ".ds-field{display:grid;gap:7px;font:700 12px Arial,Helvetica,sans-serif;color:var(--ink)}.ds-field input{font:inherit;font-weight:400;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:11px 12px}.ds-field input:focus{border-color:var(--accent)}.ds-field input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}"
+    },
+    {
+      "name": "Navigation link",
+      "kind": "nav",
+      "description": "Existing active public navigation treatment.",
+      "html": "<a class=\"ds-nav\" href=\"/\">Catalog</a>",
+      "css": ".ds-nav{display:flex;gap:14px;border-radius:8px;padding:12px 14px;font:600 13px Arial,Helvetica,sans-serif;text-decoration:none;background:var(--accentsoft);color:var(--accent)}.ds-nav:hover{background:var(--paper2);color:var(--ink)}.ds-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}"
+    },
+    {
+      "name": "Topic pill",
+      "kind": "chip",
+      "description": "Topic selection treatment.",
+      "html": "<button class=\"ds-pill\">Philosophy</button>",
+      "css": ".ds-pill{display:inline-flex;gap:6px;font:11px Arial,Helvetica,sans-serif;border:1px solid var(--line);border-radius:30px;padding:7px 11px;color:var(--muted);background:var(--paper);cursor:pointer}.ds-pill:focus-visible{outline:2px solid var(--accent);outline-offset:3px}"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Existing panel container.",
+      "html": "<section class=\"ds-panel\">Source details</section>",
+      "css": ".ds-panel{padding:23px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);font:14px Arial,Helvetica,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "overview": "This is a factual capture of the existing implementation for Impeccable live mode, recorded on 30 October 2026. It does not establish a new visual direction or introduce qualitative brand decisions.",
+    "keyCharacteristics": [
+      "Shared public/private navigation structure with separate route and data boundaries.",
+      "Compact numbered discovery rows and source metadata.",
+      "Serif reading typography and sans-serif interface controls.",
+      "Dark, Light, and Follow system appearances."
+    ],
+    "dos": [
+      "Do reuse the existing CSS variables and shared primitives.",
+      "Do preserve public/private boundaries, actual source content, and functional controls.",
+      "Do check dark and light appearance and desktop/mobile layouts for intended UI changes.",
+      "Do treat this record as observed implementation, not a completed accessibility audit."
+    ],
+    "donts": [
+      "Don't replace the established interface identity during a scoped refinement.",
+      "Don't add invented articles, metadata, claims, or source links to make a preview look complete.",
+      "Don't ship Impeccable live instrumentation in production builds."
+    ]
+  }
+}

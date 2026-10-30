@@ -1,5 +1,24 @@
 # RabbitHole acceptance report
 
+## Impeccable engine and live-mode verification — 30 October 2026
+
+Installed the Impeccable 4.3.1 skill's pinned Windows engine through `impeccable.cmd engine-probe`; it returned `impeccable-engine 0.1.5`. The launcher verified the release SHA-256 sidecar before execution. The cached binary is `%USERPROFILE%\.impeccable\bin\0.1.5\impeccable.exe`, with SHA-256 `477e544fc8880a5e82e427490cb9a5f5adab480c0e02966d33fd50772b531c71`.
+
+Live boot identified two missing prerequisites: an incumbent design record and app-scoped configuration. Added factual `DESIGN.md` and `.impeccable/design.json` from existing styles/components, and moved the live config to `apps/web/.impeccable/live/config.json` with the app-relative `app/layout.tsx` target. Added opt-in `compose.live.yaml` for source-mounted development hot reload, explicit Next loopback development origins, and Git/Docker exclusions for local helper artifacts. Startup and cleanup commands are in [environment operations](environments.md#impeccable-live-design-sessions).
+
+Verification:
+
+- `impeccable.cmd context --target apps/web/app/layout.tsx` loaded the product context. `impeccable.cmd live --target app/layout.tsx` from `apps/web` booted successfully with root product/design context, the correct app entry, and no configuration drift.
+- `docker compose -p rabbithole-dev --project-directory . --env-file .env -f compose.yaml -f compose.live.yaml up --build -d --no-deps --wait web` started the hot-reload web container against the existing development API/data at port 47832. The helper listened only on `127.0.0.1:8400`.
+- `node .cache/impeccable-live/smoke.cjs` passed in isolated Chromium: the live toolbar loaded, the picker selected the actual Catalog heading, two Steer requests reached the foreground agent poll, and a temporary heading change and its restoration appeared through HMR. The browser's `performance.timeOrigin` remained identical across both edits, proving no document reload; browser errors were empty. Evidence is in ignored `.cache/impeccable-live/smoke-result.json` and the picker/HMR/restored screenshots.
+- Initial verification exposed blocked loopback HMR, fixed by `allowedDevOrigins: ["127.0.0.1", "localhost"]`. A smoke assertion was also corrected because Next's same-document history updates emit `framenavigated`; the final check uses document time origin. Development asset requests then returned 200 for the loopback origin and 403 for an unrelated origin. No CSP exception was added.
+- `npm --prefix apps/web run lint`, `npm --prefix apps/web run typecheck`, and `npm --prefix apps/web run build` passed. The optional Compose configuration passed `config --quiet`; the design sidecar and live config parsed successfully as JSON.
+- All smoke-session journals were completed. `impeccable.cmd live-server stop` removed the injected script; final `live-status` showed no server or active sessions, and port 8400 had no listener. Source scans found no live injection, preview markers, or temporary heading text.
+- The normal web service was restored with `docker compose -p rabbithole-dev --project-directory . --env-file .env -f compose.yaml up -d --no-deps --no-build --wait web`. Its image ID matched the pre-test image exactly. `./scripts/dev.ps1 status` showed healthy API, database, and web services and the existing loopback gateway.
+- `node .cache/impeccable-live/restored-smoke.cjs` passed: Catalog, Search, and Blackjack loaded without live instrumentation or browser errors; `/admin` required login, anonymous `/api/settings` returned 401, health returned 200, and the public catalog still contained 59 items. `git diff --check` passed.
+
+The embedded browser navigation timed out and personal-browser automation was not approved, so verification used a fresh isolated test browser. This smoke check covers the toolbar, picker, Steer events, HMR, and cleanup; generated variant accept/discard flows were not exercised. No provider, backend, database, or dependency changes were made, and the backend/full application suites were not rerun. Production and hosted instances were not modified.
+
 ## Impeccable product initialization — 30 October 2026
 
 Added root `PRODUCT.md` with the required product schema marker and `web` platform. It records the existing public catalog, private workspace, separate Blackjack Lab, source/provenance rules, privacy boundaries, accessibility requirements, and repository evidence. The owner confirmed equal priority for public visitors and the administrator's private workspace. The separately confirmed code-first workflow preference is stored only in `.impeccable/config.json`.

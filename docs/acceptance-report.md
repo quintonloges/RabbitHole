@@ -1,5 +1,21 @@
 # RabbitHole acceptance report
 
+## Catalog browsing and source links — 30 October 2026
+
+Catalog now shows the collection without a search/filter form. Search retains the full query and metadata filters; existing catalog URLs containing search filters redirect there with their values preserved. Topic links still browse Catalog with a topic heading, pagination and an all-topics link. Public headlines open the original source in a new tab, and the former secondary source link is now **Go down the rabbit hole ↘**, opening the RabbitHole preview and related discoveries. The shared list applies this behavior to Catalog, Search and related items. Empty catalog/topic messages no longer suggest using a missing search form.
+
+Verification:
+
+- `./scripts/check.ps1` passed: 251 backend tests (3 PostgreSQL-only tests skipped), 10 source/admin script tests, 8 hosted script tests (12 Linux/Bash/restic tests skipped), frontend lint, TypeScript and optimized build.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` passed.
+- `npm run test:e2e` passed **141 tests without retries**. Existing public flows now check the missing Catalog form, source-opening headlines, RabbitHole detail navigation, legacy search redirects, topic navigation/reset and topic pagination, while retaining privacy and search-filter coverage.
+- `./scripts/dev.ps1 start` rebuilt the isolated development stack on port 47832; all four services are healthy. Startup logs reported no pending migrations and no error-level entries.
+- `node .cache/catalog-navigation-smoke.cjs` passed against the optimized development build: Catalog/Search, legacy filtered URLs, empty topic/reset, search validation, 320px layout, retained private-route authentication and no browser errors. Its initial dropdown/alert selectors were corrected before the successful run.
+- Desktop/mobile Catalog and Search screenshots were visually inspected, covering both empty development content and explicitly marked fixture articles. Captures are in ignored `.cache/ui-review/catalog-navigation-built-*.png`, `.cache/ui-review/public-catalog-*.png` and `.cache/ui-review/public-search-desktop.png`.
+- `git diff --check` passed.
+
+Initial sandbox attempts could not access Python temporary fixtures, the .NET build-host pipe or Docker; the successful checks used normal local process access. No dependencies, environment variables, provider integrations, backend logic or database schema changed. Production and hosted instances were not deployed.
+
 ## Atlantic City blackjack rules — 30 October 2026
 
 Updated the lessons, rule panel, strategy-chart heading, coaching, table lettering, page metadata, and feature documentation to the classic Atlantic City profile: eight decks, S17, American peek, 3:2 naturals, double after non-Ace splits, late surrender, and up to four hands with one card per split Ace and no resplitting aces. Play now deals from 416 distinct physical cards. The existing 4–8-deck S17 strategy matrices still apply. The guide links verified operator rules and explains that actual casino and online variants differ. Stable lesson IDs and saved progress are preserved.

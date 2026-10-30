@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PublicApiError, publicApi } from "@/lib/public-api";
 import type { CatalogParams, PublicFilters, PublicPage } from "@/lib/public-types";
 import { PublicItems } from "./public-items";
@@ -8,7 +9,9 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
   const query = new URLSearchParams();
   for (const key of ["q", "topicId", "source", "type", "from", "to"]) if (value(key)) query.set(key, value(key));
   const requested = Number(value("page") || 1); const page = Number.isSafeInteger(requested) ? Math.max(1, Math.min(100000, requested)) : 1;
-  query.set("page", String(page)); query.set("pageSize", "24");
+  query.set("page", String(page));
+  if (!search && ["q", "source", "type", "from", "to"].some(key => query.has(key))) redirect(`/search?${query}`);
+  query.set("pageSize", "24");
   const [pageResult, filterResult] = await Promise.allSettled([publicApi<PublicPage>(`/items?${query}`), publicApi<PublicFilters>("/filters")]);
   const result = pageResult.status === "fulfilled" ? pageResult.value : null;
   const filters = filterResult.status === "fulfilled" ? filterResult.value : { topics: [], sources: [], types: [] };
@@ -21,7 +24,7 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
       <h1 className="hero-title">{search ? "Search the catalog" : "Discover"}</h1>
       <p>Real articles, research, and unexpected connections. Follow your curiosity.</p>
     </div></div>
-    <form action={base} method="get" className="public-catalog-form panel panel-pad">
+    {search && <form action="/search" method="get" className="public-catalog-form panel panel-pad">
       <label className="field public-query">Search
         <input name="q" defaultValue={value("q")} placeholder="Title, author, or idea" maxLength={200}/>
       </label>
@@ -49,19 +52,20 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
       </details>
       {filterResult.status === "rejected" && result && <p role="status">Filter choices are temporarily unavailable. You can still search.</p>}
       <div className="action-row">
-        <button className="btn primary">{search ? "Search" : "Apply filters"}</button>
+        <button className="btn primary">Search</button>
         <Link prefetch={false} className="btn" href={base}>Clear</Link>
       </div>
-    </form>
+    </form>}
     {!result ? <div className="empty" role="alert">
       <h2>{invalid ? "Check your search filters" : "The catalog is temporarily unavailable"}</h2><p>{error}</p>
     </div> : <section aria-label="Public catalog">
-      <div className="edition-heading"><h2>{value("q") ? `Results for “${value("q")}”` : "The collection"}</h2>
+      <div className="edition-heading"><h2>{value("q") ? `Results for “${value("q")}”` : !search && value("topicId") ? filters.topics.find(topic => topic.id === value("topicId"))?.name || "Selected topic" : "The collection"}</h2>
         <span>{result.total} {result.total === 1 ? "item" : "items"} · Newest added first</span>
+        {!search && value("topicId") && <Link prefetch={false} className="text-link" href="/">All topics →</Link>}
       </div>
       {result.items.length ? <PublicItems items={result.items} start={(result.page - 1) * result.pageSize + 1}/> : <div className="empty">
-        <h2>No items found</h2><p>Try another topic, source, or search phrase.</p>
-        <Link prefetch={false} className="btn" href={base}>Clear filters</Link>
+        <h2>No items found</h2><p>{search ? "Try another topic, source, or search phrase." : value("topicId") ? "There are no public items in this topic yet." : "The collection is waiting for its first discoveries."}</p>
+        {(search || value("topicId")) && <Link prefetch={false} className="btn" href={base}>{search ? "Clear filters" : "Browse all topics"}</Link>}
       </div>}
       <nav className="topic-pagination" aria-label="Catalog pages">
         {result.page > 1 ? <Link prefetch={false} className="btn small" href={pageUrl(result.page - 1)}>Previous</Link> : <span/>}

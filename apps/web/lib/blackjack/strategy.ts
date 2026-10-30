@@ -6,8 +6,8 @@ export type Cell = "H" | "S" | "D" | "Ds" | "P" | "R";
 type Row = readonly [Cell, Cell, Cell, Cell, Cell, Cell, Cell, Cell, Cell, Cell];
 export type StrategyTable = Readonly<Record<number, Row>>;
 
-/** Total-dependent basic strategy: 4–8 decks, S17, DAS, late surrender, American peek.
- * Verified against Wizard of Odds' 4-decks text/chart and surrender table, 2026-10-29.
+/** Atlantic City total-dependent basic strategy: 8 decks, S17, DAS, late surrender, American peek.
+ * Reverified against Wizard of Odds' 4–8 deck S17 text/chart, 2026-10-30.
  * Columns: 2 3 4 5 6 7 8 9 10 A. D falls back to hit; Ds to stand; R to hit.
  * Pair recommendations take precedence over total recommendations when splitting is legal.
  * These are NOT composition-dependent exceptions or card-counting indices.

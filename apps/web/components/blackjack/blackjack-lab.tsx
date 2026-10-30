@@ -6,6 +6,7 @@ import { LearnMode } from "./learn-mode";
 import { PracticeMode } from "./practice-mode";
 import { PlayMode } from "./play-mode";
 import { TableRules } from "./reference";
+import { RULESET_NAME } from "@/lib/blackjack/rules";
 
 const MODES = [
   { id: "learn", label: "Learn", detail: "Find your footing", icon: BookOpen },
@@ -44,7 +45,7 @@ export function BlackjackLab() {
     catch { setStorageMessage("Progress reset for this visit. Browser storage is unavailable."); }
   }
   return <div className="bj">
-    <header className="bj-hero"><div><div className="eyebrow">A RabbitHole field guide</div><h1>Blackjack <em>Lab</em><span aria-hidden="true">♠</span></h1><p>Learn the game. Read the table.<br className="bj-mobile-break"/> Make your next move with confidence.</p></div><div className="bj-hero-note"><Club size={20}/><span>A little knowledge.<br/>A better seat at the table.</span></div></header>
+    <header className="bj-hero"><div><div className="eyebrow">A RabbitHole field guide · {RULESET_NAME} rules</div><h1>Blackjack <em>Lab</em><span aria-hidden="true">♠</span></h1><p>Learn the game. Read the table.<br className="bj-mobile-break"/> Make your next move with confidence.</p></div><div className="bj-hero-note"><Club size={20}/><span>A little knowledge.<br/>A better seat at the table.</span></div></header>
     <div className="bj-mode-tabs" role="tablist" aria-label="Blackjack modes">{MODES.map(({ id, label, detail, icon: Icon }, index) => <button key={id} id={`bj-tab-${id}`} role="tab" type="button" disabled={!ready} aria-selected={mode === id} aria-controls={`bj-panel-${id}`} tabIndex={mode === id ? 0 : -1} onClick={() => setMode(id)} onKeyDown={event => {
       const offset = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
       const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? MODES.length - 1 : (index + offset + MODES.length) % MODES.length;

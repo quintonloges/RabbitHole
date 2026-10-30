@@ -48,7 +48,7 @@ Fresh installations start empty. Deterministic fixtures live only under `tests/`
 
 ## Blackjack Lab
 
-Open **Blackjack Lab** in the navigation or visit [the development lab](http://localhost:47832/blackjack). Learn through seven interactive lessons, drill basic strategy by category, or play complete blackjack rounds with virtual chips and an optional coach. All modes are immediately available. A shared strategy evaluator powers the exercises, feedback, and reference chart for six-deck S17, American peek, DAS, late-surrender blackjack with 3:2 naturals.
+Open **Blackjack Lab** in the navigation or visit [the development lab](http://localhost:47832/blackjack). Learn through seven interactive lessons, drill basic strategy by category, or play complete blackjack rounds with virtual chips and an optional coach. All modes are immediately available. Lessons, exercises, coaching, and the reference chart use classic **Atlantic City blackjack**: eight decks, dealer stands on soft 17 (S17), American peek, double after non-Ace splits, late surrender, 3:2 naturals, and up to four hands with no resplitting aces. Actual casino rules can vary; the guide explains what to check.
 
 Play deals cards in a short sequence, animates hits and splits, flips the dealer’s hole card, and pauses briefly before showing the result. Reduced-motion preferences skip animations and their delays.
 

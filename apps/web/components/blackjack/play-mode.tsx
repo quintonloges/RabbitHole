@@ -4,7 +4,7 @@ import { RotateCcw } from "lucide-react";
 import { isBlackjack } from "@/lib/blackjack/cards";
 import { type Action, type Game, act, canInsure, deal, dealerStep, insuranceDecision, legalActions, newGame, validBet } from "@/lib/blackjack/engine";
 import { type Feedback, coach, coachInsurance } from "@/lib/blackjack/coaching";
-import { money, RULES } from "@/lib/blackjack/rules";
+import { money, RULES, RULESET_NAME } from "@/lib/blackjack/rules";
 import { tableMotion, type TableFrame, type TableMove } from "@/lib/blackjack/table-motion";
 import { Cards, PlayingCard } from "./cards";
 import { ActionButtons, CoachFeedback } from "./shared";
@@ -106,7 +106,7 @@ export function PlayMode({ coaching, onCoaching }: { coaching: boolean; onCoachi
     <div className="bj-bank-bar"><div><span>Available chips</span><strong className="bj-bank-value" key={available} data-testid="blackjack-bankroll">{money(available)}</strong></div><div><span>{game.phase === "settled" && !animation ? "Round wagered" : "On the table"}</span><strong>{money(committed)}</strong></div><div><span>Table limits</span><strong>$5–$500</strong></div></div>
     <div className="bj-felt bj-play-table" aria-label="Blackjack table" aria-busy={!!animation || game.phase === "dealer"}>
       <div className="bj-dealer">{game.dealer.length ? <Cards cards={game.dealer} hideHole={hideHole} visibleCards={animation?.visibleCards} label="Dealer" totalLabel={dealerBlackjack ? "Blackjack · 21" : undefined}/> : <><div className="bj-label">Dealer</div><div className="bj-cards"><PlayingCard hidden/><PlayingCard hidden/></div><span className="bj-total">Waiting for your wager</span></>}</div>
-      <div className="bj-felt-lettering"><span>BLACKJACK PAYS 3 TO 2</span><small>Six decks · Dealer stands on soft 17</small></div>
+      <div className="bj-felt-lettering"><span>BLACKJACK PAYS 3 TO 2</span><small>{RULESET_NAME} · {RULES.decks} decks · Dealer stands on soft 17</small></div>
       {game.hands.length ? <div className={`bj-player-hands${game.hands.length > 1 ? " bj-split-hands" : ""}`}>
         {game.hands.map((hand, index) => {
           const active = !animation && game.phase === "player" && game.activeHand === index;

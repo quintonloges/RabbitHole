@@ -246,6 +246,14 @@ test('browser: public navigation, all seven lessons, completion, persistence, re
   await open(page);
   await expect(page.locator('.sidebar').getByRole('link', { name: 'Blackjack Lab' })).toHaveAttribute('href', '/blackjack');
   const panel = page.getByRole('tabpanel');
+  await expect(panel).toContainText('Atlantic City rules: 8 decks');
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Atlantic City.*8-deck S17/);
+  const rules = page.locator('.bj-rules');
+  await rules.locator('summary').click();
+  await expect(rules).toContainText('8 standard 52-card decks');
+  await expect(rules).toContainText('three times for four hands total');
+  await expect(rules).toContainText('Casino and online tables can vary');
+  await rules.locator('summary').click();
   await page.screenshot({ path: 'test-results/blackjack-learn-desktop.png', fullPage: true });
   for (const [lessonIndex, lesson] of LESSONS.entries()) {
     await panel.getByRole('button', { name: new RegExp(lesson.title) }).click();
@@ -284,6 +292,9 @@ test('browser: public navigation, all seven lessons, completion, persistence, re
 test('browser: practice gives accurate feedback, counts once, varies hands and restarts categories', async ({ page }) => {
   await open(page, 'Practice');
   const panel = page.getByRole('tabpanel');
+  await panel.locator('.bj-reference summary').click();
+  await expect(panel.locator('.bj-chart-content')).toContainText('Atlantic City · 8 decks · S17 · 3:2 blackjack');
+  await panel.locator('.bj-reference summary').click();
   await panel.getByLabel('Drill category').selectOption('Surrender');
   const seen = new Set<string>();
   for (let index = 0; index < 12; index++) {

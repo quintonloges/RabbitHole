@@ -2,7 +2,7 @@
 
 ## Blackjack Lab (29 October 2026)
 
-The anonymous `/blackjack` route is a self-contained browser learning feature using the public shell. It has no catalog, ingestion, AI, authentication, or API dependency. Pure TypeScript modules own the six-deck rules, legal actions, integer-cent game ledger, strategy matrices, and authored coaching. Learn, Practice, Play, and the reference chart share those modules and card components. Only lesson completion, last lesson, and coach preference use browser localStorage; no schema or server-side user state was added. See [Blackjack Lab](blackjack-lab.md) for rules, source verification, module boundaries, session behavior, and test commands.
+The anonymous `/blackjack` route is a self-contained browser learning feature using the public shell. It has no catalog, ingestion, AI, authentication, or API dependency. Pure TypeScript modules own the eight-deck Atlantic City rules, legal actions, integer-cent game ledger, strategy matrices, and authored coaching. Learn, Practice, Play, and the reference chart share those modules and card components. Only lesson completion, last lesson, and coach preference use browser localStorage; no schema or server-side user state was added. See [Blackjack Lab](blackjack-lab.md) for rules, source verification, module boundaries, session behavior, and test commands.
 
 Play uses a separate presentation sequence over each immutable engine transition to pace the deal, player draws, dealer reveal and settlement. Controls lock while it runs, and payouts appear after the last card; the engine ledger remains authoritative. Reduced motion skips the presentation delays and CSS animations. Timers and transient animation state stay entirely in the browser.
 

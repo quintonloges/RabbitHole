@@ -26,13 +26,13 @@ test('blackjack is only an original two-card 21', () => {
   expect(isBlackjack(exampleCards(['7', '5', '9']))).toBe(false);
 });
 
-test('shoe contains six complete decks and shuffling preserves every physical card', () => {
+test('Atlantic City shoe contains eight complete decks and shuffling preserves every physical card', () => {
   const cards = orderedShoe();
   const shuffled = createShoe(() => .4);
-  expect(cards).toHaveLength(312);
-  expect(new Set(cards.map(card => card.id)).size).toBe(312);
-  for (const rank of ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']) expect(cards.filter(card => card.rank === rank)).toHaveLength(24);
-  expect(cards.filter(card => cardValue(card) === 10)).toHaveLength(96);
+  expect(cards).toHaveLength(416);
+  expect(new Set(cards.map(card => card.id)).size).toBe(416);
+  for (const rank of ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']) expect(cards.filter(card => card.rank === rank)).toHaveLength(32);
+  expect(cards.filter(card => cardValue(card) === 10)).toHaveLength(128);
   expect(shuffled.map(card => card.id).sort()).toEqual(cards.map(card => card.id).sort());
   expect(shuffled).not.toEqual(cards);
 });
@@ -229,9 +229,11 @@ test('shoe is reused, then reshuffled between rounds at the reserve threshold', 
   const original = newGame(teachingShoe(['10', '10', '8', '8']));
   let game = finish(act(deal(original, 1000), 'stand'));
   expect(game.shoe).toBe(original.shoe); expect(game.cursor).toBe(4);
-  game = { ...game, cursor: 250 };
+  const boundary = deal({ ...game, cursor: game.shoe.length - 104 }, 1000, () => .5);
+  expect(boundary.shoe).toBe(original.shoe); expect(boundary.shoeNumber).toBe(0);
+  game = { ...game, cursor: game.shoe.length - 103 };
   const next = deal(game, 1000, () => .5);
-  expect(next.cursor).toBe(4); expect(next.shoeNumber).toBe(1); expect(next.shoe).toHaveLength(312);
+  expect(next.cursor).toBe(4); expect(next.shoeNumber).toBe(1); expect(next.shoe).toHaveLength(416);
 });
 
 test('an exhausted injected shoe fails atomically instead of drawing an impossible card', () => {

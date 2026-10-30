@@ -31,7 +31,7 @@ export function explain(decision: Decision): string {
     return `Keep your ${hand.soft ? "soft" : "hard"} ${hand.total} against ${dealer}. Another card does not improve the expected result enough to justify it.`;
   }
   if (hand.soft) return `Soft ${hand.total} needs improvement against ${dealer}. You cannot bust on this next hit: the Ace can fall from 11 to 1.`;
-  if (hand.total === 11 && up === 11) return "Against an Ace in this S17 game, hit 11. Keep the option of another draw instead of committing to just one card with a double.";
+  if (hand.total === 11 && up === 11) return "Against an Ace in this Atlantic City S17 game, hit 11. Keep the option of another draw instead of committing to just one card with a double.";
   if (hand.total === 12 && up <= 3) return `A dealer ${dealer} is not weak enough to justify standing on 12. Hitting has the better expected result.`;
   return `Improve hard ${hand.total} against ${dealer}. ${hand.total <= 11 ? "Your next card cannot bust this hand." : "The dealer's strong upcard makes standing too costly, despite the risk of busting."}`;
 }

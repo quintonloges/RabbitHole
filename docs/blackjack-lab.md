@@ -6,21 +6,23 @@
 
 - **Learn:** seven open-access lessons, 33 short sections, card-value and outcome exercises, strategy decisions, and replayable demonstrations of all six actions (including insurance). Completion requires attempting each section, but never locks navigation.
 - **Practice:** 660 distinct scenarios in a shuffled bag, with all hands, hard totals, soft totals, splitting, doubling, and surrender categories. Includes hands after hitting and splitting, plus counterexamples where a drill's named action is not best. Each scenario appears once before the bag refills. Correct/attempted counts reset with the session or category.
-- **Play:** a shuffled six-deck shoe, virtual wagers, full insurance/peek/player/dealer/settlement phases, up to four hands, and optional coaching enabled initially. The player’s chosen action always executes. Cards arrive in order, the hole card flips before dealer draws, and results follow a short settling pause. Reduced-motion preferences skip motion and presentation delays. Switching modes retains the current session.
+- **Play:** a shuffled eight-deck Atlantic City shoe, virtual wagers, full insurance/peek/player/dealer/settlement phases, up to four hands, and optional coaching enabled initially. The player’s chosen action always executes. Cards arrive in order, the hole card flips before dealer draws, and results follow a short settling pause. Reduced-motion preferences skip motion and presentation delays. Switching modes retains the current session.
 - **Reference:** complete hard/soft/pair charts render the exact typed strategy tables used by the evaluator. Rules, fallbacks, and source links are available in the interface.
 
 Browser storage under `rabbithole-blackjack-v2` stores stable lesson IDs, the last lesson, and the coaching preference. Each completion and preference has its own key, so concurrent tabs cannot overwrite unrelated progress. Storage events synchronize open tabs, including resets. Numeric v1 progress migrates once using an explicit mapping of the original lesson order; lesson counts come from the current catalog. Missing, malformed, or blocked storage never prevents use. The footer resets these values and removes legacy progress; Play separately resets the table and virtual chips to $500 between rounds. Scores, hands, and chips are intentionally not persisted across reloads. No new environment variables or dependencies are required.
 
 ## Rules and references
 
-Verified on 29 October 2026 against Michael Shackleford’s Wizard of Odds:
+The lab teaches a fixed **classic Atlantic City** profile across lessons, practice, coaching, the reference chart, and Play. Checked on 30 October 2026:
 
-- [Blackjack rules](https://wizardofodds.com/games/blackjack/basics/): scoring, dealing, actions, and settlement.
+- [Bally Bet Atlantic City Blackjack](https://www.ballycasino.com/table-games/atlantic-city-blackjack): S17, 3:2 naturals, surrender, up to three splits (four hands), and no resplitting aces.
+- [PokerStars/Rational Atlantic City Blackjack PA rules](https://cms.rationalcdn.com/v3/assets/blteecf9626d9a38b03/blt071c95737e1f2ec3/65d5c20c5b87e7631559ed7f/GameRules_AtlanticCityBlackjackPA_En.pdf): eight decks, S17, 3:2 naturals, double after non-Ace splits, one card per split Ace, and late surrender. That provider's two-hand limit and shuffle after each round are provider-specific; this lab uses the four-hand limit and retained shoe documented below.
+- [Hard Rock Atlantic City table guide](https://casino.hardrock.com/atlantic-city/casino/table-games/blackjack-at-hard-rock-atlantic-city): four-hand splitting and split-Ace restrictions, plus examples of different payouts at actual casino tables.
 - [Four-to-eight-deck strategy](https://wizardofodds.com/games/blackjack/strategy/4-decks/): the **S17** chart and its written surrender, split, double, hit/stand rules.
-- [Strategy calculator](https://wizardofodds.com/games/blackjack/strategy/calculator/): the matching deck/S17/DAS/surrender/peek dimensions and insurance guidance.
-- [Surrender](https://wizardofodds.com/games/blackjack/surrender/): four-or-more-deck **total-dependent late surrender**, distinct from composition-dependent exceptions.
 
-The fixed rules are six standard decks; S17; American hole card and peek; 3:2 natural payouts; 2:1 insurance on a half-size bet; any initial two cards may double; DAS; late surrender on the original two cards only; four hands maximum; no resplitting aces; one card per split Ace with no hit or double; and no natural after a split. Equal-value 10/J/Q/K cards may split. An initial wager is $5–$500 in $1 increments. Double/split wagers may take the round total above the opening table maximum.
+The fixed rules are eight standard 52-card decks (416 cards); S17; American hole card and peek; 3:2 natural payouts; 2:1 insurance on a half-size bet; any initial two-card hand below 21 may double; DAS except split aces; late surrender on the original two cards only; three splits for four hands maximum; no resplitting aces; one card per split Ace with no hit or double; and no natural after a split. Equal-value 10/J/Q/K cards may split. An initial wager is $5–$500 in $1 increments. Double/split wagers may take the round total above the opening table maximum.
+
+Atlantic City is not a guarantee of identical rules at every casino or online table. The lessons and rule panel tell readers to check deck count, payout, soft 17, surrender, and split limits. The chart is for the exact profile above. Changing from six to eight decks does not change this 4–8-deck total-dependent strategy; no strategy cells or lesson IDs changed, so existing lesson completion remains valid.
 
 This is conventional **total-dependent basic strategy**, including the pair exception for 8s. It deliberately does not implement card counting, composition-dependent exceptions, or other casino variants. In particular, hard 11 hits against Ace; soft 18 doubles against 3–6 and stands if the double is unavailable; hard 16 surrenders against 9/10/A except when a pair of 8s can split. A player unable to fund a split uses the total, including surrender if legal. The coach receives only the visible hand, upcard, and legal actions.
 
@@ -30,7 +32,7 @@ This is conventional **total-dependent basic strategy**, including the pair exce
 
 | Module | Responsibility |
 |---|---|
-| `cards.ts` | Physical card identities, six-deck shoe, Fisher–Yates shuffle, scoring, natural detection |
+| `cards.ts` | Physical card identities, eight-deck shoe, Fisher–Yates shuffle, scoring, natural detection |
 | `rules.ts` | Constants actually consumed by the engine, documented fixed invariants, wager limits, integer-cent formatting; not a configurable casino rules interface |
 | `engine.ts` | Immutable transitions, legal moves, debit/credit ledger, dealer steps |
 | `table-motion.ts` | Presentation frames for completed engine transitions: card visibility, hole-card reveal, displayed balance and short waits |

@@ -1,5 +1,20 @@
 # RabbitHole acceptance report
 
+## Atlantic City blackjack rules — 30 October 2026
+
+Updated the lessons, rule panel, strategy-chart heading, coaching, table lettering, page metadata, and feature documentation to the classic Atlantic City profile: eight decks, S17, American peek, 3:2 naturals, double after non-Ace splits, late surrender, and up to four hands with one card per split Ace and no resplitting aces. Play now deals from 416 distinct physical cards. The existing 4–8-deck S17 strategy matrices still apply. The guide links verified operator rules and explains that actual casino and online variants differ. Stable lesson IDs and saved progress are preserved.
+
+Verification:
+
+- `./scripts/check.ps1` passed: 251 backend tests (3 PostgreSQL-only tests skipped), 10 source/admin script tests, 8 hosted script tests (12 Linux/Bash/restic tests skipped), frontend lint, TypeScript, and optimized build.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` passed.
+- `npm run test:e2e` passed **141 tests without retries**, including all 107 blackjack engine, strategy, and browser tests. Shoe tests now verify eight complete decks, rank counts, distinct card IDs, and reshuffling immediately below the 104-card reserve. Existing browser flows also assert the Atlantic City lesson, rule panel, metadata, and chart text.
+- `./scripts/dev.ps1 start` rebuilt the development stack on port 47832; all services are healthy. Startup logs showed no error-level entries and no pending migrations.
+- `node .cache/blackjack-atlantic-city-smoke.cjs` passed against the optimized development build: updated lessons/rules/chart/table, a complete coached round with the expected $510 balance, desktop/light and 320px/dark layouts, no horizontal overflow or browser errors, no lab API calls, healthy API, and retained private-route authentication.
+- Actual desktop lesson, rule-panel, and mobile Play screenshots were visually inspected. Captures are in ignored `.cache/blackjack-atlantic-city-*.png` and `test-results/`. `git diff --check` passed.
+
+The initial sandbox check could not create Python temporary fixtures; it passed with normal local process access. No dependencies, environment variables, backend behavior, database schema, or persistence keys changed. Production and hosted instances were not deployed.
+
 ## Dark mode default — 30 October 2026
 
 The root HTML and new administrator settings now default to dark. Valid saved Light, Dark and Follow system choices still take precedence. The initial HTML remains dark when JavaScript or browser storage is unavailable, and invalid stored theme values leave that default intact. No data migration or environment change is required.

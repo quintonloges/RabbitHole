@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-30T20:45:11.691Z",
+  "generatedAt": "2026-10-30T21:32:15Z",
   "title": "Design System: RabbitHole",
   "extensions": {
     "shadows": [
@@ -61,9 +61,30 @@
     {
       "name": "Navigation link",
       "kind": "nav",
-      "description": "Existing active public navigation treatment.",
+      "description": "Private workspace navigation treatment.",
       "html": "<a class=\"ds-nav\" href=\"/\">Catalog</a>",
       "css": ".ds-nav{display:flex;gap:14px;border-radius:8px;padding:12px 14px;font:600 13px Arial,Helvetica,sans-serif;text-decoration:none;background:var(--accentsoft);color:var(--accent)}.ds-nav:hover{background:var(--paper2);color:var(--ink)}.ds-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}"
+    },
+    {
+      "name": "Public masthead navigation",
+      "kind": "nav",
+      "description": "Compact text navigation; current page uses weight and an accent underline.",
+      "html": "<a class=\"ds-public-nav\" href=\"/\" aria-current=\"page\">Catalog</a>",
+      "css": ".ds-public-nav{display:inline-flex;align-items:center;min-height:44px;padding-top:2px;border-bottom:2px solid var(--accent);color:var(--ink);font:600 13px Arial,Helvetica,sans-serif;text-decoration:none}.ds-public-nav:hover{color:var(--accent)}.ds-public-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}"
+    },
+    {
+      "name": "Public source headline",
+      "kind": "custom",
+      "description": "Public source titles use a compact sans-serif hierarchy; private discovery and reading retain their serif type.",
+      "html": "<h3 class=\"ds-public-title\">Source headline</h3>",
+      "css": ".ds-public-title{margin:0;color:var(--ink);font:600 16px/1.45 Arial,Helvetica,sans-serif;letter-spacing:-.01em}"
+    },
+    {
+      "name": "Public item title",
+      "kind": "custom",
+      "description": "Item details align with the wide public catalog; their title is 30px on desktop and 24px on phones.",
+      "html": "<h1 class=\"ds-public-item-title\">Source headline</h1>",
+      "css": ".ds-public-item-title{max-width:52ch;margin:0 0 12px;color:var(--ink);font:600 30px/1.25 Arial,Helvetica,sans-serif;letter-spacing:-.025em;overflow-wrap:anywhere}@media(max-width:720px){.ds-public-item-title{font-size:24px}}"
     },
     {
       "name": "Topic pill",
@@ -82,9 +103,9 @@
     }
   ],
   "narrative": {
-    "overview": "This is a factual capture of the existing implementation for Impeccable live mode, recorded on 30 October 2026. It does not establish a new visual direction or introduce qualitative brand decisions.",
+    "overview": "Implemented RabbitHole design system, including the owner's 30 October 2026 refinement toward a compact, functional Hacker News-like public index. Warm colors, private workspace components and serif reading typography are preserved.",
     "keyCharacteristics": [
-      "Shared public/private navigation structure with separate route and data boundaries.",
+      "Compact public masthead and private workspace sidebar with separate route and data boundaries.",
       "Compact numbered discovery rows and source metadata.",
       "Serif reading typography and sans-serif interface controls.",
       "Dark, Light, and Follow system appearances."

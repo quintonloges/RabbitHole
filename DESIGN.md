@@ -27,11 +27,23 @@ typography:
     fontFamily: "Arial, Helvetica, sans-serif"
     fontSize: "14px"
   catalog-heading:
-    fontFamily: "Georgia, 'Times New Roman', serif"
-    fontSize: "clamp(30px, 3vw, 38px)"
-    fontWeight: 400
-    lineHeight: 1.05
-    letterSpacing: "-0.045em"
+    fontFamily: "Arial, Helvetica, sans-serif"
+    fontSize: "24px"
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: "-0.025em"
+  public-story-title:
+    fontFamily: "Arial, Helvetica, sans-serif"
+    fontSize: "16px"
+    fontWeight: 600
+    lineHeight: 1.45
+    letterSpacing: "-0.01em"
+  public-item-title:
+    fontFamily: "Arial, Helvetica, sans-serif"
+    fontSize: "30px"
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: "-0.025em"
   story-title:
     fontFamily: "Georgia, 'Times New Roman', serif"
     fontSize: "18px"
@@ -84,13 +96,13 @@ components:
 
 ## Overview
 
-This is a factual capture of the existing implementation for Impeccable live mode, recorded on 30 October 2026. It does not establish a new visual direction or introduce qualitative brand decisions. [PRODUCT.md](PRODUCT.md) and [AGENTS.md](AGENTS.md) retain product and engineering authority.
+This records the implemented system, including the owner's 30 October 2026 request for a more functional, Hacker News-like home page. [PRODUCT.md](PRODUCT.md) and [AGENTS.md](AGENTS.md) retain product and engineering authority.
 
-The catalog and private workspace share a sidebar, compact source lists, serif headings and reading text, and sans-serif controls. Source files are `apps/web/app/globals.css`, `apps/web/components/public-shell.tsx`, and `apps/web/components/app-shell.tsx`. Blackjack Lab adds scoped styles in `apps/web/app/(public)/blackjack/blackjack.css`.
+The public catalog uses a compact masthead, topic navigation and numbered source rows. The private workspace retains its sidebar and serif discovery headings. Both share the warm palette, serif reading text and sans-serif controls. Public styles live in `apps/web/components/public-shell.css`; shared and private styles remain in `apps/web/app/globals.css`. Blackjack Lab adds scoped styles in `apps/web/app/(public)/blackjack/blackjack.css`.
 
 **Key Characteristics:**
 
-- Shared public/private navigation structure with separate route and data boundaries.
+- Compact public masthead and private workspace sidebar with separate route and data boundaries.
 - Compact numbered discovery rows and source metadata.
 - Serif reading typography and sans-serif interface controls.
 - Dark, Light, and Follow system appearances.
@@ -105,13 +117,17 @@ Dark is the initial appearance. Saved Light, Dark, or Follow system preferences 
 
 ## Typography
 
-The observed interface uses Arial/Helvetica for controls and metadata, and Georgia with serif fallbacks for headings and source text. The compact catalog heading overrides the larger general page-heading scale. Story headings are 18px; reader text is 18px with 1.8 line height and becomes 17px at the mobile breakpoint.
+The public catalog uses Arial/Helvetica headings: 24px for the page title (22px on phones), 16px semibold for source headlines, 12px excerpts and 11px metadata. The brand and reader retain Georgia. Private discovery headlines remain 18px Georgia; reader text is 18px with 1.8 line height and becomes 17px at the mobile breakpoint. The system sans choice is deliberate for the owner's compact link-index brief; no font download is required.
 
 These values describe the incumbent implementation, including its existing tight heading tracking. They are not a claim that every current style has passed a design or accessibility audit.
 
 ## Layout
 
-The desktop shell has a 238px sidebar and a flexible main column; the sidebar becomes 200px below 1040px. The main content has a 1380px maximum width and 5% horizontal padding. Below 720px, the sidebar is replaced by bottom navigation and forms become one column.
+The public masthead and content align in a 1680px maximum-width container with 32px horizontal padding, widened at the owner's request. A 72px masthead replaces the public sidebar and duplicate header. On screens at or below 720px, navigation wraps beneath the brand, horizontal padding becomes 20px, and the topic bar scrolls horizontally. There is no fixed public bottom navigation. The private shell retains its 238px sidebar (200px below 1040px), 1380px main width and mobile bottom navigation.
+
+Public story rows place the headline and source domain first, a bounded source excerpt next, then attribution, date, type and exploration links in a wrapping footer. Metadata and actions share a line when space permits and stack on phones. The list uses divider lines, with no row background on hover or focus; individual link hover and keyboard focus remain visible. Public empty states use the same flat structure; service failures offer a reload link. Topic and page changes are ordinary links with server-rendered results.
+
+Public item details align to this wider grid. Their title is 30px sans-serif (24px on phones), followed by source metadata and plain topic links. The source excerpt is 18px Georgia at 1.7 line height (17px on phones), constrained to 75ch and aligned to the left. One underlined original-source action and a plain preview notice replace the duplicate actions and notice panel. Related discoveries span the container beneath a single divider. Media still requires consent before loading. These styles are scoped to `.public-item-page`; private readers retain their existing typography and controls.
 
 Discovery rows use a number column and a flexible content column. Wider private discovery views can show saved trails alongside the list. The reader has an 820px maximum width; notes and exploration follow source content. Preserve real content and responsive behavior when previewing variants.
 
@@ -121,13 +137,14 @@ Borders and surface colors establish most hierarchy. Panels use `--shadow`: dark
 
 ## Shapes
 
-Controls have 7px corners, navigation items 8px, panels 11px, and pills 30px. Dividers and most surface borders are 1px. The existing brand mark is circular. Keep the separate Blackjack Lab card and table styling scoped to that feature.
+Shared controls have 7px corners, private navigation items 8px, panels 11px, and pills 30px. Public pagination and search panels have 4px corners; the public arrow mark has 3px corners. The private brand mark remains circular. Dividers and most surface borders are 1px. Keep the separate Blackjack Lab card and table styling scoped to that feature.
 
 ## Components
 
 - **Buttons:** primary uses ink on paper contrast reversed; secondary uses paper with a line border; accent uses the accent-soft surface. Hover uses the accent. Disabled controls reduce opacity and use a not-allowed cursor.
 - **Inputs:** paper background, ink text, line border, 7px corners, and 11px by 12px padding. Focus changes the border to accent.
-- **Navigation:** muted labels; hover uses paper2; active links use accentsoft and accent. Public and private navigation retain their distinct destinations.
+- **Navigation:** public links use text with an accent underline and semibold current-page state; private links retain their accentsoft active surface. The public shell provides a keyboard skip link. Public and private navigation retain their distinct destinations.
+- **Public metadata:** `--catalog-muted` mixes 85% muted with ink for stronger light-theme contrast. Selected topics and exploration links use the existing accent.
 - **Topic pills:** paper background and line border; active state uses accentsoft and accent.
 - **Panels:** paper, line border, 11px corners, and the theme shadow. Numbered discovery rows remain compact list entries.
 - **Reader:** source text precedes Notes, Explore, and Details. Contents navigation uses a dialog with its own scrollable layout.

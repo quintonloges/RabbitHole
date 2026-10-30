@@ -19,11 +19,16 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
   const error = invalid ? pageResult.reason.message : "Please try again in a moment.";
   const base = search ? "/search" : "/";
   function pageUrl(next: number) { const nextQuery = new URLSearchParams(query); nextQuery.delete("pageSize"); nextQuery.set("page", String(next)); return `${base}?${nextQuery}`; }
-  return <>
-    <div className="page-heading discover-heading"><div>
+  return <div className="public-catalog">
+    <div className="page-heading catalog-heading"><div>
       <h1 className="hero-title">{search ? "Search the catalog" : "Discover"}</h1>
       <p>Real articles, research, and unexpected connections. Follow your curiosity.</p>
     </div></div>
+    {!search && filters.topics.length > 0 && <nav className="catalog-topics" aria-label="Browse topics">
+      <Link prefetch={false} href="/" aria-current={!value("topicId") ? "page" : undefined}>All topics</Link>
+      {filters.topics.map(topic => <Link prefetch={false} key={topic.id} href={`/?topicId=${encodeURIComponent(topic.id)}`} aria-current={value("topicId") === topic.id ? "page" : undefined}>{topic.name}</Link>)}
+    </nav>}
+    {!search && filterResult.status === "rejected" && result && <p className="subtle" role="status">Topics are temporarily unavailable. You can still browse the collection.</p>}
     {search && <form action="/search" method="get" className="public-catalog-form panel panel-pad">
       <label className="field public-query">Search
         <input name="q" defaultValue={value("q")} placeholder="Title, author, or idea" maxLength={200}/>
@@ -58,6 +63,7 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
     </form>}
     {!result ? <div className="empty" role="alert">
       <h2>{invalid ? "Check your search filters" : "The catalog is temporarily unavailable"}</h2><p>{error}</p>
+      {!invalid && <a className="btn" href={pageUrl(page)}>Reload catalog</a>}
     </div> : <section aria-label="Public catalog">
       <div className="edition-heading"><h2>{value("q") ? `Results for “${value("q")}”` : !search && value("topicId") ? filters.topics.find(topic => topic.id === value("topicId"))?.name || "Selected topic" : "The collection"}</h2>
         <span>{result.total} {result.total === 1 ? "item" : "items"} · Newest added first</span>
@@ -73,5 +79,5 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
         {result.page * result.pageSize < result.total ? <Link prefetch={false} className="btn small" href={pageUrl(result.page + 1)}>Next</Link> : <span/>}
       </nav>
     </section>}
-  </>;
+  </div>;
 }

@@ -1,5 +1,37 @@
 # RabbitHole acceptance report
 
+## Wider public catalog and item detail refinement — 30 October 2026
+
+Expanded the public container from 1200px to 1680px, keeping the existing 32px desktop and 20px phone gutters. Removed public story-row hover and focus backgrounds while preserving link hover and visible keyboard focus. Public item details now align with the catalog, use a compact sans-serif title and plain topic links, retain a readable source excerpt, and provide one original-source link. The preview notice is plain text and related discoveries span the wider view. Private-reader styles, source metadata, publication checks and click-to-load media behavior are preserved.
+
+Verification:
+
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck` passed. `git diff --check` passed.
+- `./scripts/dev.ps1 start` passed, including the optimized Next.js build; development database, API, web and gateway became healthy on loopback port 47832. The existing 59 public items remained available.
+- `npm run test:e2e -- tests/e2e/public-catalog.spec.ts tests/e2e/item-reader.spec.ts` initially passed 11/12. The remaining assertion expected the removed duplicate label `Original source`; it now checks the retained `Open original source` action. `npm run test:e2e -- tests/e2e/public-catalog.spec.ts` then passed **7/7**. The **5 private-reader tests** passed in the initial run. Added verification opens the detail page's original-source action against the deterministic source fixture; privacy, topic pagination and media consent checks still pass.
+- `node .cache/item-refinement/verify.cjs` passed against the compiled development application in isolated Chromium. It checks the 1680px container at a 1920px viewport, 1440px container at 1440px, transparent row backgrounds on hover/focus, full source excerpts, a single source action, topic navigation, related-item navigation and return to Catalog. Dark/light desktop and mobile plus 768px and 320px captures had no horizontal document overflow or browser errors. The initial smoke run needed an asynchronous URL assertion and scroll-to-top before captures; these harness fixes are included in the passing run.
+- Visual evidence and the JSON report are in ignored `.cache/item-refinement/`. Catalog and detail screenshots cover widths 1920, 1440, 768, 390 and 320; desktop/mobile include both themes. Inspected source previews and related lists, plus the fixture page's missing-date/empty-related state.
+- Ran the Impeccable detector once for this refinement on `public-shell.css` and the public item route. Its seven warnings concern the deliberate existing Arial system-font choice; no other findings were reported.
+
+Updated README, architecture and the design record/sidecar. Backend code, API contracts, dependencies, migrations and configuration are unchanged; the backend suite was not repeated after its preceding 251-pass run. No ingestion was triggered and production/hosted deployments were not modified.
+
+## Public home refinement — 30 October 2026
+
+Refined the public catalog toward the owner's request for a functional, Hacker News-like interface. The public sidebar, duplicate header and fixed mobile navigation are replaced by a compact masthead. The home page has direct topic navigation, numbered sans-serif headlines, source domains, bounded excerpts and a compact attribution/action row. Existing warm dark/light themes, original-source links, source previews, topic pagination, public filtering and private workspace access remain functional. The shared public list also appears in Search and related items. Private workspace styling and all API/data contracts are unchanged.
+
+Verification:
+
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck` passed after the final UI changes. `git diff --check` passed. No separate formatter is configured.
+- `./scripts/dev.ps1 start` passed after both implementation batches, including the optimized Next.js production build. Development API, database, web and gateway became healthy on loopback port 47832. The existing 59 public items survived both rebuilds, with 59 unique canonical URLs in the read-only check.
+- `npm run test:e2e -- tests/e2e/public-catalog.spec.ts tests/e2e/discovery-layout.spec.ts tests/e2e/blackjack-browser.spec.ts`: **28 passed**. Coverage includes public/privacy boundaries, original-source opening, preview navigation, search validation, publication hiding, pagination, private Discover and Blackjack flows. Added assertions exercise the keyboard skip link, current-page navigation and direct topic browsing. The initial run found one obsolete `.sidebar` selector; it was replaced with the public navigation landmark before the passing rerun.
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore`: **251 passed, 3 skipped**. The three opt-in PostgreSQL integration tests were not configured for this run; they are not counted as passed.
+- `node .cache/home-refinement/verify.cjs` passed against the rebuilt development application in isolated Chromium. Batched captures cover 1440px desktop and 390px mobile in dark/light, plus 768px and 320px dark layouts. No horizontal document overflow or browser errors occurred. The smoke test verifies topic/current state, keyboard navigation, page-two numbering, source URLs, previews, search, empty results, Blackjack navigation, health and anonymous private-API rejection. Files and its JSON report are in ignored `.cache/home-refinement/`.
+- Inspected desktop/mobile, tablet/narrow, Search, preview, empty-state and Blackjack captures. One final spacing batch combined row metadata/actions and tightened the page introduction; the second capture round confirmed it. Sampled public text contrast is at least **4.96:1 in light** and **7.20:1 in dark** for the checked headline, metadata, excerpt, topic and action selectors; this is not a full accessibility certification.
+- The Impeccable detector ran once over the five changed UI files. Its four warnings concern Arial; that existing system face is intentional for this compact reading/index interface. It reported no other findings. No font downloads, imagery or generated articles were added.
+- The pre-existing local live-preview injection was removed by `impeccable.cmd live-server stop` before building. The helper reported no running server. The embedded browser could not navigate to loopback, and the initial sandboxed test runner stalled; the completed verification used the repository's test workflow and isolated browser with the needed process permissions.
+
+Updated README, architecture and the design record/sidecar. No environment settings, dependencies, provider adapters or migrations changed. No live ingestion was triggered. Production and hosted deployments were not modified. The full unrelated application E2E suite and opt-in PostgreSQL rehearsal were not rerun for this frontend refinement.
+
 ## Impeccable engine and live-mode verification — 30 October 2026
 
 Installed the Impeccable 4.3.1 skill's pinned Windows engine through `impeccable.cmd engine-probe`; it returned `impeccable-engine 0.1.5`. The launcher verified the release SHA-256 sidecar before execution. The cached binary is `%USERPROFILE%\.impeccable\bin\0.1.5\impeccable.exe`, with SHA-256 `477e544fc8880a5e82e427490cb9a5f5adab480c0e02966d33fd50772b531c71`.

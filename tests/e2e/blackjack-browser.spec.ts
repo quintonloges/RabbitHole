@@ -244,7 +244,7 @@ test('browser: public navigation, all seven lessons, completion, persistence, re
   const apiRequests: string[] = [];
   page.on('request', request => { if (request.url().includes('/api/')) apiRequests.push(request.url()); });
   await open(page);
-  await expect(page.locator('.sidebar').getByRole('link', { name: 'Blackjack Lab' })).toHaveAttribute('href', '/blackjack');
+  await expect(page.getByRole('navigation', { name: 'Public navigation', exact: true }).getByRole('link', { name: 'Blackjack Lab' })).toHaveAttribute('href', '/blackjack');
   const panel = page.getByRole('tabpanel');
   await expect(panel).toContainText('Atlantic City rules: 8 decks');
   await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Atlantic City.*8-deck S17/);

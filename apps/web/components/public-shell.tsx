@@ -1,6 +1,18 @@
 import Link from "next/link";
-import { BookOpen, Search } from "lucide-react";
+import { BookOpen, Search, Spade } from "lucide-react";
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
-  return <div className="app-shell public-shell"><aside className="sidebar" aria-label="Public navigation"><Link prefetch={false} href="/" className="brand"><span className="brand-icon">↘</span><span>Rabbit<span className="brand-light">Hole</span></span></Link><nav className="nav-list"><Link prefetch={false} href="/" className="nav-link"><BookOpen size={18}/>Catalog</Link><Link prefetch={false} href="/search" className="nav-link"><Search size={18}/>Search</Link></nav><div className="sidebar-bottom"><p>Start anywhere.<br/>See where curiosity leads.</p><a href="/admin" className="subtle">Private workspace ↗</a></div></aside><div className="page-column"><header className="topbar"><Link prefetch={false} href="/" className="mobile-brand">↘ RabbitHole</Link><span className="topbar-note">A collection for curious minds.</span><Link prefetch={false} href="/search" className="topbar-search"><Search size={16}/>Search the catalog</Link></header><main id="main-content">{children}</main><footer className="page-footer"><Link prefetch={false} href="/">RabbitHole</Link><a href="/admin">Private workspace</a></footer></div><nav className="mobile-nav" aria-label="Public mobile navigation"><Link prefetch={false} href="/"><BookOpen size={20}/>Catalog</Link><Link prefetch={false} href="/search"><Search size={20}/>Search</Link></nav></div>;
+  return <div className="app-shell public-shell">
+    <aside className="sidebar" aria-label="Public navigation">
+      <Link prefetch={false} href="/" className="brand"><span className="brand-icon">↘</span><span>Rabbit<span className="brand-light">Hole</span></span></Link>
+      <nav className="nav-list">
+        <Link prefetch={false} href="/" className="nav-link"><BookOpen size={18}/>Catalog</Link>
+        <Link prefetch={false} href="/search" className="nav-link"><Search size={18}/>Search</Link>
+        <Link prefetch={false} href="/blackjack" className="nav-link"><Spade size={18}/>Blackjack Lab</Link>
+      </nav>
+      <div className="sidebar-bottom"><p>Start anywhere.<br/>See where curiosity leads.</p><a href="/admin" className="subtle">Private workspace ↗</a></div>
+    </aside>
+    <div className="page-column"><header className="topbar"><Link prefetch={false} href="/" className="mobile-brand">↘ RabbitHole</Link><span className="topbar-note">A collection for curious minds.</span><Link prefetch={false} href="/search" className="topbar-search"><Search size={16}/>Search the catalog</Link></header><main id="main-content">{children}</main><footer className="page-footer"><Link prefetch={false} href="/">RabbitHole</Link><a href="/admin">Private workspace</a></footer></div>
+    <nav className="mobile-nav" aria-label="Public mobile navigation"><Link prefetch={false} href="/"><BookOpen size={20}/>Catalog</Link><Link prefetch={false} href="/search"><Search size={20}/>Search</Link><Link prefetch={false} href="/blackjack"><Spade size={20}/>Blackjack Lab</Link></nav>
+  </div>;
 }

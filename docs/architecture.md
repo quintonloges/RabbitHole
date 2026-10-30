@@ -1,5 +1,9 @@
 # Architecture
 
+## Blackjack Lab (29 October 2026)
+
+The anonymous `/blackjack` route is a self-contained browser learning feature using the public shell. It has no catalog, ingestion, AI, authentication, or API dependency. Pure TypeScript modules own the six-deck rules, legal actions, integer-cent game ledger, strategy matrices, and authored coaching. Learn, Practice, Play, and the reference chart share those modules and card components. Only lesson completion, last lesson, and coach preference use browser localStorage; no schema or server-side user state was added. See [Blackjack Lab](blackjack-lab.md) for rules, source verification, module boundaries, session behavior, and test commands.
+
 ## Public/private migration (24 October 2026)
 
 The application now has two independent web/data surfaces. Public SSR routes `/`, `/search`, `/items/{id}` use only `/api/public/*` and standalone `PublicItemDto` contracts. The full personal UI is under `/admin`; its server layout verifies the persisted API session before rendering. Every legacy API and OpenAPI has fallback administrator authorization. Only public catalog endpoints, login/CSRF bootstrap and minimal health are anonymous. All writes, including login/uploads and edition creation/more, validate antiforgery tokens. Private responses and public catalog reads use no-store so publication changes cannot be served from a stale application cache.

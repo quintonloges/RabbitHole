@@ -1,5 +1,46 @@
 # RabbitHole acceptance report
 
+## Blackjack Lab review fix — 30 October 2026
+
+The Play browser regression now reapplies `fixedShuffle(page)` after reload and hydration, before its second deal. Reload had restored native randomness, allowing insurance offers or natural blackjacks to remove the expected Stand button and intermittently time out the test. The game code is unchanged.
+
+`npx playwright test --config .cache/blackjack-review-current.config.ts --grep 'browser: full playable hand' --repeat-each 20 --timeout 15000` passed **20/20 runs without retries** in 42.1 seconds. The ignored review configuration starts the frontend build verified during the review on isolated loopback port 3003. This test-only fix required no application rebuild or deployment.
+
+## Blackjack Lab — 29 October 2026
+
+Insurance-result clarification: Play now groups main wagers and insurance in one round breakdown with bet, returned, and net columns and combined totals from the engine. Per-hand returns are explicitly labeled, revealed naturals say `Blackjack · 21`, and the insurance offer and final table status explain that dealer blackjack ends play at the peek regardless of the insurance choice. Correct chip accounting is preserved: a losing $10 main bet plus winning $5 insurance returns $15 overall for $0 net. Losing insurance still allows normal play. `npm run test:blackjack` passed **96 tests**, including browser regressions for accepted/declined insurance against dealer blackjack, losing insurance followed by player actions, and round-total reconciliation across 500 varied engine rounds. `npm --prefix apps/web run lint`, `npm --prefix apps/web run typecheck`, and `./scripts/dev.ps1 start` passed; the optimized frontend rebuilt and all four development services became healthy. Both insurance browser tests also passed against that built app on port 47832 (`npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser:.*insurance'`: **2 passed**). Desktop and 320px result screenshots were inspected with no horizontal overflow. Production was not deployed.
+
+Lesson hand-layout refinement: exercises now place the dealer above the player with centered cards, clear hand labels, and a divider; guided action demos use the same ordering while grouping split player hands together. The natural-blackjack comparison explicitly labels the dealer's hand `Blackjack · 21`. Lint, TypeScript, the existing seven-lesson browser test (**1 passed**), and the optimized development rebuild passed. Actual built-page screenshots at 1440/390/320px and a split-hand demonstration were inspected; no horizontal page overflow occurred. Captures are in ignored `.cache/blackjack-hands-*.png` and `.cache/blackjack-demo-hands.png`.
+
+Teaching-order correction: Fundamentals step 1 now defines hard and soft hands, with examples, before its first exercise. Step 2 builds on those definitions with changing Ace values and multiple aces. The existing seven-lesson navigation/completion test passed (`npm run test:blackjack -- --grep "browser: public navigation"`: **1 passed**), and the development rebuild passed its optimized frontend build and TypeScript check. `git diff --check` passed.
+
+Implemented the anonymous `/blackjack` destination in public and private desktop/mobile navigation. Learn has **7 lessons / 33 interactive sections** and replayable engine-backed action demonstrations. Practice has **660 distinct scenarios**, six drill categories, immediate deterministic feedback, and a per-session score. Play has the complete six-deck S17 game, virtual integer-cent wagers, insurance and American peek, doubles, four-hand splitting, split-Ace restrictions, late surrender, exact settlements, and a default-on coach that evaluates visible state before executing the chosen move. The reference chart renders the evaluator's actual typed matrices. Local lesson progress and coach preference tolerate corrupt or unavailable storage and have a reset control.
+
+The implementation uses no new dependencies, backend endpoint, database schema, provider, analytics, or authentication requirement. The [feature documentation](blackjack-lab.md) records the fixed rules, Wizard of Odds references, module boundaries, local persistence, and test commands. Runtime limitations are intentional: one ruleset; virtual chips/practice counts reset on reload; initial loading requires the web app, while an already loaded lab works without networking.
+
+Actual checks on the final code:
+
+| Command / verification | Result |
+|---|---|
+| `npm --prefix apps/web run lint` | Passed, no errors or warnings |
+| `npm --prefix apps/web run typecheck` | Passed |
+| `npm --prefix apps/web run build` | Passed, optimized Next.js build includes `/blackjack` |
+| `npm run test:e2e` | **128 passed** in 1.8 minutes: 95 new lab tests and all 33 existing browser/helper regressions |
+| `npm run test:blackjack -- --grep "browser:"` | **8 passed**, starting only Next.js on port 3002, with no API host |
+| `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release` | **240 passed; 2 skipped** (existing opt-in PostgreSQL tests require their separate configured database) |
+| `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` | Passed |
+| `python -m unittest discover -s tests/scripts -v` | **10 passed** |
+| `python -m unittest discover -s scripts/hosted -p 'test_*.py' -v` | **8 passed; 12 skipped** (existing Linux/Bash/restic-only checks on Windows) |
+| `./scripts/dev.ps1 start` | Passed; Docker Compose built and started the complete isolated development stack, API/web/database healthy, loopback gateway on 47832 |
+| `node .cache/blackjack-development-smoke.cjs` | Passed against the optimized Docker build: anonymous route, complete round and $510 ledger, pre-action coaching, desktop/mobile layout, no lab API requests or browser errors, health 200, private API 401, `/admin` redirects to login |
+| `git diff --check` | Passed |
+
+The new pure-engine suite covers all requested game operations and 500 deterministic varied rounds, checking wager/return conservation, nonnegative integer balances, unique physical cards, and hand limits. Strategy checks independently verify **all 380 table entries**, the named reference examples, and fallback combinations for unavailable double/split/surrender actions. Browser checks complete every lesson, exercise progress/reset and denied storage, verify varied drills and score handling, play normal and split rounds, inspect insurance timing, toggle coaching, use keyboard mode navigation, open the chart, inspect 320/390/768/1440px layouts, and continue playing with browser networking disabled.
+
+Desktop lessons, completed play, the mobile split table, dark mobile play, and the chart were visually inspected from actual screenshots under ignored `test-results/`; the optimized development build was also captured under `.cache/blackjack-development-*.png`. Recent development logs showed successful startup and no error-level entries; EF reported no migrations needed. No production deployment was performed.
+
+Initial browser runs identified a test-harness issue: replacing `Math.random` before React initialized caused internal identifier collisions and lost events. Deterministic randomness now starts after hydration, immediately before the shoe shuffle. Mode controls also stay disabled until initialization completes. The final full suite passed without retries. The sandbox initially blocked loopback/Docker access; those checks succeeded with normal local process access. No requested Blackjack Lab functionality remains unfinished.
+
 ## Public launch complete — 24 October 2026
 
 [GitHub production deployment 40119643244](https://github.com/quintonloges/RabbitHole/actions/runs/40119643244) **passed** for `a48b5d4`: the complete validation suite, image build, verified SSH transfer, encrypted pre-upgrade backup, maintenance upgrade and record/file preservation all completed. The Droplet's current pointer is this release and all services are healthy. The previous initial release remains available separately.

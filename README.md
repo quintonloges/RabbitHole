@@ -2,7 +2,7 @@
 
 A public catalog with a private learning workspace. Visitors browse real published articles, research, videos and music. One administrator follows branching trails, keeps notes, reads private books and revisits ideas. There are no visitor accounts, analytics, streaks or fabricated feed entries.
 
-Public routes are `/`, `/search`, `/items/{id}`. Personal features are under `/admin`, with sign-in at `/admin/login`. Public records expose approved metadata and bounded source excerpts. Uploads, full stored text, notes, history, trails, practice and AI output stay private. Control visibility with **Show publicly** in item Details and the Library visibility filter. The upgrade publishes eligible existing external records; document-derived records are always private.
+Public catalog routes are `/`, `/search`, `/items/{id}`. **Blackjack Lab** at `/blackjack` is a separate, public interactive learning feature. Personal features are under `/admin`, with sign-in at `/admin/login`. Public records expose approved metadata and bounded source excerpts. Uploads, full stored text, notes, history, trails, personal practice and AI output stay private. Control visibility with **Show publicly** in item Details and the Library visibility filter. The upgrade publishes eligible existing external records; document-derived records are always private.
 
 See [public hosting and migration](docs/public-hosting.md) for DigitalOcean and GitHub Actions setup for `rabbithole.quintonloges.me`. Configure SSH through GitHub Actions secrets. Backups default to encrypted storage on the server; off-server storage is optional. Live release requires server/DNS configuration and successful migration/backup gates.
 
@@ -41,6 +41,12 @@ Only each Caddy gateway publishes a host port, bound to `127.0.0.1`. The databas
 The item reader puts the source text, abstract or consented media player first. Books have compact previous/next navigation and a searchable **Contents** dialog. **Notes**, **Explore** and **Details** sit below the content; select source text to highlight it or quote it in a note. Unsaved note drafts stay with their item for the current browser session. PDF text wraps to the reader width; **Details → Preserve PDF line breaks** restores extracted line breaks when layout matters, and **Original file** opens the PDF at the current page.
 
 Fresh installations start empty. Deterministic fixtures live only under `tests/`; they are never inserted into the real database. The existing local instance was explicitly populated in October 2026; see the [feed curation report](docs/feed-curation-report.md) for actual counts, verified sources, editorial findings, and limitations.
+
+## Blackjack Lab
+
+Open **Blackjack Lab** in the navigation or visit [the development lab](http://localhost:47832/blackjack). Learn through seven interactive lessons, drill basic strategy by category, or play complete blackjack rounds with virtual chips and an optional coach. All modes are immediately available. A shared strategy evaluator powers the exercises, feedback, and reference chart for six-deck S17, American peek, DAS, late-surrender blackjack with 3:2 naturals.
+
+No login, API, AI key, or database is needed for the lab. Lesson completion and the coaching preference stay in browser localStorage and can be reset in the footer. Virtual chips and practice counts last for the current visit. Run `npm run test:blackjack` for its independent engine, strategy, and browser suite. See [rules, architecture, and test coverage](docs/blackjack-lab.md).
 
 ## Recommendations and exploration
 

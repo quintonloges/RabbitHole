@@ -11,7 +11,7 @@ public sealed class UserSettings
     public double Serendipity { get; set; } = 0.15;
     public double Freshness { get; set; } = 0.5;
     public bool PracticeEnabled { get; set; } = false;
-    public string Theme { get; set; } = "system";
+    public string Theme { get; set; } = "dark";
     public bool AiEnabled { get; set; }
     public bool IngestionPaused { get; set; }
 }

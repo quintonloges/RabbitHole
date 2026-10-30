@@ -33,6 +33,8 @@ Only each Caddy gateway publishes a host port, bound to `127.0.0.1`. The databas
 
 ## First visit
 
+RabbitHole opens in dark mode by default. Choose **Settings → Appearance** to switch to Light or Follow system; saved preferences take precedence.
+
 1. Provision the administrator password with the interactive command above, visit `/admin/login`, then open **Settings**. Edit the starter topics, select a verified suggested feed or enter your own RSS/Atom/site URL, and add it. Sources are never silently subscribed.
 2. Refresh the source. Its actual imported count, last success and error appear alongside persistent jobs. Use **New selection** on Discover to include newly imported items immediately.
 3. Open a source, save it, write a note, or choose **Follow the rabbit hole**. Each branch and your current position persist. Questions are visibly user-authored; recommended links always refer to catalog records.

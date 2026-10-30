@@ -1,5 +1,20 @@
 # RabbitHole acceptance report
 
+## Dark mode default — 30 October 2026
+
+The root HTML and new administrator settings now default to dark. Valid saved Light, Dark and Follow system choices still take precedence. The initial HTML remains dark when JavaScript or browser storage is unavailable, and invalid stored theme values leave that default intact. No data migration or environment change is required.
+
+Verification:
+
+- `./scripts/check.ps1` passed: 251 backend tests (3 PostgreSQL-only tests skipped), 10 source/admin script tests, 8 hosted script tests (12 Linux/Bash/restic tests skipped), frontend lint, TypeScript and optimized build.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` passed.
+- `npm run test:e2e` passed all 141 existing tests without retries. `git diff --check` passed.
+- `./scripts/dev.ps1 start` rebuilt the isolated development stack on port 47832; API, web and database are healthy and the gateway is running. Startup reported no pending migrations; the last five minutes of logs contained no error-level entries.
+- An inline Node/Playwright smoke check passed nine browser cases against the built app: fresh visits with either system theme, saved Light/Dark/System choices, invalid or denied storage, and disabled JavaScript. Reloads retained the expected theme. Public Discover, Search, login and Blackjack pages loaded dark without browser errors; mobile had no horizontal overflow. An authenticated read from the E2E fixture API confirmed its default settings theme is dark.
+- Desktop and mobile screenshots in ignored `.cache/ui-review/dark-default-*.png` were visually inspected.
+
+Initial sandbox attempts could not access Python temporary fixtures, Docker or the .NET build-host pipe; the listed successful checks used normal local process access. Production and hosted instances were not deployed.
+
 ## Branch review remediation — 30 October 2026
 
 Fixed all five review findings and both smaller refactors:

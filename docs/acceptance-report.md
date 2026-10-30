@@ -1,5 +1,20 @@
 # RabbitHole acceptance report
 
+## Impeccable product initialization — 30 October 2026
+
+Added root `PRODUCT.md` with the required product schema marker and `web` platform. It records the existing public catalog, private workspace, separate Blackjack Lab, source/provenance rules, privacy boundaries, accessibility requirements, and repository evidence. The owner confirmed equal priority for public visitors and the administrator's private workspace. The separately confirmed code-first workflow preference is stored only in `.impeccable/config.json`.
+
+Prepared `.impeccable/live/config.json` for the existing Next.js App Router shell at `apps/web/app/layout.tsx`, using the closing-body anchor and JSX comment syntax. A source scan of the web application, API, and development Caddyfile found no CSP directives; no CSP changes were needed.
+
+Verification:
+
+- PowerShell validation passed for the product schema marker, bare `web` platform, confirmed audience priority, and existence of every linked local reference.
+- `Get-Content -LiteralPath '.impeccable/config.json' -Raw | ConvertFrom-Json` and the equivalent command for `.impeccable/live/config.json` passed. Additional assertions verified `buildPath: code`, the JSX configuration, target-file existence, and the `</body>` anchor.
+- New-file trailing-whitespace checks and `git diff --check` passed.
+- The skill's `impeccable.cmd context` launcher could not run: engine 0.1.5 was absent, and its cache location was not writable in the sandbox. The documented fallback read project context directly. Live-mode launch, injection, and visual iteration were not exercised; the config is prepared, not runtime-verified.
+
+This change adds product documentation and design-tool configuration. Application code, dependencies, data, and deployments were unchanged, so application builds and test suites were not rerun.
+
 ## Development source seed — 30 October 2026
 
 Seeded the isolated development instance at `http://127.0.0.1:47832` through the authenticated source APIs. Added ten verified RSS/Atom subscriptions and **59 real articles**: six each from Google DeepMind, Hugging Face, Simon Willison, Essentia Foundation, Aeon, The Black Vault UFOs, Institute of Noetic Sciences, Attack Technique and EarLevel Engineering, plus five from Quanta Magazine. Sources use the existing starter topics and curated refresh intervals. Existing private documents were retained. The previously unconfigured development administrator was provisioned with the user's approved password through interactive `--admin-password`; its local credential file is ignored by Git.

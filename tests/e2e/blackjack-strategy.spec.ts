@@ -5,7 +5,7 @@ import { HARD, SOFT, PAIRS, UPCARDS, type Cell, recommend } from '../../apps/web
 import { coach } from '../../apps/web/lib/blackjack/coaching';
 import { DRILLS, decisionFor, practiceBag, practicePool, scenario } from '../../apps/web/lib/blackjack/practice';
 import { LESSONS } from '../../apps/web/lib/blackjack/lessons';
-import { DEFAULT_PROGRESS, parseProgress } from '../../apps/web/lib/blackjack/progress';
+import { DEFAULT_PROGRESS, LEGACY_PROGRESS_KEY, loadProgress, readProgress, resetProgress, saveProgress, parseLegacyProgress } from '../../apps/web/lib/blackjack/progress';
 
 // Independent oracle transcribed from the reference's written S17 rules, not from
 // the application's row data. https://wizardofodds.com/games/blackjack/strategy/4-decks/
@@ -147,7 +147,25 @@ test('every lesson exercise has a real answer and every strategic lesson uses th
 });
 
 test('saved progress validates untrusted local data and recovers from corruption', () => {
-  for (const value of [null, '', 'not json', 'null', '[]']) expect(parseProgress(value)).toEqual(DEFAULT_PROGRESS);
-  expect(parseProgress('{"completed":[0,0,6,-1,7,"2",1.5],"lesson":99,"coach":"no"}')).toEqual({ completed: [0, 6], lesson: 0, coach: true });
-  expect(parseProgress('{"completed":[2],"lesson":5,"coach":false}')).toEqual({ completed: [2], lesson: 5, coach: false });
+  for (const value of [null, '', 'not json', 'null', '[]']) expect(parseLegacyProgress(value)).toEqual(DEFAULT_PROGRESS);
+  expect(parseLegacyProgress('{"completed":[0,0,6,-1,7,"2",1.5],"lesson":99,"coach":"no"}')).toEqual({ completed: ['fundamentals', 'putting-it-together'], lesson: 'fundamentals', coach: true });
+  expect(parseLegacyProgress('{"completed":[2],"lesson":5,"coach":false}')).toEqual({ completed: ['hard-hands'], lesson: 'bankroll', coach: false });
+});
+
+test('field updates preserve concurrent lesson completions and reset cannot revive legacy progress', () => {
+  const values = new Map<string, string>([[LEGACY_PROGRESS_KEY, '{"completed":[2],"lesson":5,"coach":false}']]);
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
+  expect(loadProgress(storage)).toEqual({ completed: ['hard-hands'], lesson: 'bankroll', coach: false });
+  expect(values.has(LEGACY_PROGRESS_KEY)).toBe(false);
+  // Independent tabs issue updates without reading each other's snapshots first.
+  saveProgress(storage, { type: 'complete', lesson: 'soft-hands' });
+  saveProgress(storage, { type: 'coach', coach: true });
+  saveProgress(storage, { type: 'complete', lesson: 'actions' });
+  saveProgress(storage, { type: 'lesson', lesson: 'putting-it-together' });
+  expect(readProgress(storage)).toEqual({ completed: ['actions', 'hard-hands', 'soft-hands'], lesson: 'putting-it-together', coach: true });
+  expect(new Set(LESSONS.map(lesson => lesson.id)).size).toBe(LESSONS.length);
+  resetProgress(storage);
+  expect(loadProgress(storage)).toEqual(DEFAULT_PROGRESS);
+  saveProgress(storage, { type: 'coach', coach: false });
+  expect(readProgress(storage).completed).toEqual([]);
 });

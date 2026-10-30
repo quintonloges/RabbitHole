@@ -29,6 +29,29 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AiResult> AiResults => Set<AiResult>();
     public DbSet<AdminAccount> AdminAccounts => Set<AdminAccount>();
     public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
+    public DbSet<PublicCatalogEntry> PublicCatalogEntries => Set<PublicCatalogEntry>();
+    public DbSet<PublicCatalogTopic> PublicCatalogTopics => Set<PublicCatalogTopic>();
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        // The application uses async writes. Fail closed if a future caller tries
+        // to save catalog inputs without their transactional public projection.
+        if (Model.FindEntityType(typeof(PublicCatalogEntry)) != null && PublicCatalogIndex.HasChanges(this))
+            throw new InvalidOperationException("Catalog writes require SaveChangesAsync to maintain the public index.");
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        if (Model.FindEntityType(typeof(PublicCatalogEntry)) == null || !PublicCatalogIndex.HasChanges(this))
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        await using var transaction = Database.CurrentTransaction == null ? await Database.BeginTransactionAsync(cancellationToken) : null;
+        await PublicCatalogIndex.LockAsync(this, cancellationToken);
+        await PublicCatalogIndex.PrepareAsync(this, cancellationToken);
+        var count = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        if (transaction != null) await transaction.CommitAsync(cancellationToken);
+        return count;
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -40,6 +63,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<AdminSession>().HasIndex(x => x.ExpiresAt);
         builder.Entity<ItemIdentity>().HasKey(x => x.Key);
         builder.Entity<ItemTopic>().HasKey(x => new { x.ItemId, x.TopicId });
+        builder.Entity<PublicCatalogEntry>().HasOne<ContentItem>().WithMany().HasForeignKey(x => x.Id).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PublicCatalogEntry>().HasMany(x => x.Topics).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PublicCatalogEntry>().HasIndex(x => new { x.IsPublic, x.MergedIntoId, x.IngestedAt, x.Id });
+        builder.Entity<PublicCatalogEntry>().HasIndex(x => x.SourceKey);
+        builder.Entity<PublicCatalogEntry>().HasIndex(x => x.TypeKey);
+        builder.Entity<PublicCatalogEntry>().HasIndex(x => x.PublishedDay);
+        builder.Entity<PublicCatalogTopic>().HasKey(x => new { x.ItemId, x.TopicId });
+        builder.Entity<PublicCatalogTopic>().HasIndex(x => x.TopicId);
+        // UTC ticks keep ordering and date predicates server-side on both providers.
+        var utcTicks = new ValueConverter<DateTimeOffset, long>(value => value.UtcTicks, value => new DateTimeOffset(value, TimeSpan.Zero));
+        builder.Entity<PublicCatalogEntry>().Property(x => x.PublishedAt).HasConversion(utcTicks);
+        builder.Entity<PublicCatalogEntry>().Property(x => x.IngestedAt).HasConversion(utcTicks);
+        builder.Entity<PublicCatalogEntry>().Property(x => x.UpdatedAt).HasConversion(utcTicks);
         foreach (var entity in builder.Model.GetEntityTypes())
         {
             foreach (var property in entity.GetProperties().Where(p => p.ClrType == typeof(List<string>)))

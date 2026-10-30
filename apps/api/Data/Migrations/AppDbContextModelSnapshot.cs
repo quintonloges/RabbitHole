@@ -22,6 +22,105 @@ namespace RabbitHole.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("RabbitHole.Data.PublicCatalogEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Author")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CanonicalUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmbedUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Excerpt")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<long>("IngestedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("MergedIntoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long?>("PublishedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("PublishedDay")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TypeKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublishedDay");
+
+                    b.HasIndex("SourceKey");
+
+                    b.HasIndex("TypeKey");
+
+                    b.HasIndex("IsPublic", "MergedIntoId", "IngestedAt", "Id");
+
+                    b.ToTable("PublicCatalogEntries");
+                });
+
+            modelBuilder.Entity("RabbitHole.Data.PublicCatalogTopic", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TopicId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("ItemId", "TopicId");
+
+                    b.HasIndex("TopicId");
+
+                    b.ToTable("PublicCatalogTopics");
+                });
+
             modelBuilder.Entity("RabbitHole.Domain.AdminAccount", b =>
                 {
                     b.Property<int>("Id")
@@ -877,6 +976,24 @@ namespace RabbitHole.Data.Migrations
                     b.ToTable("Topics");
                 });
 
+            modelBuilder.Entity("RabbitHole.Data.PublicCatalogEntry", b =>
+                {
+                    b.HasOne("RabbitHole.Domain.ContentItem", null)
+                        .WithMany()
+                        .HasForeignKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RabbitHole.Data.PublicCatalogTopic", b =>
+                {
+                    b.HasOne("RabbitHole.Data.PublicCatalogEntry", null)
+                        .WithMany("Topics")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RabbitHole.Domain.AdminSession", b =>
                 {
                     b.HasOne("RabbitHole.Domain.AdminAccount", null)
@@ -1043,6 +1160,11 @@ namespace RabbitHole.Data.Migrations
                         .WithMany()
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("RabbitHole.Data.PublicCatalogEntry", b =>
+                {
+                    b.Navigation("Topics");
                 });
 #pragma warning restore 612, 618
         }

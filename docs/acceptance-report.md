@@ -1,5 +1,35 @@
 # RabbitHole acceptance report
 
+## Branch review remediation — 30 October 2026
+
+Fixed all five review findings and both smaller refactors:
+
+- Public URL eligibility and export redaction now share credential-key classification, including `secret_key`, `subscription-key`, `pwd`, punctuation and repeated encoding. Regression tests exercise ingestion defaults, attempted publication, legacy invalid flags and anonymous endpoints.
+- Public reads use a sanitized relational index. Search/counts/date/topic filtering, related ranking and pagination execute in SQL; detail reads only its alias chain. A regression with 120 visible records checks exact pagination, materialized row counts and SQL commands, including the absence of private item/document reads. The additive PostgreSQL migration and SQLite upgrade backfill once without changing publication choices. Tests cover dependency edits, alias rewiring, rollback, private document aliases and stale editors after another request hides an item.
+- Blackjack stores independent preferences/completions under v2 keys, synchronizes tabs and resets, and migrates original numeric positions to stable lesson IDs. Counts derive from the lesson catalog. Regressions reproduce completion in one tab followed by a Coach toggle in another, and verify reload, migration and reset.
+- Play restores focus after deals, actions, insurance, splits and settlement, including reduced motion; switching modes takes precedence. Keyboard regressions assert the focused controls through complete rounds.
+- Invalid public search retains the form and selected values, exposes validation errors separately from outages, and limits queries to the API's 200 characters. The browser regression corrects both an oversized query and reversed dates, checks recovery and mobile overflow, and runs anonymously.
+- Removed unused rule-configuration flags; shoe construction consumes the declared deck count. The documented fixed S17 rules and strategy remain unchanged.
+
+Final verification:
+
+| Command / check | Result |
+|---|---|
+| `./scripts/check.ps1` | Passed: 251 backend tests; 3 PostgreSQL-only tests skipped here and executed below; 10 source/admin script tests; lint, TypeScript and optimized frontend build |
+| `./scripts/check-recommendations-postgres.ps1` | 6 passed, zero skipped, on a disposable PostgreSQL 17 development copy; includes all 3 hosted tests, migrations, restart persistence and the stale-writer privacy regression; disposable database removed |
+| `npm run test:e2e` | 141 passed without retries, including all 107 Blackjack tests and retained private-workspace/public-catalog flows |
+| `npx playwright test --config .cache/review-built.config.ts` | 7 new browser regressions passed against the optimized development Docker build on port 47832; public search uses an anonymous fixture |
+| `dotnet format --verify-no-changes --no-restore` | Passed |
+| Hosted tests in isolated Alpine 3.21 with Bash, Python and real restic | All 20 passed; all hosted shell scripts passed `bash -n`. This covers the 12 platform-dependent checks skipped by the Windows script |
+| `./scripts/dev.ps1 start` | API/web production builds passed; new migration applied; all four development services healthy |
+| Full development restart and preservation comparison | Exact counts and row fingerprints unchanged across migration and restart for Items, Topics, States, Notes, Documents, Sections, Holes, Nodes, Prompts and Attempts: 429 items, 2 documents, 429 sections, 10 state rows retained |
+| Health/public routes and startup logs | Health `ok`; `/blackjack` returned 200; private document-only development library correctly has zero public items; restart reported no pending migrations and no error-level entries |
+| `git diff --check` | Passed |
+
+The Linux verification mounted only `scripts/hosted` read-only at `/tests`, installed `bash python3 restic` inside the disposable container, and ran `python3 -B -m unittest discover -s /tests -p 'test_*.py' -v`. No application volumes or Docker socket were mounted. Desktop/mobile validation and Blackjack screenshots were visually inspected; captures are in ignored `.cache/ui-review/catalog-validation-*.png` and `test-results/blackjack-*.png`. Initial browser-selector and legacy-schema fixture issues were corrected before the successful runs. The first preservation comparison compared PowerShell output arrays instead of parsed JSON; parsing the saved snapshots confirmed identical fingerprints, which also matched after restart.
+
+No new dependencies or environment settings are required. Public substring search still scans bounded search text in the database; it no longer materializes the full catalog in the API. Topic renames still inspect the legacy ID/topic-membership projection on writes. Index maintenance is centralized in `SaveChangesAsync`; future raw SQL or bulk catalog writes must explicitly maintain the projection. Production and hosted instances were not deployed. Provider and AI behavior were exercised through existing deterministic fixtures; no live ingestion or AI requests were needed for these changes.
+
 ## Blackjack card-face decoration fix — 30 October 2026
 
 The card-back arrow now renders only while a card is face down, preventing its decoration from appearing over face-up ranks and suits. The existing flip animation remains. `npm --prefix apps/web run lint` and `./scripts/dev.ps1 start` passed, including the optimized frontend build and TypeScript check; all development services are healthy. `npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser: (motion\|reduced motion\|public navigation)'` passed **5 tests** against the rebuilt app. `node .cache/blackjack-card-faces.cjs` verified that face-up cards have no back decoration in Learn, Practice and Play, face-down cards retain it, and revealing the dealer removes it. Desktop and 320px dark/reduced-motion screenshots in ignored `.cache/blackjack-faces-*.png` were visually inspected. `git diff --check` passed. Production was not deployed.

@@ -129,6 +129,30 @@ public class HostedPostgresTests
     }
 
     [HostedPostgresFact]
+    public async Task Postgres_index_preserves_visibility_and_topic_edits_across_stale_writers()
+    {
+        await using var fixture = await IsolatedPostgres.CreateAsync();
+        using var factory = new Factory(fixture); using var anonymous = factory.CreateAnonymousClient();
+        await Read(await anonymous.GetAsync("/api/healthz"));
+        var topic = new Topic { Name = "TEST FIXTURE original index topic" };
+        var item = new ContentItem { Title = "TEST FIXTURE stale writer", CanonicalUrl = "https://example.org/stale-writer", IsPublic = true, TopicIds = [topic.Id] };
+        await using var editor = fixture.Open(); editor.AddRange(topic, item); await editor.SaveChangesAsync();
+        await using (var hiding = fixture.Open())
+        {
+            var fresh = await hiding.Items.SingleAsync(i => i.Id == item.Id); fresh.IsPublic = false;
+            var freshTopic = await hiding.Topics.SingleAsync(t => t.Id == topic.Id); freshTopic.Name = "TEST FIXTURE renamed index topic";
+            await hiding.SaveChangesAsync();
+        }
+        item.Title = "TEST FIXTURE edited title"; topic.Weight = 1; await editor.SaveChangesAsync();
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/public/items/{item.Id}")).StatusCode);
+        await using var check = fixture.Open();
+        var projection = await check.PublicCatalogEntries.Include(i => i.Topics).SingleAsync(i => i.Id == item.Id);
+        Assert.False(projection.IsPublic); Assert.Equal(item.Title, projection.Title);
+        Assert.Equal("TEST FIXTURE renamed index topic", Assert.Single(projection.Topics).Name);
+        Assert.Empty(await PublicCatalog.Visible(check).ToListAsync());
+    }
+
+    [HostedPostgresFact]
     public async Task Postgres_public_filters_and_authentication_publication_state_survive_application_restart()
     {
         await using var fixture = await IsolatedPostgres.CreateAsync();

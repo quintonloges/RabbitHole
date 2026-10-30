@@ -41,7 +41,7 @@ public static class ExportSanitizer
                 foreach (var property in element.EnumerateObject())
                 {
                     writer.WritePropertyName(property.Name);
-                    if (IsSecretKey(property.Name)) writer.WriteStringValue(Redacted);
+                    if (CredentialKeys.IsSecret(property.Name)) writer.WriteStringValue(Redacted);
                     else WriteJson(writer, property.Value, depth + 1);
                 }
                 writer.WriteEndObject();
@@ -93,29 +93,9 @@ public static class ExportSanitizer
             if (separator < 0) continue;
             var key = parts[i][..separator];
             var value = parts[i][(separator + 1)..];
-            parts[i] = key + "=" + (IsSecretKey(key) ? Uri.EscapeDataString(Redacted) : RedactValue(value, depth + 1));
+            parts[i] = key + "=" + (CredentialKeys.IsSecret(key) ? Uri.EscapeDataString(Redacted) : RedactValue(value, depth + 1));
         }
         return string.Concat(parts);
-    }
-
-    private static bool IsSecretKey(string key)
-    {
-        for (var i = 0; i < MaxDepth; i++)
-        {
-            var decoded = Decode(key);
-            if (decoded == key) break;
-            key = decoded;
-            if (i == MaxDepth - 1 && Decode(key) != key) return true;
-        }
-        var normalized = Regex.Replace(key.ToLowerInvariant(), "[^a-z0-9]", "");
-        return normalized is "key" or "auth" or "authorization" or "sig" or "pwd" or "passwd" or "clientid" or "credentials"
-            or "secretkey" or "privatekey" or "subscriptionkey" or "accountkey" or "signingkey" or "accesskey" or "awsaccesskeyid" ||
-            normalized.EndsWith("apikey", StringComparison.Ordinal) ||
-            normalized.EndsWith("token", StringComparison.Ordinal) ||
-            normalized.EndsWith("secret", StringComparison.Ordinal) ||
-            normalized.EndsWith("password", StringComparison.Ordinal) ||
-            normalized.EndsWith("signature", StringComparison.Ordinal) ||
-            normalized.EndsWith("credential", StringComparison.Ordinal);
     }
 
     private static string Decode(string value)

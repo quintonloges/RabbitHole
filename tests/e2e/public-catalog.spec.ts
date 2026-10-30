@@ -1,7 +1,38 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { test as publicTest } from '@playwright/test';
 import { test, expect, fixturePassword } from './auth-fixture';
 import type { Item } from '../../apps/web/lib/types';
+
+publicTest('invalid public search retains inputs, explains validation and recovers on correction', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL }); const page = await context.newPage();
+  const content = page.getByRole('main');
+  const tooLong = 'x'.repeat(201);
+  await page.goto(`/search?q=${tooLong}&source=TEST-FIXTURE-source&type=article`);
+  await expect(content.getByRole('alert')).toContainText('Search is limited to 200 characters.');
+  await expect(page.getByLabel('Search', { exact: true })).toHaveValue(tooLong);
+  await expect(page.getByLabel('Search', { exact: true })).toHaveAttribute('maxlength', '200');
+  await expect(page.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('TEST-FIXTURE-source');
+  await expect(page.getByRole('combobox', { name: 'Type', exact: true })).toHaveValue('article');
+  await page.getByLabel('Search', { exact: true }).fill('TEST FIXTURE');
+  await page.getByLabel('Published from').fill('2026-10-30');
+  await page.getByLabel('Published through').fill('2026-10-01');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(content.getByRole('alert')).toContainText('from must not follow to.');
+  await expect(page.getByLabel('Search', { exact: true })).toHaveValue('TEST FIXTURE');
+  await expect(page.getByLabel('Published from')).toHaveValue('2026-10-30');
+  await expect(page.getByLabel('Published through')).toHaveValue('2026-10-01');
+  await expect(page.getByText('The catalog is temporarily unavailable')).toHaveCount(0);
+  await page.screenshot({ path: '.cache/ui-review/catalog-validation-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: '.cache/ui-review/catalog-validation-mobile.png', fullPage: true });
+  await page.getByLabel('Published through').fill('2026-10-31');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Public catalog' })).toBeVisible();
+  await expect(content.getByRole('alert')).toHaveCount(0);
+  await context.close();
+});
 
 test('anonymous API access and workspace rendering enforce the private boundary', async ({ playwright, browser, baseURL }) => {
   const anonymous = await playwright.request.newContext({ baseURL });

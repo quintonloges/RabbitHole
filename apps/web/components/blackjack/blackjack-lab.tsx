@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { BookOpen, Club, Layers3, Spade } from "lucide-react";
-import { DEFAULT_PROGRESS, PROGRESS_KEY, type Progress, parseProgress } from "@/lib/blackjack/progress";
+import { DEFAULT_PROGRESS, PROGRESS_KEY, RESET_KEY, type Progress, type ProgressUpdate, applyProgress, loadProgress, readProgress, saveProgress, resetProgress as clearProgress } from "@/lib/blackjack/progress";
 import { LearnMode } from "./learn-mode";
 import { PracticeMode } from "./practice-mode";
 import { PlayMode } from "./play-mode";
@@ -21,18 +21,26 @@ export function BlackjackLab() {
   const [storageMessage, setStorageMessage] = useState("");
   const [resetKey, setResetKey] = useState(0);
   useEffect(() => {
-    try { setProgress(parseProgress(localStorage.getItem(PROGRESS_KEY))); }
+    try { setProgress(loadProgress(localStorage)); }
     catch { setStorageMessage("Browser storage is unavailable. Progress will last for this visit only."); }
     setReady(true);
+    const sync = (event: StorageEvent) => {
+      if (event.key !== null && !event.key.startsWith(PROGRESS_KEY)) return;
+      try { setProgress(readProgress(localStorage)); }
+      catch { setStorageMessage("Browser storage is unavailable. Progress will last for this visit only."); }
+      if (event.key === RESET_KEY || event.key === null) setResetKey(key => key + 1);
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
   }, []);
-  function save(next: Progress) {
-    setProgress(next);
-    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(next)); setStorageMessage(""); }
+  function save(change: ProgressUpdate) {
+    setProgress(previous => applyProgress(previous, change));
+    try { setProgress(saveProgress(localStorage, change)); setStorageMessage(""); }
     catch { setStorageMessage("Browser storage is unavailable. Progress will last for this visit only."); }
   }
   function resetProgress() {
     setProgress({ ...DEFAULT_PROGRESS }); setResetKey(key => key + 1);
-    try { localStorage.removeItem(PROGRESS_KEY); setStorageMessage("Lesson progress and coaching preference reset on this browser."); }
+    try { clearProgress(localStorage); setStorageMessage("Lesson progress and coaching preference reset on this browser."); }
     catch { setStorageMessage("Progress reset for this visit. Browser storage is unavailable."); }
   }
   return <div className="bj">
@@ -45,7 +53,7 @@ export function BlackjackLab() {
     {!ready ? <p role="status">Opening Blackjack Lab…</p> : <>
       <section role="tabpanel" id="bj-panel-learn" aria-labelledby="bj-tab-learn" hidden={mode !== "learn"}><LearnMode key={resetKey} progress={progress} onProgress={save} onPlay={() => setMode("play")}/></section>
       <section role="tabpanel" id="bj-panel-practice" aria-labelledby="bj-tab-practice" hidden={mode !== "practice"}><PracticeMode/></section>
-      <section role="tabpanel" id="bj-panel-play" aria-labelledby="bj-tab-play" hidden={mode !== "play"}><PlayMode coaching={progress.coach} onCoaching={coach => save({ ...progress, coach })}/></section>
+      <section role="tabpanel" id="bj-panel-play" aria-labelledby="bj-tab-play" hidden={mode !== "play"}><PlayMode coaching={progress.coach} onCoaching={coach => save({ type: "coach", coach })}/></section>
     </>}
     <TableRules/>
     <footer className="bj-footer"><p>At your pace. Lesson progress stays in this browser.<br/>Practice scores and virtual chips last for this visit.</p><button className="btn ghost small" onClick={resetProgress}>Reset lesson progress & preferences</button></footer>

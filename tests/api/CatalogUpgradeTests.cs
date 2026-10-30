@@ -16,6 +16,7 @@ public class CatalogUpgradeTests
         {
             base.OnModelCreating(builder);
             builder.Ignore<ItemIdentity>(); builder.Ignore<ItemSource>(); builder.Ignore<ItemTopic>();
+            builder.Ignore<PublicCatalogEntry>(); builder.Ignore<PublicCatalogTopic>();
             var items = builder.Entity<ContentItem>();
             items.HasQueryFilter((Expression<Func<ContentItem, bool>>?)null);
             foreach (var relationship in items.Metadata.GetForeignKeys().Where(f => f.Properties.Any(p => p.Name == "MergedIntoId")).ToList())
@@ -83,6 +84,7 @@ public class CatalogUpgradeTests
         }
         await using var db = new AppDbContext(options);
         await SqliteCatalogSchema.ApplyAsync(db);
+        await SqlitePublicCatalogSchema.ApplyAsync(db);
         await CatalogUpgrade.ApplyAsync(db);
         var initialIdentityKeys = await db.ItemIdentities.OrderBy(x => x.Key).Select(x => x.Key).ToListAsync();
         var originIds = await db.ItemSources.OrderBy(x => x.Id).Select(x => x.Id).ToListAsync();

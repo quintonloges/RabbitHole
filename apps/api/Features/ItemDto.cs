@@ -40,8 +40,8 @@ public sealed class ItemDto : ContentItem
     public static async Task<List<ItemDto>> BuildAsync(AppDbContext db, IEnumerable<ContentItem> items, CancellationToken ct, IReadOnlyDictionary<Guid, (string Reason, List<Guid> Evidence)>? reasons = null, bool includeBody = false)
     {
         var list = items.ToList();
-        var documentDerivedIds = await PublicCatalogPolicy.DocumentDerivedIdsAsync(db, ct);
         var ids = list.Select(i => i.Id).ToList();
+        var publishableIds = (await db.PublicCatalogEntries.Where(i => ids.Contains(i.Id)).Select(i => i.Id).ToListAsync(ct)).ToHashSet();
         var sourceIds = list.Where(i => i.SourceId.HasValue).Select(i => i.SourceId!.Value).Distinct().ToList();
         var states = await db.States.AsNoTracking().Where(s => ids.Contains(s.ItemId)).ToDictionaryAsync(s => s.ItemId, ct);
         var sources = await db.Sources.AsNoTracking().Where(s => sourceIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, ct);
@@ -72,7 +72,7 @@ public sealed class ItemDto : ContentItem
             {
                 Id = i.Id,
                 IsPublic = i.IsPublic,
-                CanPublish = PublicCatalogPolicy.IsEligible(i) && !documentDerivedIds.Contains(i.Id),
+                CanPublish = PublicCatalogPolicy.IsEligible(i) && publishableIds.Contains(i.Id),
                 SourceId = i.SourceId,
                 Kind = i.Kind,
                 Title = i.Title,

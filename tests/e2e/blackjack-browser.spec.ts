@@ -4,7 +4,7 @@ import { type Action, type Game, act, deal, dealerStep, insuranceDecision, newGa
 import { LESSONS } from '../../apps/web/lib/blackjack/lessons';
 import { scenario, decisionFor } from '../../apps/web/lib/blackjack/practice';
 import { ACTION_LABELS, recommend } from '../../apps/web/lib/blackjack/strategy';
-import { PROGRESS_KEY } from '../../apps/web/lib/blackjack/progress';
+import { LEGACY_PROGRESS_KEY } from '../../apps/web/lib/blackjack/progress';
 import { handLabel, exampleCards } from '../../apps/web/lib/blackjack/cards';
 import { money } from '../../apps/web/lib/blackjack/rules';
 
@@ -44,6 +44,96 @@ async function finishTableMotion(page: Page) {
     await page.clock.runFor(200);
   }
   await expect(table).toHaveAttribute('aria-busy', 'false');
+}
+
+test('browser: two tabs preserve completed work when coaching changes and synchronize resets', async ({ page, context }) => {
+  await open(page);
+  const other = await context.newPage(); await open(other);
+  const panel = page.getByRole('tabpanel');
+  await panel.getByRole('button', { name: /Hard Hands/ }).click();
+  const lesson = LESSONS.find(lesson => lesson.id === 'hard-hands')!;
+  for (let index = 0; index < lesson.steps.length; index++) {
+    await panel.locator('.bj-exercise button').first().click();
+    if (index + 1 < lesson.steps.length) await panel.getByRole('button', { name: 'Next', exact: true }).click();
+  }
+  await panel.getByRole('button', { name: 'Complete lesson', exact: true }).click();
+  await other.getByRole('tab', { name: /^Play/ }).click();
+  await other.getByRole('switch', { name: 'Coach', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('tabpanel')).toContainText(`1/${LESSONS.length} complete`);
+  await expect(page.getByRole('heading', { name: 'Hard Hands', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: /^Play/ }).click();
+  await expect(page.getByRole('switch', { name: 'Coach', exact: true })).toHaveAttribute('aria-checked', 'false');
+  await page.getByRole('tab', { name: /^Learn/ }).click();
+  await other.getByRole('button', { name: 'Reset lesson progress & preferences' }).click();
+  await expect(page.getByRole('tabpanel')).toContainText(`0/${LESSONS.length} complete`);
+  await expect(page.getByRole('heading', { name: 'Blackjack Fundamentals', exact: true })).toBeVisible();
+  await page.reload(); await expect(page.getByRole('tabpanel')).toContainText(`0/${LESSONS.length} complete`);
+  await other.close();
+});
+
+test('browser: old numeric progress migrates once to stable lesson IDs', async ({ page }) => {
+  await page.addInitScript(key => {
+    if (!localStorage.getItem('test-migration-seeded')) {
+      localStorage.setItem(key, JSON.stringify({ completed: [0, 2], lesson: 2, coach: false }));
+      localStorage.setItem('test-migration-seeded', 'true');
+    }
+  }, LEGACY_PROGRESS_KEY);
+  await open(page);
+  await expect(page.getByRole('tabpanel')).toContainText(`2/${LESSONS.length} complete`);
+  await expect(page.getByRole('heading', { name: 'Hard Hands', exact: true })).toBeVisible();
+  expect(await page.evaluate(key => localStorage.getItem(key), LEGACY_PROGRESS_KEY)).toBeNull();
+  await page.getByRole('tab', { name: /^Play/ }).click();
+  await expect(page.getByRole('switch', { name: 'Coach', exact: true })).toHaveAttribute('aria-checked', 'false');
+  await page.getByRole('button', { name: 'Reset lesson progress & preferences' }).click();
+  await page.reload(); await expect(page.getByRole('tabpanel')).toContainText(`0/${LESSONS.length} complete`);
+});
+
+for (const motion of ['no-preference', 'reduce'] as const) {
+  test(`browser: keyboard focus follows deal, hit and settlement with ${motion} motion`, async ({ page }) => {
+    const panel = await pausedPlay(page);
+    await page.emulateMedia({ reducedMotion: motion });
+    await panel.getByRole('button', { name: 'Deal · $10', exact: true }).focus();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await expect(panel.locator('.bj-player-hand').getByRole('img')).toHaveCount(3);
+    await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(panel.getByRole('button', { name: 'Stand', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await expect(panel.locator('.bj-round-result')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Deal · $10', exact: true })).toBeFocused();
+  });
+}
+
+for (const motion of ['no-preference', 'reduce'] as const) {
+  test(`browser: keyboard focus reaches insurance and split decisions with ${motion} motion`, async ({ page }) => {
+    const insurance = randomFor(game => game.phase === 'insurance' && !isBlackjack(game.dealer) && !isBlackjack(game.hands[0].cards));
+    const panel = await pausedPlay(page, insurance.value);
+    await page.emulateMedia({ reducedMotion: motion });
+    await panel.getByRole('button', { name: 'Deal · $10', exact: true }).focus();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await expect(panel.getByRole('button', { name: 'Decline insurance', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await expect(panel.getByRole('button', { name: 'Hit', exact: true })).toBeFocused();
+    await panel.getByRole('button', { name: 'Stand', exact: true }).focus();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await panel.getByRole('button', { name: 'Reset table · $500' }).click();
+    const split = randomFor(game => game.phase === 'player' && game.hands[0].cards.every(card => card.rank === '8'));
+    await fixedShuffle(page, split.value);
+    await panel.getByRole('button', { name: 'Deal · $10', exact: true }).focus();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await panel.getByRole('button', { name: 'Split', exact: true }).focus();
+    await page.keyboard.press('Enter'); await finishTableMotion(page);
+    await expect(panel.locator('.bj-player-hand')).toHaveCount(2);
+    await expect(panel.locator('.bj-actions button:focus')).toHaveCount(1);
+    await panel.getByRole('button', { name: 'Stand', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    const learn = page.getByRole('tab', { name: /^Learn/ }); await learn.click();
+    await page.clock.runFor(10000);
+    await expect(learn).toBeFocused();
+  });
 }
 
 test('browser: motion deals in order, guards rapid actions and reveals the dealer before paying', async ({ page }) => {
@@ -336,7 +426,7 @@ test('browser: losing insurance leaves the main hand playable and appears in the
 });
 
 test('browser: bad wagers are blocked and locally saved corruption is recoverable', async ({ page }) => {
-  await page.addInitScript(key => localStorage.setItem(key, 'invalid JSON'), PROGRESS_KEY);
+  await page.addInitScript(key => localStorage.setItem(key, 'invalid JSON'), LEGACY_PROGRESS_KEY);
   await open(page, 'Play');
   const panel = page.getByRole('tabpanel');
   for (const amount of ['-1', '0', '4', '5.50', '501', '10000']) {

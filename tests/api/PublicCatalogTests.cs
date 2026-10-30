@@ -1,9 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Collections.Concurrent;
+using System.Data.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,7 +21,7 @@ namespace RabbitHole.Tests;
 
 public class PublicCatalogTests
 {
-    private sealed class Factory : AuthenticatedApiFactory
+    private sealed class Factory(PublicReadObserver? observer = null) : AuthenticatedApiFactory
     {
         private readonly string _path = Path.Combine(Path.GetTempPath(), "rabbithole-public-" + Guid.NewGuid().ToString("N") + ".db");
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -28,6 +31,7 @@ public class PublicCatalogTests
             builder.UseSetting("ConnectionStrings:Default", "Data Source=" + _path);
             builder.ConfigureServices(services =>
             {
+                if (observer != null) services.AddDbContext<AppDbContext>(options => options.AddInterceptors(observer));
                 foreach (var service in services.Where(s => s.ServiceType == typeof(IHostedService) && s.ImplementationType == typeof(IngestionWorker)).ToList()) services.Remove(service);
             });
         }
@@ -37,6 +41,16 @@ public class PublicCatalogTests
             if (disposing) foreach (var path in new[] { _path, _path + "-wal", _path + "-shm" })
                 try { File.Delete(path); } catch (IOException) { }
         }
+    }
+    private sealed class PublicReadObserver : DbCommandInterceptor, IMaterializationInterceptor
+    {
+        public ConcurrentQueue<string> Commands { get; } = new();
+        public int Entries;
+        public void Reset() { Commands.Clear(); Entries = 0; }
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        { Commands.Enqueue(command.CommandText); return ValueTask.FromResult(result); }
+        public object InitializedInstance(MaterializationInterceptionData data, object entity)
+        { if (entity is PublicCatalogEntry) Interlocked.Increment(ref Entries); return entity; }
     }
     private static ContentItem External(string title, bool isPublic = true) => new()
     {
@@ -261,6 +275,170 @@ public class PublicCatalogTests
         public Task<RemoteResponse> FetchAsync(RemoteRequest request, CancellationToken ct) => throw new InvalidOperationException("No fetch expected");
     }
 
+    [Theory]
+    [InlineData("secret_key")]
+    [InlineData("subscription-key")]
+    [InlineData("pwd")]
+    [InlineData("PRIVATE.KEY")]
+    [InlineData("access%255Fkey")]
+    [InlineData("%2570wd")]
+    public async Task Credential_variants_stay_private_through_import_publication_and_every_public_route(string key)
+    {
+        using var factory = new Factory();
+        using var anonymous = factory.CreateAnonymousClient();
+        using var admin = factory.CreateClient();
+        Guid id;
+        const string secret = "TEST_PRIVATE_CREDENTIAL";
+        var url = $"https://example.org/credential-fixture?{key}={secret}";
+        Assert.Null(PublicCatalogPolicy.SafeUrl(url));
+        Assert.DoesNotContain(secret, ExportSanitizer.RedactUrl(url));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var ingestion = new IngestionService(db, new NoFetch(), new ConfigurationBuilder().Build(), NullLogger<IngestionService>.Instance);
+            var (imported, created) = await ingestion.UpsertAsync(new NormalizedItem { Title = "TEST FIXTURE credential", CanonicalUrl = url, Provider = "rss" }, null, [], default);
+            Assert.True(created); Assert.False(imported.IsPublic); id = imported.Id;
+            // Legacy/corrupt publication flags must not bypass the eligibility boundary.
+            imported.IsPublic = true; await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PatchAsJsonAsync($"/api/items/{id}/publication", new { isPublic = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/public/items/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/public/items/{id}/related")).StatusCode);
+        Assert.Equal(0, (await Read(await anonymous.GetAsync("/api/public/items?q=credential"))).GetProperty("total").GetInt32());
+        foreach (var route in new[] { "/api/public/items", "/api/public/filters", "/api/public/sitemap" })
+            Assert.DoesNotContain(secret, (await Read(await anonymous.GetAsync(route))).GetRawText());
+    }
+
+    [Fact]
+    public async Task Public_reads_paginate_in_SQL_and_never_materialize_the_private_catalog()
+    {
+        var observer = new PublicReadObserver();
+        using var factory = new Factory(observer);
+        using var anonymous = factory.CreateAnonymousClient();
+        var topic = new Topic { Name = "TEST FIXTURE public indexing" };
+        var start = DateTimeOffset.Parse("2026-10-01T12:00:00Z");
+        var items = Enumerable.Range(0, 120).Select(index =>
+        {
+            var item = External($"bounded {index:D3}");
+            item.IngestedAt = start.AddMinutes(-index); item.PublishedAt = start;
+            item.TopicIds = [topic.Id]; item.Body = new string('x', 10000);
+            return item;
+        }).ToList();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Add(topic); db.AddRange(items); db.Add(External("bounded hidden", false)); await db.SaveChangesAsync();
+        }
+        observer.Reset();
+        var page = await Read(await anonymous.GetAsync($"/api/public/items?q=BoUnDeD&topicId={topic.Id}&from=2026-10-01&to=2026-10-01&page=3&pageSize=7"));
+        Assert.Equal(120, page.GetProperty("total").GetInt32());
+        Assert.Equal(items.Skip(14).Take(7).Select(i => i.Id), page.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid()));
+        Assert.Equal(7, observer.Entries);
+        Assert.Contains(observer.Commands, sql => sql.Contains("LIMIT", StringComparison.Ordinal) && sql.Contains("OFFSET", StringComparison.Ordinal));
+        AssertPublicTablesOnly(observer);
+        foreach (var (route, bound) in new[] { ($"/api/public/items/{items[0].Id}", 1), ($"/api/public/items/{items[0].Id}/related", 13), ("/api/public/filters", 0), ("/api/public/sitemap", 0) })
+        {
+            observer.Reset(); await Read(await anonymous.GetAsync(route));
+            Assert.InRange(observer.Entries, 0, bound); AssertPublicTablesOnly(observer);
+        }
+    }
+
+    private static void AssertPublicTablesOnly(PublicReadObserver observer)
+    {
+        Assert.NotEmpty(observer.Commands);
+        Assert.All(observer.Commands, sql =>
+        {
+            Assert.DoesNotContain("\"Items\"", sql); Assert.DoesNotContain("\"Sections\"", sql);
+            Assert.DoesNotContain("\"Body\"", sql); Assert.DoesNotContain("\"MetadataJson\"", sql);
+        });
+    }
+
+    [Fact]
+    public async Task Stale_editor_cannot_republish_an_item_hidden_by_another_context()
+    {
+        using var factory = new Factory(); using var anonymous = factory.CreateAnonymousClient();
+        using var editorScope = factory.Services.CreateScope();
+        var editor = editorScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var item = External("stale editor"); editor.Add(item); await editor.SaveChangesAsync();
+        using (var hidingScope = factory.Services.CreateScope())
+        {
+            var hiding = hidingScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var changed = await hiding.Items.SingleAsync(i => i.Id == item.Id);
+            changed.IsPublic = false; await hiding.SaveChangesAsync();
+        }
+        item.Title = "updated by stale editor"; await editor.SaveChangesAsync();
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/public/items/{item.Id}")).StatusCode);
+        Assert.Equal(0, (await Read(await anonymous.GetAsync("/api/public/items"))).GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public async Task Synchronous_catalog_writes_fail_closed_instead_of_skipping_the_index()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync(); db.Items.Add(External("async boundary"));
+        Assert.Throws<InvalidOperationException>(() => db.SaveChanges());
+        Assert.Empty(await PublicCatalog.Visible(db).ToListAsync());
+        await db.SaveChangesAsync(); Assert.Single(await PublicCatalog.Visible(db).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Public_index_tracks_dependency_edits_alias_rewiring_and_transaction_rollback()
+    {
+        using var factory = new Factory(); using var anonymous = factory.CreateAnonymousClient();
+        var item = External("original title"); var sibling = External("unrelated survivor");
+        var alias = External("old alias"); alias.MergedIntoId = item.Id;
+        var topic = new Topic { Name = "original topic" };
+        var source = new Source { Name = "original source" };
+        var document = new LibraryDocument { Sha256 = "TEST FIXTURE index document" };
+        var section = new DocumentSection { ItemId = alias.Id, DocumentId = document.Id };
+        item.SourceId = source.Id; item.TopicIds = [topic.Id];
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.AddRange(item, sibling, alias, topic, source, document); await db.SaveChangesAsync();
+            topic.Name = "renamed topic"; source.Name = "renamed source"; item.Title = "renamed title";
+            await db.SaveChangesAsync();
+            var dto = await Read(await anonymous.GetAsync($"/api/public/items/{item.Id}"));
+            Assert.Equal("renamed source", dto.GetProperty("sourceName").GetString());
+            Assert.Equal("renamed topic", dto.GetProperty("topics")[0].GetProperty("name").GetString());
+            Assert.Equal(1, (await Read(await anonymous.GetAsync("/api/public/items?q=renamed%20topic"))).GetProperty("total").GetInt32());
+            await using (var transaction = await db.Database.BeginTransactionAsync())
+            {
+                item.IsPublic = false; await db.SaveChangesAsync(); await transaction.RollbackAsync();
+            }
+            Assert.Equal(HttpStatusCode.OK, (await anonymous.GetAsync($"/api/public/items/{item.Id}")).StatusCode);
+            db.ChangeTracker.Clear();
+            db.Add(section); await db.SaveChangesAsync();
+            Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/public/items/{item.Id}")).StatusCode);
+            var trackedAlias = await db.Items.IgnoreQueryFilters().SingleAsync(i => i.Id == alias.Id);
+            trackedAlias.MergedIntoId = sibling.Id; await db.SaveChangesAsync();
+            Assert.Equal(HttpStatusCode.OK, (await anonymous.GetAsync($"/api/public/items/{item.Id}")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/public/items/{sibling.Id}")).StatusCode);
+            db.Sections.Remove(section); await db.SaveChangesAsync();
+            Assert.Equal(HttpStatusCode.OK, (await anonymous.GetAsync($"/api/public/items/{sibling.Id}")).StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task Public_index_upgrade_preserves_publication_choices_and_is_idempotent()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync();
+        var visible = External("upgrade visible"); var hidden = External("upgrade hidden", false);
+        db.AddRange(visible, hidden, new ItemState { ItemId = hidden.Id, Saved = true }); await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        await db.Database.ExecuteSqlRawAsync("DROP TABLE \"PublicCatalogTopics\"; DROP TABLE \"PublicCatalogEntries\";");
+        await SqlitePublicCatalogSchema.ApplyAsync(db); await PublicCatalogIndex.BackfillAsync(db);
+        Assert.Equal(visible.Id, (await PublicCatalog.Visible(db).SingleAsync()).Id);
+        Assert.True((await db.States.SingleAsync()).Saved);
+        var tracked = await db.Items.FindAsync(visible.Id); tracked!.IsPublic = false; await db.SaveChangesAsync();
+        await SqlitePublicCatalogSchema.ApplyAsync(db); await PublicCatalogIndex.BackfillAsync(db);
+        Assert.Empty(await PublicCatalog.Visible(db).ToListAsync());
+        Assert.Equal(2, await db.Items.CountAsync());
+    }
+
     [Fact]
     public async Task Backfill_is_once_only_imports_publish_refresh_preserves_hides_and_merges_are_restrictive()
     {
@@ -282,9 +460,9 @@ public class PublicCatalogTests
         db.Items.Add(visible); await db.SaveChangesAsync();
         var survivor = await ItemCatalog.MergeAsync(db, [imported, visible], default); await db.SaveChangesAsync();
         Assert.False(survivor.IsPublic);
-        Assert.Null(await PublicCatalog.ResolveAsync(db, visible.Id, await PublicCatalog.EligibleRecordsAsync(db, default), default));
+        Assert.Null(await PublicCatalog.ResolveAsync(db, visible.Id, default));
         survivor.IsPublic = true; visible.IsPublic = false; await db.SaveChangesAsync();
-        Assert.Null(await PublicCatalog.ResolveAsync(db, visible.Id, await PublicCatalog.EligibleRecordsAsync(db, default), default));
+        Assert.Null(await PublicCatalog.ResolveAsync(db, visible.Id, default));
     }
 
     [Fact]

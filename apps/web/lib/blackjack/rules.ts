@@ -1,21 +1,15 @@
-/** One deliberately fixed ruleset. Strategy tables must be reverified before changing it.
+/** Constants consumed by the fixed game, not a configurable casino rules interface.
+ * Other invariants are implemented by the engine and described in RULE_SUMMARY.
+ * Strategy tables must be reverified before changing any rule.
  * References and verification notes: docs/blackjack-lab.md.
  */
 export const RULES = {
   decks: 6,
-  dealerStandsSoft17: true,
-  americanPeek: true,
   blackjackPayout: [3, 2],
   insurancePayout: [2, 1],
-  doubleAnyTwo: true,
   doubleAfterSplit: true,
   lateSurrender: true,
-  surrenderAfterSplit: false,
   maxHands: 4,
-  resplitAces: false,
-  hitSplitAces: false,
-  doubleSplitAces: false,
-  split21IsBlackjack: false,
   minimumBet: 500,
   maximumBet: 50_000,
   betIncrement: 100,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { publicApi } from "@/lib/public-api";
+import { PublicApiError, publicApi } from "@/lib/public-api";
 import type { CatalogParams, PublicFilters, PublicPage } from "@/lib/public-types";
 import { PublicItems } from "./public-items";
 
@@ -9,10 +9,65 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
   for (const key of ["q", "topicId", "source", "type", "from", "to"]) if (value(key)) query.set(key, value(key));
   const requested = Number(value("page") || 1); const page = Number.isSafeInteger(requested) ? Math.max(1, Math.min(100000, requested)) : 1;
   query.set("page", String(page)); query.set("pageSize", "24");
-  let result: PublicPage; let filters: PublicFilters;
-  try { [result, filters] = await Promise.all([publicApi<PublicPage>(`/items?${query}`), publicApi<PublicFilters>("/filters")]); }
-  catch { return <><div className="page-heading"><div><h1>{search ? "Search" : "Discover"}</h1></div></div><div className="empty" role="alert"><h2>The catalog is temporarily unavailable</h2><p>Please try again in a moment.</p><a className="btn" href={search ? "/search" : "/"}>Try again</a></div></>; }
+  const [pageResult, filterResult] = await Promise.allSettled([publicApi<PublicPage>(`/items?${query}`), publicApi<PublicFilters>("/filters")]);
+  const result = pageResult.status === "fulfilled" ? pageResult.value : null;
+  const filters = filterResult.status === "fulfilled" ? filterResult.value : { topics: [], sources: [], types: [] };
+  const invalid = pageResult.status === "rejected" && pageResult.reason instanceof PublicApiError && pageResult.reason.status === 400;
+  const error = invalid ? pageResult.reason.message : "Please try again in a moment.";
   const base = search ? "/search" : "/";
   function pageUrl(next: number) { const nextQuery = new URLSearchParams(query); nextQuery.delete("pageSize"); nextQuery.set("page", String(next)); return `${base}?${nextQuery}`; }
-  return <><div className="page-heading discover-heading"><div><h1 className="hero-title">{search ? "Search the catalog" : "Discover"}</h1><p>Real articles, research, and unexpected connections. Follow your curiosity.</p></div></div><form action={base} method="get" className="public-catalog-form panel panel-pad"><label className="field public-query">Search<input name="q" defaultValue={value("q")} placeholder="Title, author, or idea" maxLength={500}/></label><details className="public-filter-options" open={["topicId", "source", "type", "from", "to"].some(key => Boolean(value(key)))}><summary>Filter by topic, source, type or date</summary><div className="public-filters"><label className="field">Topic<select name="topicId" defaultValue={value("topicId")}><option value="">All topics</option>{filters.topics.map(topic => <option key={topic.id} value={topic.id}>{topic.name}</option>)}</select></label><label className="field">Source<select name="source" defaultValue={value("source")}><option value="">All sources</option>{filters.sources.map(source => <option key={source} value={source}>{source}</option>)}</select></label><label className="field">Type<select name="type" defaultValue={value("type")}><option value="">All types</option>{filters.types.map(type => <option key={type} value={type}>{type.replaceAll("-", " ")}</option>)}</select></label><label className="field">Published from<input type="date" name="from" defaultValue={value("from")}/></label><label className="field">Published through<input type="date" name="to" defaultValue={value("to")}/></label></div></details><div className="action-row"><button className="btn primary">{search ? "Search" : "Apply filters"}</button><Link prefetch={false} className="btn" href={base}>Clear</Link></div></form><section aria-label="Public catalog"><div className="edition-heading"><h2>{value("q") ? `Results for “${value("q")}”` : "The collection"}</h2><span>{result.total} {result.total === 1 ? "item" : "items"} · Newest added first</span></div>{result.items.length ? <PublicItems items={result.items} start={(result.page - 1) * result.pageSize + 1}/> : <div className="empty"><h2>No items found</h2><p>Try another topic, source, or search phrase.</p><Link prefetch={false} className="btn" href={base}>Clear filters</Link></div>}<nav className="topic-pagination" aria-label="Catalog pages">{result.page > 1 ? <Link prefetch={false} className="btn small" href={pageUrl(result.page - 1)}>Previous</Link> : <span/>}<span className="subtle">Page {result.page} of {Math.max(1, Math.ceil(result.total / result.pageSize))}</span>{result.page * result.pageSize < result.total ? <Link prefetch={false} className="btn small" href={pageUrl(result.page + 1)}>Next</Link> : <span/>}</nav></section></>;
+  return <>
+    <div className="page-heading discover-heading"><div>
+      <h1 className="hero-title">{search ? "Search the catalog" : "Discover"}</h1>
+      <p>Real articles, research, and unexpected connections. Follow your curiosity.</p>
+    </div></div>
+    <form action={base} method="get" className="public-catalog-form panel panel-pad">
+      <label className="field public-query">Search
+        <input name="q" defaultValue={value("q")} placeholder="Title, author, or idea" maxLength={200}/>
+      </label>
+      <details className="public-filter-options" open={["topicId", "source", "type", "from", "to"].some(key => Boolean(value(key)))}>
+        <summary>Filter by topic, source, type or date</summary>
+        <div className="public-filters">
+          <label className="field">Topic<select name="topicId" defaultValue={value("topicId")}>
+            <option value="">All topics</option>
+            {value("topicId") && !filters.topics.some(topic => topic.id === value("topicId")) && <option value={value("topicId")}>Selected topic</option>}
+            {filters.topics.map(topic => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
+          </select></label>
+          <label className="field">Source<select name="source" defaultValue={value("source")}>
+            <option value="">All sources</option>
+            {value("source") && !filters.sources.includes(value("source")) && <option>{value("source")}</option>}
+            {filters.sources.map(source => <option key={source} value={source}>{source}</option>)}
+          </select></label>
+          <label className="field">Type<select name="type" defaultValue={value("type")}>
+            <option value="">All types</option>
+            {value("type") && !filters.types.includes(value("type")) && <option>{value("type")}</option>}
+            {filters.types.map(type => <option key={type} value={type}>{type.replaceAll("-", " ")}</option>)}
+          </select></label>
+          <label className="field">Published from<input type="date" name="from" defaultValue={value("from")}/></label>
+          <label className="field">Published through<input type="date" name="to" defaultValue={value("to")}/></label>
+        </div>
+      </details>
+      {filterResult.status === "rejected" && result && <p role="status">Filter choices are temporarily unavailable. You can still search.</p>}
+      <div className="action-row">
+        <button className="btn primary">{search ? "Search" : "Apply filters"}</button>
+        <Link prefetch={false} className="btn" href={base}>Clear</Link>
+      </div>
+    </form>
+    {!result ? <div className="empty" role="alert">
+      <h2>{invalid ? "Check your search filters" : "The catalog is temporarily unavailable"}</h2><p>{error}</p>
+    </div> : <section aria-label="Public catalog">
+      <div className="edition-heading"><h2>{value("q") ? `Results for “${value("q")}”` : "The collection"}</h2>
+        <span>{result.total} {result.total === 1 ? "item" : "items"} · Newest added first</span>
+      </div>
+      {result.items.length ? <PublicItems items={result.items} start={(result.page - 1) * result.pageSize + 1}/> : <div className="empty">
+        <h2>No items found</h2><p>Try another topic, source, or search phrase.</p>
+        <Link prefetch={false} className="btn" href={base}>Clear filters</Link>
+      </div>}
+      <nav className="topic-pagination" aria-label="Catalog pages">
+        {result.page > 1 ? <Link prefetch={false} className="btn small" href={pageUrl(result.page - 1)}>Previous</Link> : <span/>}
+        <span className="subtle">Page {result.page} of {Math.max(1, Math.ceil(result.total / result.pageSize))}</span>
+        {result.page * result.pageSize < result.total ? <Link prefetch={false} className="btn small" href={pageUrl(result.page + 1)}>Next</Link> : <span/>}
+      </nav>
+    </section>}
+  </>;
 }

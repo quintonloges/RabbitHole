@@ -4,6 +4,8 @@ A public catalog with a private learning workspace. Visitors browse real publish
 
 Public catalog routes are `/`, `/search`, `/items/{id}`. **Blackjack Lab** at `/blackjack` is a separate, public interactive learning feature. Personal features are under `/admin`, with sign-in at `/admin/login`. Public records expose approved metadata and bounded source excerpts. Uploads, full stored text, notes, history, trails, personal practice and AI output stay private. Control visibility with **Show publicly** in item Details and the Library visibility filter. The upgrade publishes eligible existing external records; document-derived records are always private.
 
+Public search and pagination use a sanitized database index maintained transactionally with catalog changes. Its additive upgrade backfills existing records without changing saved/read state or publication choices. Blackjack lesson progress migrates automatically to stable IDs and stays synchronized across browser tabs.
+
 See [public hosting and migration](docs/public-hosting.md) for DigitalOcean and GitHub Actions setup for `rabbithole.quintonloges.me`. Configure SSH through GitHub Actions secrets. Backups default to encrypted storage on the server; off-server storage is optional. Live release requires server/DNS configuration and successful migration/backup gates.
 
 ## Desktop environments

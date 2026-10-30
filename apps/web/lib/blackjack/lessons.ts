@@ -7,11 +7,12 @@ export type Exercise =
   | { kind: "quiz"; question: string; choices: string[]; answer: number; explanation: string; cards?: Rank[]; dealerCards?: Rank[] };
 export type DemoAction = Action | "insurance";
 export type LessonStep = { title: string; paragraphs: string[]; exercise: Exercise; demo?: DemoAction; chart?: boolean };
-export type Lesson = { title: string; intro: string; steps: LessonStep[] };
+export type LessonId = "fundamentals" | "actions" | "hard-hands" | "soft-hands" | "splitting-doubling" | "bankroll" | "putting-it-together";
+export type Lesson = { id: LessonId; title: string; intro: string; steps: LessonStep[] };
 
 export const LESSONS: Lesson[] = [
   {
-    title: "Blackjack Fundamentals", intro: "Meet the cards, read a hand, and find out what actually wins.",
+    id: "fundamentals", title: "Blackjack Fundamentals", intro: "Meet the cards, read a hand, and find out what actually wins.",
     steps: [
       { title: "Beat the dealer", paragraphs: ["Your goal is to beat the dealer without going over 21. The other players are not your opponents. A total over 21 is a bust: your wager loses immediately, even if the dealer later busts.", "Cards 2–10 count as printed. Jacks, Queens, and Kings each count as 10. An Ace counts as 11 whenever it can without busting; otherwise it counts as 1.", "A soft hand has an Ace counted as 11. A hard hand has no Ace counted as 11: either it has no Ace, or every Ace counts as 1. For example, A + 6 is soft 17, while 10 + 7 is hard 17."], exercise: { kind: "value", cards: ["K", "6"], choices: ["Hard 16", "Soft 16", "Hard 20"] } },
       { title: "An Ace gives you room", paragraphs: ["A soft hand can become hard as cards arrive. Start with A + 6: soft 17. Add a 9 and the Ace must count as 1, leaving hard 16 instead of a bust. Hard describes how the cards are counted, not how strong the hand is.", "With several aces, only one can count as 11 without busting. A + A is soft 12: one Ace counts as 11 and the other as 1. Recalculate the total whenever another card arrives."], exercise: { kind: "value", cards: ["A", "A", "9"], choices: ["Bust · 31", "Soft 21", "Hard 11"] } },
@@ -21,7 +22,7 @@ export const LESSONS: Lesson[] = [
     ],
   },
   {
-    title: "Available Actions", intro: "Try every move and see what happens to the cards and chips.",
+    id: "actions", title: "Available Actions", intro: "Try every move and see what happens to the cards and chips.",
     steps: [
       { title: "Hit: take another card", paragraphs: ["Hit adds one card without increasing your bet. You can usually keep hitting until you stand, reach 21, or bust. You cannot undo a drawn card.", "The example starts with 5 + 4 against 10. Try the move below. Once you take a hit, double down, split, and surrender are no longer available."], demo: "hit", exercise: { kind: "quiz", question: "After hitting, which action can still be available?", choices: ["Double down", "Surrender", "Hit again"], answer: 2, explanation: "You may hit again while under 21. Double and surrender require your initial two cards." } },
       { title: "Stand: keep your total", paragraphs: ["Stand ends this hand's turn. Your wager stays in place until the dealer finishes. You do not have to reach 21, and you do not have to follow the dealer's drawing rule.", "With split hands, standing moves you to the next hand. The dealer waits until you have finished all of them."], demo: "stand", exercise: { kind: "decision", cards: ["10", "8"], dealer: "6" } },
@@ -32,7 +33,7 @@ export const LESSONS: Lesson[] = [
     ],
   },
   {
-    title: "Hard Hands", intro: "Use the dealer's upcard to decide when to build and when to wait.",
+    id: "hard-hands", title: "Hard Hands", intro: "Use the dealer's upcard to decide when to build and when to wait.",
     steps: [
       { title: "Small totals need a card", paragraphs: ["A hard total has no Ace counted as 11. On 8 or less, hit: even a 10-value card cannot bust you. Hard 9, 10, and 11 sometimes deserve a double instead.", "Basic strategy chooses the best expected result over many hands. A correct move can still lose this hand, and a poor move can still win."], exercise: { kind: "decision", cards: ["2", "5"], dealer: "10" } },
       { title: "The awkward 12", paragraphs: ["On hard 12, stand against 4, 5, or 6. Those upcards leave the dealer vulnerable enough that avoiding your own bust is preferable.", "Against 2 or 3, hit instead. Neither upcard is weak enough to make standing on 12 the better choice. Hit against 7 through Ace as well."], exercise: { kind: "decision", cards: ["10", "2"], dealer: "2" } },
@@ -41,7 +42,7 @@ export const LESSONS: Lesson[] = [
     ],
   },
   {
-    title: "Soft Hands", intro: "An Ace lets you improve a hand without busting on the very next card.",
+    id: "soft-hands", title: "Soft Hands", intro: "An Ace lets you improve a hand without busting on the very next card.",
     steps: [
       { title: "Soft can become hard", paragraphs: ["With A + 6, the Ace counts as 11: soft 17. Adding a 9 makes the Ace fall to 1, leaving hard 16. You must now use the hard-total strategy.", "A soft hand cannot bust on one additional card. That flexibility often makes hitting or doubling worthwhile, even on a total that sounds high."], exercise: { kind: "value", cards: ["A", "6", "9"], choices: ["Soft 16", "Hard 16", "Bust · 26"] } },
       { title: "Build small soft totals", paragraphs: ["Hit soft 17 or less unless a double is recommended. A + 2 and A + 3 double against 5–6; A + 4 and A + 5 double against 4–6; A + 6 doubles against 3–6.", "If you have already hit or cannot afford the double, hit instead. Player strategy is different from the dealer rule: the dealer stands on soft 17, but you generally do not."], exercise: { kind: "decision", cards: ["A", "6"], dealer: "7" } },
@@ -50,7 +51,7 @@ export const LESSONS: Lesson[] = [
     ],
   },
   {
-    title: "Splitting and Doubling", intro: "Learn when another wager helps, and which restrictions change your options.",
+    id: "splitting-doubling", title: "Splitting and Doubling", intro: "Learn when another wager helps, and which restrictions change your options.",
     steps: [
       { title: "Break up 8s, keep 10s", paragraphs: ["Split 8s whenever available: starting two hands on 8 is better than keeping hard 16. Split aces too. Never split 10s in basic strategy; 20 is already strong.", "Treat 5 + 5 as hard 10, which often doubles. Pair strategy is not simply 'split small cards': for example, keep 9 + 9 against 7, 10, or Ace."], exercise: { kind: "decision", cards: ["8", "8"], dealer: "10" } },
       { title: "One card for each Ace", paragraphs: ["At this table, splitting aces gives each Ace exactly one additional card. You cannot hit, double, or resplit those hands, even if another Ace arrives.", "An Ace plus a 10-value card after splitting is ordinary 21. It earns 1:1 if it wins and can push another ordinary 21. The special 3:2 natural payout belongs to the original deal."], exercise: { kind: "quiz", question: "A split Ace receives a King. What is this hand?", cards: ["A", "K"], choices: ["Natural blackjack, paid 3:2", "Ordinary 21, paid 1:1 if it wins"], answer: 1, explanation: "A split hand cannot be a natural. It also receives no further cards because it came from split aces." } },
@@ -60,7 +61,7 @@ export const LESSONS: Lesson[] = [
     ],
   },
   {
-    title: "Betting and Bankroll", intro: "Know what is at risk before the cards arrive.",
+    id: "bankroll", title: "Betting and Bankroll", intro: "Know what is at risk before the cards arrive.",
     steps: [
       { title: "Choose a unit", paragraphs: ["A betting unit is a repeatable amount, such as $10. Flat betting means keeping that opening wager steady. This virtual table accepts $5–$500 in whole dollars; select a chip or enter a wager before Deal.", "Only the opening bet must fit the table limit. A double or split adds its own matching wager. Leave room in your available balance for these choices; a $10 opening bet can become four $20 hands."], exercise: { kind: "quiz", question: "You have $25 available before betting $10. You split, then want to double one $10 hand. Is there enough left?", choices: ["Yes", "No"], answer: 1, explanation: "$10 + $10 leaves $5. The double needs another $10, so it is unavailable." } },
       { title: "Read the blackjack payout", paragraphs: ["A winning natural on $10 earns $15 profit at 3:2 but only $12 at 6:5. That difference repeats every time you receive a winning natural. Check the felt or table sign before buying chips.", "An ordinary win earns $10 profit on a $10 wager under either payout sign. Insurance pays 2:1 on its own half-size wager, not on your main bet."], exercise: { kind: "quiz", question: "A $20 natural wins at this 3:2 table. How much returns, including your stake?", choices: ["$30", "$40", "$50"], answer: 2, explanation: "$20 × 3/2 is $30 profit. Add the $20 stake: $50 returns." } },
@@ -69,7 +70,7 @@ export const LESSONS: Lesson[] = [
     ],
   },
   {
-    title: "Putting It Together", intro: "Read the chart, settle into a casino table, and make a few mixed decisions.",
+    id: "putting-it-together", title: "Putting It Together", intro: "Read the chart, settle into a casino table, and make a few mixed decisions.",
     steps: [
       { title: "Read a strategy chart", paragraphs: ["Find the dealer's upcard across the top. For a splittable pair, use the pair table first. Otherwise use the soft total if an Ace counts as 11, or the hard total if it does not.", "Each cell names the preferred action. D means double or hit; Ds means double or stand; R means surrender or hit. If you cannot split, use the total. The chart below matches this table's rules."], chart: true, exercise: { kind: "decision", cards: ["9", "9"], dealer: "7" } },
       { title: "Sit down and place a bet", paragraphs: ["Read the minimum, maximum, and blackjack payout. Ask about soft 17, surrender, and splitting rules. Wait until a hand finishes, then place cash on the felt for the dealer to exchange; do not hand it directly to them.", "Put your opening chips in the betting circle before cards are dealt. Leave them alone once dealing begins. Face-up shoe games usually require you to leave the cards on the table untouched. Ask before joining mid-shoe if unsure."], exercise: { kind: "quiz", question: "The dealer has started dealing. May you increase your opening wager?", choices: ["Yes, before seeing the hole card", "No; only a permitted double, split, or insurance bet adds chips"], answer: 1, explanation: "The opening wager is locked once the deal starts. Wait for your turn and the specific action before adding chips." } },

@@ -22,6 +22,8 @@ export function PlayMode({ coaching, onCoaching }: { coaching: boolean; onCoachi
   const [frames, setFrames] = useState<TableFrame[]>([]);
   const [reducedMotion, setReducedMotion] = useState(false);
   const busy = useRef(false);
+  const decisions = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<HTMLElement | null>(null);
   const animation = frames[0];
   const betting = !animation && (game.phase === "betting" || game.phase === "settled");
   const wagerCents = Number(wager) * 100;
@@ -30,6 +32,10 @@ export function PlayMode({ coaching, onCoaching }: { coaching: boolean; onCoachi
   const committed = game.hands.reduce((sum, hand) => sum + hand.bet, 0) + game.insurance;
   const available = animation?.bankroll ?? game.bankroll;
   const commit = useCallback((next: Game, move: TableMove) => {
+    if (move !== "dealer") {
+      const focused = document.activeElement;
+      pendingFocus.current = focused instanceof HTMLElement && decisions.current?.contains(focused) ? focused : null;
+    }
     const sequence = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? [] : tableMotion(current.current, next, move);
     busy.current = sequence.length > 0;
     current.current = next; setGame(next); setFrames(sequence);
@@ -60,6 +66,18 @@ export function PlayMode({ coaching, onCoaching }: { coaching: boolean; onCoachi
     }, reducedMotion ? 0 : 180);
     return () => window.clearTimeout(timer);
   }, [game, animation, reducedMotion, commit]);
+  useEffect(() => {
+    if (animation || game.phase === "dealer" || !pendingFocus.current) return;
+    const previous = pendingFocus.current;
+    pendingFocus.current = null;
+    const area = decisions.current;
+    // A mode switch or a deliberate focus change during motion takes precedence.
+    if (!area || area.closest("[hidden]") || (document.activeElement !== document.body && document.activeElement !== previous)) return;
+    const target = area.contains(previous) && !previous.matches(":disabled") ? previous
+      : area.querySelector<HTMLElement>(".bj-actions button:not(:disabled), .bj-deal:not(:disabled)")
+        ?? area.querySelector<HTMLElement>(".bj-betting input, button:not(:disabled)");
+    target?.focus({ preventScroll: true });
+  }, [animation, game]);
 
   function startRound() {
     if (busy.current) return;
@@ -101,7 +119,7 @@ export function PlayMode({ coaching, onCoaching }: { coaching: boolean; onCoachi
       </div> : <div className="bj-seat"><span aria-hidden="true">♠</span><p>Your next hand starts here.</p><small>Choose a wager below, then deal.</small></div>}
       <div className="bj-table-status" role="status" aria-live="polite">{animation?.message ?? (game.phase === "dealer" ? "Dealer plays…" : game.phase === "player" && game.peeked ? "Dealer checked: no blackjack." : game.phase === "settled" ? dealerBlackjack ? "Dealer has blackjack. The round ends immediately, before you hit or stand." : "Round complete." : game.phase === "insurance" ? "Dealer shows an Ace. Insurance comes before the peek." : "")}</div>
     </div>
-    <div className="bj-decision-area">
+    <div className="bj-decision-area" ref={decisions}>
       {game.phase === "insurance" && !animation && <div className="bj-insurance"><h3>Insurance?</h3><p>Bet {money(game.hands[0].bet / 2)} that the dealer has blackjack. It pays 2:1 if they do; otherwise this separate wager loses.</p><p>The dealer checks next. Blackjack ends the round whether you take insurance or decline it; otherwise your main hand continues normally.</p>{isBlackjack(game.hands[0].cards) && <p>You have a natural. Taking insurance gives the same net profit as accepting even money.</p>}<div className="bj-actions"><button className="btn" onClick={() => insure(false)}>Decline insurance</button><button className="btn" disabled={!canInsure(game)} onClick={() => insure(true)}>Take insurance · {money(game.hands[0].bet / 2)}</button></div>{!canInsure(game) && <p className="bj-copy">Not enough available chips for insurance.</p>}</div>}
       {game.phase === "player" && <><ActionButtons actions={legalActions(game)} onAction={choose} disabled={!!animation}/>{!animation && game.bankroll < game.hands[game.activeHand].bet && <p className="bj-copy">Extra split or double bets need another {money(game.hands[game.activeHand].bet)}. The coach uses your available actions.</p>}</>}
       {!animation && game.phase !== "settled" && game.insuranceResult === "lost" && <p className="bj-insurance-result">Insurance lost: {money(game.insurance)}. Your main bet is still in play.</p>}

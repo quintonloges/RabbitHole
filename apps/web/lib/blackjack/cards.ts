@@ -1,3 +1,5 @@
+import { RULES } from "./rules";
+
 export const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"] as const;
 export const SUITS = ["clubs", "diamonds", "hearts", "spades"] as const;
 export type Rank = typeof RANKS[number];
@@ -38,7 +40,7 @@ export function shuffle<T>(items: readonly T[], random: () => number = Math.rand
 }
 
 export function orderedShoe(): Card[] {
-  return Array.from({ length: 6 }, (_, deck) => SUITS.flatMap(suit => RANKS.map(rank => ({ id: `${deck}-${suit}-${rank}`, rank, suit })))).flat();
+  return Array.from({ length: RULES.decks }, (_, deck) => SUITS.flatMap(suit => RANKS.map(rank => ({ id: `${deck}-${suit}-${rank}`, rank, suit })))).flat();
 }
 
 export function createShoe(random: () => number = Math.random) { return shuffle(orderedShoe(), random); }

@@ -4,7 +4,11 @@ import { isIP } from "node:net";
 
 export const publicOrigin = () => new URL(process.env.PUBLIC_ORIGIN || "http://127.0.0.1:47832").origin;
 export const indexingEnabled = () => process.env.PUBLIC_INDEXING_ENABLED === "true";
-export class PublicApiError extends Error { constructor(public status: number) { super("The public catalog is temporarily unavailable."); } }
+export class PublicApiError extends Error {
+  constructor(public status: number, detail?: string) {
+    super(status === 400 ? detail || "Check your search and filters, then try again." : "The public catalog is temporarily unavailable.");
+  }
+}
 
 export async function publicApi<T>(path: string): Promise<T> {
   const proxyHeaders: Record<string, string> = {};
@@ -22,6 +26,9 @@ export async function publicApi<T>(path: string): Promise<T> {
   const response = await fetch(`${process.env.API_ORIGIN || "http://127.0.0.1:5080"}/api/public${path}`, {
     headers: proxyHeaders, cache: "no-store", credentials: "omit", redirect: "error", signal: AbortSignal.timeout(15000),
   });
-  if (!response.ok) throw new PublicApiError(response.status);
+  if (!response.ok) {
+    const problem = response.status === 400 ? await response.json().catch(() => null) : null;
+    throw new PublicApiError(response.status, typeof problem?.detail === "string" ? problem.detail.slice(0, 500) : undefined);
+  }
   return response.json() as Promise<T>;
 }

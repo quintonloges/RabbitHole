@@ -52,6 +52,7 @@ using (var scope = app.Services.CreateScope())
         await db.Database.EnsureCreatedAsync();
         await SqliteCatalogSchema.ApplyAsync(db);
         await SqliteSecuritySchema.ApplyAsync(db);
+        await SqlitePublicCatalogSchema.ApplyAsync(db);
     }
     if (!await db.Topics.AnyAsync())
     {
@@ -69,6 +70,7 @@ using (var scope = app.Services.CreateScope())
     await PublicationUpgrade.ApplyAsync(db);
     await CatalogUpgrade.ApplyAsync(db);
     await RecommendationUpgrade.ApplyAsync(db);
+    await PublicCatalogIndex.BackfillAsync(db);
 }
 
 if (provisionAdmin)

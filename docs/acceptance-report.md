@@ -1,5 +1,20 @@
 # RabbitHole acceptance report
 
+## Development source seed — 30 October 2026
+
+Seeded the isolated development instance at `http://127.0.0.1:47832` through the authenticated source APIs. Added ten verified RSS/Atom subscriptions and **59 real articles**: six each from Google DeepMind, Hugging Face, Simon Willison, Essentia Foundation, Aeon, The Black Vault UFOs, Institute of Noetic Sciences, Attack Technique and EarLevel Engineering, plus five from Quanta Magazine. Sources use the existing starter topics and curated refresh intervals. Existing private documents were retained. The previously unconfigured development administrator was provisioned with the user's approved password through interactive `--admin-password`; its local credential file is ignored by Git.
+
+Verification:
+
+- `python scripts/probe-sources.py data/curation/dev-seed-candidates.json data/curation/dev-seed-verification.json` parsed all ten live feeds.
+- `python scripts/apply-source-pack.py --pack data/curation/dev-seed-source-pack.json --base http://127.0.0.1:47832/api --apply --report data/curation/dev-seed-import-report.json` completed all ten source tests/imports and enabled the subscriptions.
+- Read-only checks of `/api/public/items?pageSize=100` confirmed 59 records, 59 unique canonical URLs, ten sources, and an exact original-URL match in the retrieved feed responses for every article. Public search for `consciousness` returned 11 records. Results are in ignored `data/curation/dev-seed-summary.json`.
+- Authenticated browser sign-in succeeded and Discover displayed imported articles alongside existing private content. A later selection refresh/Settings navigation stalled in the embedded browser; a screenshot attempt timed out. Completion of that selection refresh was not verified.
+- A repeat installer invocation stopped at login with HTTP 429; it made no catalog changes. The rate limit was not bypassed, and a successful repeat-install check is not claimed.
+- `./scripts/dev.ps1 status` reported healthy API, web and database services with the gateway on loopback port 47832. HTTP health and login-page checks returned 200; the final API log check found no error/critical entries or unhandled exceptions.
+
+This was a data-only operation; application builds and automated test suites were not rerun. Production and hosted instances were not modified.
+
 ## Catalog browsing and source links — 30 October 2026
 
 Catalog now shows the collection without a search/filter form. Search retains the full query and metadata filters; existing catalog URLs containing search filters redirect there with their values preserved. Topic links still browse Catalog with a topic heading, pagination and an all-topics link. Public headlines open the original source in a new tab, and the former secondary source link is now **Go down the rabbit hole ↘**, opening the RabbitHole preview and related discoveries. The shared list applies this behavior to Catalog, Search and related items. Empty catalog/topic messages no longer suggest using a missing search form.

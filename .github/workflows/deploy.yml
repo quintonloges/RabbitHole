@@ -99,14 +99,15 @@ jobs:
           RH_CONFIG=/etc/rabbithole/hosted.env
           if [[ "$DEPLOY_ENVIRONMENT" == staging ]]; then RH_CONFIG=/etc/rabbithole/staging.env; fi
           [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
-          SSH=(ssh -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "$SSH_TARGET")
+          SSH_OPTIONS=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=6)
+          SSH=(ssh -p "$SSH_PORT" "${SSH_OPTIONS[@]}" "$SSH_TARGET")
           release=/srv/rabbithole/releases/$GITHUB_SHA
           # A rerun reuses the installed immutable bundle; it never overwrites pins.
           if "${SSH[@]}" "test -f $release/release.env"; then
             echo 'Reusing the existing pinned release bundle.'
           else
             "${SSH[@]}" "mkdir -p $release"
-            scp -P "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes release.tar.gz "$SSH_TARGET:$release/release.tar.gz"
+            scp -P "$SSH_PORT" "${SSH_OPTIONS[@]}" release.tar.gz "$SSH_TARGET:$release/release.tar.gz"
             "${SSH[@]}" "cd $release && tar -xzf release.tar.gz"
           fi
           if [[ "$DEPLOY_ENVIRONMENT" == production ]]; then

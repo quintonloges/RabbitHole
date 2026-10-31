@@ -1,5 +1,19 @@
 # RabbitHole acceptance report
 
+## Hosted release recovery and SSH observability — 31 October 2026
+
+Release `d9446d57192f2fe2970027b0930299c0de3da372` is live. The first attempt rejected a mismatched administrator secret before maintenance; the owner corrected it. The second attempt authenticated, preserved the database/uploads during migration, created encrypted before/after backups and restored the new pair into disposable volumes. The SSH connection then reset during the silent authenticated privacy scan. The server completed that scan afterwards (`smoke-verified.json`: passed, 418 public records), but the disconnected output prevented the remaining opening steps.
+
+Recovery used the existing deployment key over verified SSH. It required that exact current release, the operation lock, the matching recent backup/restore evidence, preservation evidence and successful privacy evidence newer than those checks and less than 15 minutes old. Only the remaining opening steps were resumed; HTTPS health/catalog/home probes succeeded. The temporary recovery script was removed. No administrator reset, login bypass, data rollback or volume deletion was performed. The original desktop production copy remains untouched.
+
+The workflow now sends SSH keepalives every 15 seconds, limits unanswered keepalives and connection setup, and applies the same options to transfers. The privacy scan flushes phase/page/exclusion progress, announces rate-limit waits, and bounds each container curl request and subprocess. Release phases are also explicit in logs. No private record content or password values are logged.
+
+- Isolated Linux script suite: **13 script tests and 33 hosted tests passed**, including real restic backup/restoration and new regression cases for throttling progress, hung probes, private-record exposure and personal-state drift. All Bash syntax checks passed.
+- Actionlint 1.7.12 and `git diff --check`: passed.
+- Hosted browser verification with `RH_SMOKE_BASE=https://rabbithole.quintonloges.me node .cache/archive-smoke.cjs`: **418 unique public records**, private API 401, no browser errors or horizontal overflow, mobile entry and login routing passed at 320/390 pixels, plus desktop and light/dark checks. Captures remain in ignored `.cache/ui-review/`.
+
+Additional source activation was not reached by the disconnected run and remains pending a corrected workflow run. The earlier "not deployed" notes below record prior states, not the current hosted status.
+
 ## Mobile workspace entry — 31 October 2026
 
 The public header now keeps a visible **Sign in** link beside the brand on phones. It opens `/admin`, which sends anonymous visitors to the existing password screen and signed-in visitors to their workspace. Desktop retains **Private workspace**. The link has a 44-pixel tap target and stays within the viewport at 320 and 390 pixels.

@@ -2,6 +2,7 @@
 # Approved routine release: stdin carries the existing admin password over verified SSH.
 set -euo pipefail
 umask 077
+export PYTHONUNBUFFERED=1
 [[ $# == 1 || ($# == 2 && "$2" == --apply-source-pack) ]] || { echo 'Usage: release.sh RELEASE [--apply-source-pack] < private-password' >&2; exit 1; }
 release=$(cd "$1" && pwd)
 release_id=${release##*/}
@@ -25,18 +26,23 @@ cleanup() {
 trap cleanup EXIT
 head -c 4097 >"$credential_dir/password"
 # Bad/missing credentials or an unavailable HTTPS endpoint fail before maintenance.
+echo 'Release stage: authenticating before maintenance.'
 python3 "$release/scripts/hosted/smoke.py" --base "https://$PUBLIC_HOST/api" --check-login-only --password-file "$credential_dir/password"
 systemctl is-enabled --quiet rabbithole-backup.timer
 systemctl is-active --quiet rabbithole-backup.timer
 command -v restic >/dev/null
 export RH_RELEASE="$release"
+echo 'Release stage: backing up the previous release and verifying migration preservation.'
 bash "$release/scripts/hosted/deploy.sh" "$release"
 # deploy.sh backed up the previous release and verified migration preservation.
 # These next two checks bind restoration evidence to the NEW pinned release.
+echo 'Release stage: backing up and restoring the new release in isolation.'
 bash "$release/scripts/hosted/backup.sh"
 bash "$release/scripts/hosted/restore-test.sh"
+echo 'Release stage: authenticated privacy checks and public HTTPS launch.'
 bash "$release/scripts/hosted/launch.sh" --password-file "$credential_dir/password"
 if [[ ${2:-} == --apply-source-pack ]]; then
+  echo 'Release stage: verifying and activating the requested additional sources.'
   python3 "$release/scripts/apply-source-pack.py" --base "https://$PUBLIC_HOST/api" --pack "$release/config/curated-source-pack.json" --apply --password-file "$credential_dir/password" --report "$STATE_PATH/source-pack-$release_id.json"
 fi
 echo 'Approved release completed: backup, migration, restoration, authenticated privacy checks and public HTTPS launch passed.'

@@ -55,9 +55,21 @@ test('anonymous API access and workspace rendering enforce the private boundary'
   await context.close(); await anonymous.dispose();
 });
 
-test('password-only sign in, CSRF-backed writes, and logout invalidate access', async ({ browser, baseURL }) => {
-  const context = await browser.newContext({ baseURL }); const page = await context.newPage();
-  await page.goto('/admin/login');
+test('mobile workspace entry, password-only sign in, CSRF-backed writes, and logout invalidate access', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } }); const page = await context.newPage();
+  await page.goto('/');
+  const signIn = page.getByRole('banner').getByRole('link', { name: 'Sign in', exact: true });
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(signIn).toBeInViewport();
+    expect((await signIn.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: `.cache/ui-review/workspace-entry-${width}.png` });
+  }
+  await signIn.click();
+  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page.getByRole('heading', { name: 'Private workspace' })).toBeVisible();
+  await page.screenshot({ path: '.cache/ui-review/workspace-login-mobile.png' });
   await page.getByLabel('Administrator password', { exact: true }).fill('TEST-FIXTURE-wrong-password!');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();

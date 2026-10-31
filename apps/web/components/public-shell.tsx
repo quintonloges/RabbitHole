@@ -13,7 +13,11 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <span>Rabbit<span className="brand-light">Hole</span></span>
         </Link>
         <PublicNavigation/>
-        <a href="/admin" className="public-workspace">Private workspace <span aria-hidden="true">↗</span></a>
+        <a href="/admin" className="public-workspace">
+          <span className="public-workspace-label">Private workspace</span>
+          <span className="public-workspace-mobile-label">Sign in</span>
+          <span aria-hidden="true">↗</span>
+        </a>
       </div>
     </header>
     <main id="main-content" tabIndex={-1}>{children}</main>

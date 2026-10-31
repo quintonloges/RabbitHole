@@ -1,5 +1,16 @@
 # RabbitHole acceptance report
 
+## Mobile workspace entry — 31 October 2026
+
+The public header now keeps a visible **Sign in** link beside the brand on phones. It opens `/admin`, which sends anonymous visitors to the existing password screen and signed-in visitors to their workspace. Desktop retains **Private workspace**. The link has a 44-pixel tap target and stays within the viewport at 320 and 390 pixels.
+
+The end-to-end flow exposed a login hydration race: the server-rendered password field could accept typing before its change handler attached, leaving the submit button disabled. The field now waits for client readiness before accepting input.
+
+- `npm run test:e2e -- tests/e2e/public-catalog.spec.ts -g 'mobile workspace entry'`: **1 passed** after the fix. Covers the header link at both phone widths, wrong-password feedback, valid cookie/CSRF login, private workspace rendering, CSRF rejection and logout/session revocation. The preceding run timed out on the pre-hydration input bug.
+- Frontend lint and typecheck passed. `./scripts/dev.ps1 start` rebuilt the optimized application and all four services became healthy.
+- `node .cache/archive-smoke.cjs`: passed on the compiled development app, with **59 unique public items preserved**, anonymous private access rejected, no browser errors or horizontal overflow, and desktop/mobile dark/light captures reviewed. Mobile sign-in also reached the ready password form from a public search page. Evidence remains in ignored `.cache/ui-review/`.
+- The preceding combined source/CI/CD revision passed the complete [GitHub validation run](https://github.com/quintonloges/RabbitHole/actions/runs/41208567894). Its superseded deployment run was cancelled before release, so the mobile change can be included in the same owner-approved rollout.
+
 ## Approval-to-live GitHub releases — 31 October 2026
 
 Completed the routine release path from GitHub approval through automatic public launch. A default-branch push queues validation and the protected production job. The live GitHub environment now requires `quintonloges` approval and only accepts `codex/rabbithole`; self-review remains available for the sole owner. The agent does not approve releases. Manual staging runs remain isolated in maintenance.

@@ -1,0 +1,74 @@
+import { randomUUID } from 'node:crypto';
+import { test, expect } from './auth-fixture';
+
+test('daily public mix and private rows show original years, while unknown dates stay unknown', async ({ page, request, browser, baseURL }) => {
+  const topic = await (await request.post('/api/topics', { data: { name: `TEST FIXTURE archive ${randomUUID()}`, weight: 3, enabled: true } })).json();
+  const older = await (await request.post('/api/items/import-url', { data: { url: `https://example.org/archive-fixture/${randomUUID()}` } })).json();
+  const unknown = await (await request.post('/api/items/import-url', { data: { url: `https://example.org/undated-${randomUUID()}` } })).json();
+  for (const item of [older, unknown]) expect((await request.patch(`/api/items/${item.id}`, { data: { topicIds: [topic.id] } })).ok()).toBe(true);
+  const context = await browser.newContext({ baseURL }); const publicPage = await context.newPage();
+  await publicPage.goto(`/?topicId=${topic.id}`);
+  await expect(publicPage.getByText('Fresh finds + archive picks', { exact: false })).toBeVisible();
+  const headline = publicPage.getByRole('link', { name: 'TEST FIXTURE: How oscillators work (2001)', exact: true });
+  await expect(headline).toBeVisible();
+  await expect(headline.locator('xpath=ancestor::article')).toContainText('Published Feb 3, 2001');
+  await expect(publicPage.getByText('Date unknown', { exact: true })).toBeVisible();
+  await publicPage.getByRole('link', { name: 'Newest added', exact: true }).click();
+  await expect(publicPage).toHaveURL(/sort=newest/);
+  await expect(publicPage.getByText(/Newest added first/)).toBeVisible();
+  await publicPage.getByRole('link', { name: 'Daily mix', exact: true }).click();
+  await expect(publicPage).toHaveURL(/sort=mix/);
+  await expect(headline).toBeVisible();
+  await publicPage.screenshot({ path: '.cache/ui-review/archive-desktop.png', fullPage: true });
+  await publicPage.setViewportSize({ width: 390, height: 844 });
+  expect(await publicPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await publicPage.screenshot({ path: '.cache/ui-review/archive-mobile.png', fullPage: true });
+  await page.goto(`/admin?topicId=${topic.id}`);
+  await expect(page.getByRole('link', { name: 'TEST FIXTURE: How oscillators work (2001)', exact: true })).toBeVisible();
+  const stored = await (await request.get(`/api/items/${older.id}`)).json();
+  expect(stored.title).toBe('TEST FIXTURE: How oscillators work');
+  expect(stored.publishedAt).toMatch(/^2001-02-03/);
+  expect(stored.state.read).toBe(false);
+  await context.close();
+});
+
+test('archive share persists and expanded source suggestions fill in topics and bounded refresh defaults', async ({ page, request }) => {
+  const before = await (await request.get('/api/settings')).json();
+  await page.goto('/admin/settings');
+  const archive = page.getByRole('slider', { name: /From the archive/ });
+  await archive.fill('35');
+  await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
+  await expect(page.getByText('Preferences saved.', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(archive).toHaveValue('35');
+  expect((await (await request.get('/api/settings')).json()).archiveShare).toBe(0.35);
+  await page.getByText(/Browse \d+ suggested sources/).click();
+  await page.getByRole('button', { name: 'Distill', exact: true }).click();
+  await expect(page.getByLabel('Source name', { exact: true })).toHaveValue('Distill');
+  await expect(page.getByLabel('Feed URL', { exact: true })).toHaveValue('https://distill.pub/rss.xml');
+  await expect(page.getByLabel('Result limit', { exact: true })).toHaveValue('60');
+  await expect(page.getByRole('combobox', { name: 'Refresh interval', exact: true })).toHaveValue('10080');
+  await expect(page.getByRole('checkbox', { name: 'Frontier AI', exact: true })).toBeChecked();
+  await request.patch('/api/settings', { data: { archiveShare: before.archiveShare } });
+});
+
+test('an older-web source imports a previously unseen original link through a real refresh', async ({ page, request }) => {
+  await page.goto('/admin/settings');
+  await page.getByText(/Browse \d+ suggested sources/).click();
+  await page.getByRole('button', { name: 'Older web — sound design', exact: true }).click();
+  await expect(page.getByLabel('Search query', { exact: true })).toHaveValue('sound synthesis');
+  await expect(page.getByLabel('Result limit', { exact: true })).toHaveValue('3');
+  await page.getByRole('button', { name: 'Add source', exact: true }).click();
+  const row = page.locator('.row-item').filter({ has: page.getByRole('heading', { name: 'Older web — sound design', exact: true }) });
+  await expect(row).toBeVisible();
+  await row.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect(row).toContainText('HEALTHY');
+  const catalog = await (await request.get('/api/items?q=oscillators')).json();
+  const discovered = catalog.items.find((item: { canonicalUrl: string }) => item.canonicalUrl.endsWith('/discovered-online'));
+  expect(discovered).toBeTruthy();
+  expect(discovered.publishedAt).toMatch(/^2001-02-03/);
+  expect(discovered.provider).toBe('web-archive');
+  expect(discovered.author).not.toBe('Not the original author');
+  await page.goto('/search?q=oscillators');
+  await expect(page.getByRole('link', { name: 'TEST FIXTURE: How oscillators work (2001)', exact: true }).first()).toBeVisible();
+});

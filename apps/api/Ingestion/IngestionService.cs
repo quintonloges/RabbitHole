@@ -50,19 +50,14 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         }
         finally { AcademicRateLock.Release(); }
     }
-    public static readonly object[] Presets =
-    [
-        new { name = "OpenAI News", kind = "rss", url = "https://openai.com/news/rss.xml" },
-        new { name = "arXiv cs.AI", kind = "rss", url = "https://export.arxiv.org/rss/cs.AI" },
-        new { name = "Quanta Magazine", kind = "rss", url = "https://www.quantamagazine.org/feed/" }
-    ];
-
     public async Task<FetchBatch> FetchSourceAsync(Source source, CancellationToken ct, bool conditional = true)
     {
         switch (source.Kind.ToLowerInvariant())
         {
             case "rss":
                 return await FetchFeedAsync(source, ct, conditional);
+            case "web-archive":
+                return await new WebArchiveDiscovery(db, fetcher, ReadUrlMetadataAsync).FetchAsync(source, ct);
             case "openalex":
                 {
                     var query = source.Query.Trim();
@@ -103,7 +98,7 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                         ProviderAdapters.FeedTypes), ct);
                     return new FetchBatch(ProviderAdapters.ParseFeed(response.Body, "youtube"), response.ETag, response.LastModified);
                 }
-            default: throw new ArgumentException("Supported source kinds are rss, openalex, arxiv, and youtube.");
+            default: throw new ArgumentException("Supported source kinds are rss, openalex, arxiv, youtube, and web-archive.");
         }
     }
 
@@ -307,6 +302,13 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
                 selected.Provider, selected.ProviderId, selected.Provider, selected.ProviderId);
             return (await UpsertAsync(selected, null, [], ct)).Item;
         }
+        return (await UpsertAsync(await ReadUrlMetadataAsync(url, title, ct), null, [], ct)).Item;
+    }
+
+    public async Task<NormalizedItem> ReadUrlMetadataAsync(string url, string? title, CancellationToken ct)
+    {
+        var uri = SafeRemoteFetcher.ValidateUrl(url);
+        var canonical = new UriBuilder(uri) { Fragment = "" }.Uri.ToString();
         var item = new NormalizedItem
         {
             Provider = "manual",
@@ -353,7 +355,7 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
             item.Warning = "Link only: " + PublicError(error);
         }
         if (!string.IsNullOrWhiteSpace(title)) item.Title = ProviderAdapters.Plain(title, 400);
-        return (await UpsertAsync(item, null, [], ct)).Item;
+        return item;
     }
 
     private async Task<bool> RobotsAllowedAsync(Uri url, CancellationToken ct)

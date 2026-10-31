@@ -590,6 +590,7 @@ public static class CoreEndpoints
         if (Has(body, "editionSize")) { var value = Integer(body, "editionSize"); if (value == null || value < 5 || value > 100) return Bad("Edition size must be an integer between 5 and 100."); settings.EditionSize = value.Value; }
         if (Has(body, "serendipity")) { var value = Number(body, "serendipity"); if (value == null || value < 0 || value > 1) return Bad("Serendipity must be between 0 and 1."); settings.Serendipity = value.Value; }
         if (Has(body, "freshness")) { var value = Number(body, "freshness"); if (value == null || value < 0 || value > 1) return Bad("Freshness must be between 0 and 1."); settings.Freshness = value.Value; }
+        if (Has(body, "archiveShare")) { var value = Number(body, "archiveShare"); if (value == null || value < 0 || value > 0.5) return Bad("Archive share must be between 0 and 0.5."); settings.ArchiveShare = value.Value; }
         if (Has(body, "practiceEnabled")) { var value = Bool(body, "practiceEnabled"); if (value == null) return Bad("practiceEnabled must be a boolean."); settings.PracticeEnabled = value.Value; }
         if (Has(body, "ingestionPaused")) { var value = Bool(body, "ingestionPaused"); if (value == null) return Bad("ingestionPaused must be a boolean."); settings.IngestionPaused = value.Value; }
         if (Has(body, "aiEnabled")) { var value = Bool(body, "aiEnabled"); if (value == null) return Bad("aiEnabled must be a boolean."); settings.AiEnabled = value.Value; }

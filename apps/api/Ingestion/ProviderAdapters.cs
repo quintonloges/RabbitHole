@@ -109,7 +109,8 @@ public static class ProviderAdapters
             if (!TryPublicLink(link, out var canonical)) continue;
             if (selectedItemUrl is not null && canonical.TrimEnd('/') != selectedItemUrl.TrimEnd('/')) continue;
             var rawTitle = Value(entry, "title") ?? canonical;
-            var date = Value(entry, "published") ?? Value(entry, "updated") ??
+            // Atom updated describes a revision, not original publication (RFC 4287).
+            var date = Value(entry, "published") ??
                 Value(entry, "pubDate") ?? Value(entry, "date");
             var description = Value(entry, "summary") ?? Value(entry, "description") ?? Value(entry, "content");
             var suppliedContent = Value(entry, "encoded") ?? (atom ? Value(entry, "content") : null);

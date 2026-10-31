@@ -37,7 +37,7 @@ public static class IngestionEndpoints
         });
         group.MapGet("/sources", async (AppDbContext db, CancellationToken ct) =>
             await db.Sources.OrderBy(x => x.Name).ToListAsync(ct));
-        group.MapGet("/sources/presets", () => IngestionService.Presets);
+        group.MapGet("/sources/presets", () => SourcePresets.All);
         group.MapPost("/sources", async (SourceInput input, AppDbContext db, CancellationToken ct) =>
         {
             var error = Validate(input, null);
@@ -174,12 +174,16 @@ public static class IngestionEndpoints
             }
             catch (RemoteFetchException e) { return e.Message; }
         }
-        else if (kind is "openalex" or "arxiv")
+        else if (kind is "openalex" or "arxiv" or "web-archive")
         {
             if (query is null || query.Trim().Length < 2 || query.Trim().Length > 200)
-                return "Research source needs a 2–200 character query.";
+                return "Search source needs a 2–200 character query.";
+            if (kind == "web-archive" && (input.ResultLimit ?? existing?.ResultLimit ?? 25) > 3)
+                return "Older web discovery is limited to 1–3 original links per refresh.";
+            if (kind == "web-archive" && (input.IntervalMinutes ?? existing?.IntervalMinutes ?? 360) < 1440)
+                return "Older web discovery refreshes at most daily (1440 minutes).";
         }
-        else return "Supported source kinds are rss, openalex, arxiv, and youtube.";
+        else return "Supported source kinds are rss, openalex, arxiv, youtube, and web-archive.";
         return null;
     }
 

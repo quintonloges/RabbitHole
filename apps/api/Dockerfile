@@ -3,6 +3,7 @@ WORKDIR /src
 COPY apps/api/RabbitHole.Api.csproj apps/api/
 RUN dotnet restore apps/api/RabbitHole.Api.csproj
 COPY apps/api/ apps/api/
+COPY config/curated-source-pack.json config/
 RUN dotnet publish apps/api/RabbitHole.Api.csproj -c Release -o /out --no-restore /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0

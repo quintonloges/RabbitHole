@@ -343,6 +343,67 @@ public class PublicCatalogTests
         }
     }
 
+    [Fact]
+    public async Task Daily_mix_is_bounded_filtered_anonymous_and_immediately_respects_hiding()
+    {
+        var observer = new PublicReadObserver();
+        using var factory = new Factory(observer);
+        using var anonymous = factory.CreateAnonymousClient();
+        using var admin = factory.CreateClient();
+        var topic = new Topic { Name = "TEST FIXTURE archive topic" };
+        var items = Enumerable.Range(0, 48).Select(n =>
+        {
+            var item = External(n < 24 ? $"New model announcement {n}" : $"How filters work {n}");
+            item.PublishedAt = n < 24 ? DateTimeOffset.UtcNow.AddDays(-1) : DateTimeOffset.UtcNow.AddYears(-5);
+            item.TopicIds = [topic.Id]; item.Body = "PRIVATE-ARCHIVE-BODY";
+            return item;
+        }).ToList();
+        var hidden = External("How PRIVATE-HIDDEN works", false); hidden.PublishedAt = DateTimeOffset.UtcNow.AddYears(-5); hidden.TopicIds = [topic.Id];
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.AddRange(topic, hidden); db.AddRange(items);
+            db.Add(new ItemState { ItemId = items[24].Id, Saved = true, Read = true, Dismissed = true });
+            await db.SaveChangesAsync();
+        }
+        observer.Reset();
+        var route = $"/api/public/items?sort=mix&topicId={topic.Id}&pageSize=8";
+        var first = await Read(await anonymous.GetAsync(route));
+        Assert.Equal(48, first.GetProperty("total").GetInt32());
+        Assert.Equal(8, observer.Entries); AssertPublicTablesOnly(observer);
+        var picks = first.GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(2, picks.Count(i => i.GetProperty("publishedAt").GetDateTimeOffset().Year < DateTimeOffset.UtcNow.Year));
+        Assert.DoesNotContain("PRIVATE-", first.ToString());
+        Assert.Equal(first.ToString(), (await Read(await anonymous.GetAsync(route))).ToString());
+        var second = await Read(await anonymous.GetAsync(route + "&page=2"));
+        Assert.Empty(picks.Select(i => i.GetProperty("id").GetGuid()).Intersect(second.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid())));
+        var hiddenId = picks[3].GetProperty("id").GetGuid();
+        (await admin.PatchAsJsonAsync($"/api/items/{hiddenId}/publication", new { isPublic = false })).EnsureSuccessStatusCode();
+        var after = await Read(await anonymous.GetAsync(route));
+        Assert.Equal(47, after.GetProperty("total").GetInt32());
+        Assert.DoesNotContain(hiddenId.ToString(), after.ToString());
+        Assert.Equal(0, (await Read(await anonymous.GetAsync(route + "&q=PRIVATE-ARCHIVE-BODY"))).GetProperty("total").GetInt32());
+        Assert.Equal(HttpStatusCode.BadRequest, (await anonymous.GetAsync("/api/public/items?sort=unknown")).StatusCode);
+        using var check = factory.Services.CreateScope();
+        var checkDb = check.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Empty(await checkDb.Editions.ToListAsync());
+        Assert.True((await checkDb.States.SingleAsync()).Dismissed);
+    }
+
+    [Fact]
+    public async Task Archive_share_defaults_validates_and_persists_without_changing_other_preferences()
+    {
+        using var factory = new Factory(); using var admin = factory.CreateClient();
+        Assert.Equal(0.25, (await Read(await admin.GetAsync("/api/settings"))).GetProperty("archiveShare").GetDouble());
+        foreach (var value in new[] { -0.1, 0.51 })
+            Assert.Equal(HttpStatusCode.BadRequest, (await admin.PatchAsJsonAsync("/api/settings", new { archiveShare = value })).StatusCode);
+        (await admin.PatchAsJsonAsync("/api/settings", new { archiveShare = 0.4 })).EnsureSuccessStatusCode();
+        (await admin.PatchAsJsonAsync("/api/settings", new { freshness = 0.7 })).EnsureSuccessStatusCode();
+        var stored = await Read(await admin.GetAsync("/api/settings"));
+        Assert.Equal(0.4, stored.GetProperty("archiveShare").GetDouble());
+        Assert.Equal(0.7, stored.GetProperty("freshness").GetDouble());
+    }
+
     private static void AssertPublicTablesOnly(PublicReadObserver observer)
     {
         Assert.NotEmpty(observer.Commands);

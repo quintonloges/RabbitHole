@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { Item } from "@/lib/types";
 import { RecommendationExplanation } from "./recommendation-explanation";
 import { itemHeading } from "@/lib/item-display";
+import { datedTitle } from "@/lib/publication";
 import { ItemByline, ItemExcerpt, ItemFormat } from "./item-summary";
 import { ExternalLink, StateActions } from "./ui";
 
@@ -26,7 +27,7 @@ function ArticleRow({ item, number, onChange }: { item: Item; number: number; on
     <span className="story-number" aria-hidden="true">{number}.</span>
     <div className="story-content">
       <div className="story-heading">
-        <h3><Link href={`/admin/items/${item.id}`}>{itemHeading(item)}</Link></h3>
+        <h3><Link href={`/admin/items/${item.id}`}>{item.document ? itemHeading(item) : datedTitle(itemHeading(item), item.publishedAt)}</Link></h3>
         <ItemFormat item={item}/>
         {current.state.read && <span className="story-read">Read</span>}
       </div>

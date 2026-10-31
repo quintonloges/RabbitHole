@@ -41,6 +41,8 @@ public static class PublicCatalogEndpoints
         if (from > to) return Invalid("from must not follow to.");
         var source = request.Query["source"].ToString().Trim();
         var type = request.Query["type"].ToString().Trim();
+        var sort = request.Query["sort"].ToString();
+        if (sort is not ("" or "newest" or "mix")) return Invalid("sort must be newest or mix.");
         if (source.Length > 600 || type.Length > 40) return Invalid("Filter is too long.");
         // The same publication boundary feeds search, totals, facets, detail, and sitemap.
         // Search the bounded, rendered fields only: no note/body/metadata predicates.
@@ -52,8 +54,10 @@ public static class PublicCatalogEndpoints
         if (to.HasValue) { var day = to.Value.DayNumber; selected = selected.Where(i => i.PublishedDay <= day); }
         if (q.Length > 0) { var term = q.ToUpperInvariant(); selected = selected.Where(i => i.SearchText.Contains(term)); }
         var total = await selected.CountAsync(ct);
-        var records = await selected.OrderByDescending(i => i.IngestedAt).ThenBy(i => i.Id)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        var records = sort == "mix"
+            ? await PublicDiscovery.PageAsync(selected, total, (page - 1) * pageSize, pageSize, DateOnly.FromDateTime(DateTime.UtcNow), ct)
+            : await selected.OrderByDescending(i => i.IngestedAt).ThenBy(i => i.Id)
+                .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         return Results.Ok(new PublicCatalogPage(await PublicCatalog.BuildAsync(db, records, ct), total, page, pageSize));
     }
 

@@ -27,6 +27,9 @@ namespace RabbitHole.Data.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("ArchiveCandidate")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Author")
                         .HasColumnType("text");
 
@@ -61,6 +64,9 @@ namespace RabbitHole.Data.Migrations
 
                     b.Property<int?>("PublishedDay")
                         .HasColumnType("integer");
+
+                    b.Property<long>("RotationKey")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("SearchText")
                         .IsRequired()

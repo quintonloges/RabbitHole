@@ -10,6 +10,7 @@ public sealed class UserSettings
     public int EditionSize { get; set; } = 25;
     public double Serendipity { get; set; } = 0.15;
     public double Freshness { get; set; } = 0.5;
+    public double ArchiveShare { get; set; } = 0.25;
     public bool PracticeEnabled { get; set; } = false;
     public string Theme { get; set; } = "dark";
     public bool AiEnabled { get; set; }

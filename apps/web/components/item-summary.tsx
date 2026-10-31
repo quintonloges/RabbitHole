@@ -13,7 +13,7 @@ export function ItemByline({ item }: { item: Item }) {
   return <div className="item-byline">
     {itemHeading(item) === item.title && <span className="item-source">{item.document ? "From " : ""}{sourceLabel(item)}</span>}
     {author && <span>by {author}</span>}
-    {!item.document && <span>{publicationDate(item.publishedAt)}</span>}
+    {!item.document && <span>{item.publishedAt ? "Published " : ""}{publicationDate(item.publishedAt)}</span>}
     {location && <span>{location}</span>}
     {access && <span>{access}</span>}
     {item.document?.isSuperseded && <span>Previous extraction</span>}

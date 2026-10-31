@@ -9,7 +9,9 @@ Push-Location $root
 try {
     # Snapshot development into a disposable database on development's PostgreSQL server.
     # Production's server, volumes and credentials are never used by this check.
-    & docker @compose exec -T db pg_dump -U rabbithole -d rabbithole -Fc -f /tmp/recommendation-check.dump
+    # Omit copied login credentials: the isolated host provisions its own fixture
+    # password and still exercises the actual cookie/CSRF flow.
+    & docker @compose exec -T db pg_dump -U rabbithole -d rabbithole -Fc '--exclude-table-data="AdminAccounts"' '--exclude-table-data="AdminSessions"' -f /tmp/recommendation-check.dump
     if ($LASTEXITCODE -ne 0) { throw 'Snapshot failed.' }
     & docker @compose exec -T db createdb -U rabbithole $checkDatabase
     if ($LASTEXITCODE -ne 0) { throw 'Could not create isolated verification database.' }

@@ -735,6 +735,422 @@
         "enabledInAuditedInstance": true
       },
       "limitation": "Without an API key each refresh samples only the newest page; busy queries can miss papers. Configure OPENALEX_API_KEY for continuation. Two-year initial window; seven-day incremental overlap."
+    },
+    {
+      "name": "Julia Evans",
+      "kind": "rss",
+      "url": "https://jvns.ca/atom.xml",
+      "query": "",
+      "topics": [
+        "Software engineering"
+      ],
+      "reason": "Practical explanations of debugging, networking, Git and operating systems.",
+      "intervalMinutes": 1440,
+      "resultLimit": 20,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.082913+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 20
+      },
+      "limitation": "This feed supplies updated dates only; publication dates remain unknown. Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Bartosz Ciechanowski",
+      "kind": "rss",
+      "url": "https://ciechanow.ski/atom.xml",
+      "query": "",
+      "topics": [
+        "Science & psychology",
+        "Unexpected finds"
+      ],
+      "reason": "Interactive explanations of physical mechanisms and everyday engineering.",
+      "intervalMinutes": 10080,
+      "resultLimit": 25,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.083214+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 2
+      },
+      "limitation": "Archive or infrequently updated feed. Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "James Somers",
+      "kind": "rss",
+      "url": "https://jsomers.net/blog/feed",
+      "query": "",
+      "topics": [
+        "Software engineering",
+        "Unexpected finds"
+      ],
+      "reason": "Essays about computing, reading, writing and how people think.",
+      "intervalMinutes": 1440,
+      "resultLimit": 20,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.083516+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 10
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Sean Carroll",
+      "kind": "rss",
+      "url": "https://preposterousuniverse.com/blog/feed/",
+      "query": "",
+      "topics": [
+        "Consciousness & philosophy",
+        "Science & psychology"
+      ],
+      "reason": "Physicist-written essays about cosmology, information and the foundations of physics.",
+      "intervalMinutes": 10080,
+      "resultLimit": 20,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.083888+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 10
+      },
+      "limitation": "Archive or infrequently updated feed. Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Psyche",
+      "kind": "rss",
+      "url": "https://psyche.co/feed.rss",
+      "query": "",
+      "topics": [
+        "Consciousness & philosophy",
+        "Science & psychology"
+      ],
+      "reason": "Essays and guides about experience, philosophy and psychology.",
+      "intervalMinutes": 1440,
+      "resultLimit": 20,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.084131+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 20
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Nautilus",
+      "kind": "rss",
+      "url": "https://nautil.us/feed",
+      "query": "",
+      "topics": [
+        "Science & psychology",
+        "Unexpected finds"
+      ],
+      "reason": "Science writing spanning mind, nature and interdisciplinary questions.",
+      "intervalMinutes": 1440,
+      "resultLimit": 15,
+      "enabledDefault": false,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.349958+00:00",
+        "status": "Direct XML fetch succeeded; RabbitHole safe fetcher rejected the DNS target",
+        "records": 10
+      },
+      "limitation": "Unavailable through the current safe fetcher; left disabled. No network safety rules were relaxed."
+    },
+    {
+      "name": "SAPIENS",
+      "kind": "rss",
+      "url": "https://www.sapiens.org/feed/",
+      "query": "",
+      "topics": [
+        "Speculative history & mysteries",
+        "Science & psychology"
+      ],
+      "reason": "Anthropology, archaeology, human history and cultural interpretation.",
+      "intervalMinutes": 10080,
+      "resultLimit": 20,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.571128+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 10
+      },
+      "limitation": "Archive or infrequently updated feed. Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "The Public Domain Review",
+      "kind": "rss",
+      "url": "https://publicdomainreview.org/rss.xml",
+      "query": "",
+      "topics": [
+        "Speculative history & mysteries",
+        "Unexpected finds"
+      ],
+      "reason": "Historical collections and essays on art, unusual beliefs, natural history and forgotten ideas.",
+      "intervalMinutes": 1440,
+      "resultLimit": 60,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.615365+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 100
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Ken Shirriff",
+      "kind": "rss",
+      "url": "https://www.righto.com/feeds/posts/default",
+      "query": "",
+      "topics": [
+        "Software engineering",
+        "Unexpected finds"
+      ],
+      "reason": "Original reverse engineering and explanations of historical computers and electronics.",
+      "intervalMinutes": 1440,
+      "resultLimit": 25,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.623550+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 25
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Eli Bendersky",
+      "kind": "rss",
+      "url": "https://eli.thegreenplace.net/feeds/all.atom.xml",
+      "query": "",
+      "topics": [
+        "Software engineering"
+      ],
+      "reason": "Technical explanations of languages, systems and mathematical methods.",
+      "intervalMinutes": 1440,
+      "resultLimit": 20,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.886755+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 5
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Lilian Weng",
+      "kind": "rss",
+      "url": "https://lilianweng.github.io/index.xml",
+      "query": "",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Research surveys and technical explanations with a substantial dated archive.",
+      "intervalMinutes": 1440,
+      "resultLimit": 60,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.898011+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 53
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Jay Alammar",
+      "kind": "rss",
+      "url": "https://jalammar.github.io/feed.xml",
+      "query": "",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Illustrated explanations of machine learning and language-model internals.",
+      "intervalMinutes": 10080,
+      "resultLimit": 25,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:55.948739+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 10
+      },
+      "limitation": "Archive or infrequently updated feed. Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Distill",
+      "kind": "rss",
+      "url": "https://distill.pub/rss.xml",
+      "query": "",
+      "topics": [
+        "Frontier AI",
+        "Science & psychology"
+      ],
+      "reason": "An archive of interactive machine-learning explanations and research articles.",
+      "intervalMinutes": 10080,
+      "resultLimit": 60,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:56.031914+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 52
+      },
+      "limitation": "Archive or infrequently updated feed. Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "CDM",
+      "kind": "rss",
+      "url": "https://cdm.link/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Electronic music, sound-design techniques, artist work and production tools.",
+      "intervalMinutes": 1440,
+      "resultLimit": 15,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:56.046396+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 10
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Valhalla DSP",
+      "kind": "rss",
+      "url": "https://valhalladsp.com/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery",
+        "Software engineering"
+      ],
+      "reason": "Reverb, delay, sound design and DSP explanations alongside product updates.",
+      "intervalMinutes": 1440,
+      "resultLimit": 20,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:56.102854+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 10
+      },
+      "limitation": "Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Dean Radin",
+      "kind": "rss",
+      "url": "https://deanradin.blogspot.com/feeds/posts/default",
+      "query": "",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "An archive of researcher-written discussion of psi experiments and consciousness.",
+      "intervalMinutes": 10080,
+      "resultLimit": 25,
+      "enabledDefault": true,
+      "importance": "topic fit; no credibility score",
+      "lastVerification": {
+        "at": "2026-10-31T13:00:56.598753+00:00",
+        "status": "HTTP 200; parsed actual RSS/Atom entries",
+        "records": 25
+      },
+      "limitation": "Archive or infrequently updated feed. Only the entries supplied by the feed are imported; no whole-site crawl or paywall bypass."
+    },
+    {
+      "name": "Older web — AI explanations",
+      "kind": "web-archive",
+      "url": "",
+      "query": "neural networks",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Find previously unimported original web links matching this query in older Hacker News submissions.",
+      "intervalMinutes": 1440,
+      "resultLimit": 3,
+      "enabledDefault": true,
+      "limitation": "Hacker News Search index only, not the entire web. At most two index requests and three original metadata lookups per refresh. Submission dates are never publication dates; unknown original dates remain unknown. Some queries or days can have no new eligible links."
+    },
+    {
+      "name": "Older web — systems engineering",
+      "kind": "web-archive",
+      "url": "",
+      "query": "distributed systems",
+      "topics": [
+        "Software engineering"
+      ],
+      "reason": "Find previously unimported original web links matching this query in older Hacker News submissions.",
+      "intervalMinutes": 1440,
+      "resultLimit": 3,
+      "enabledDefault": true,
+      "limitation": "Hacker News Search index only, not the entire web. At most two index requests and three original metadata lookups per refresh. Submission dates are never publication dates; unknown original dates remain unknown. Some queries or days can have no new eligible links."
+    },
+    {
+      "name": "Older web — consciousness",
+      "kind": "web-archive",
+      "url": "",
+      "query": "consciousness",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Find previously unimported original web links matching this query in older Hacker News submissions.",
+      "intervalMinutes": 1440,
+      "resultLimit": 3,
+      "enabledDefault": true,
+      "limitation": "Hacker News Search index only, not the entire web. At most two index requests and three original metadata lookups per refresh. Submission dates are never publication dates; unknown original dates remain unknown. Some queries or days can have no new eligible links."
+    },
+    {
+      "name": "Older web — archaeology",
+      "kind": "web-archive",
+      "url": "",
+      "query": "archaeology",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Find previously unimported original web links matching this query in older Hacker News submissions.",
+      "intervalMinutes": 1440,
+      "resultLimit": 3,
+      "enabledDefault": true,
+      "limitation": "Hacker News Search index only, not the entire web. At most two index requests and three original metadata lookups per refresh. Submission dates are never publication dates; unknown original dates remain unknown. Some queries or days can have no new eligible links."
+    },
+    {
+      "name": "Older web — sound design",
+      "kind": "web-archive",
+      "url": "",
+      "query": "sound synthesis",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Find previously unimported original web links matching this query in older Hacker News submissions.",
+      "intervalMinutes": 1440,
+      "resultLimit": 3,
+      "enabledDefault": true,
+      "limitation": "Hacker News Search index only, not the entire web. At most two index requests and three original metadata lookups per refresh. Submission dates are never publication dates; unknown original dates remain unknown. Some queries or days can have no new eligible links."
+    },
+    {
+      "name": "Older web — psi research",
+      "kind": "web-archive",
+      "url": "",
+      "query": "remote viewing",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Find previously unimported original web links matching this query in older Hacker News submissions.",
+      "intervalMinutes": 1440,
+      "resultLimit": 3,
+      "enabledDefault": true,
+      "limitation": "Hacker News Search index only, not the entire web. At most two index requests and three original metadata lookups per refresh. Submission dates are never publication dates; unknown original dates remain unknown. Some queries or days can have no new eligible links."
     }
   ]
 }

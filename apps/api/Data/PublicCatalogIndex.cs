@@ -9,7 +9,7 @@ namespace RabbitHole.Data;
 /// <summary>Maintains the public read model before the same SaveChanges as its inputs.</summary>
 public static class PublicCatalogIndex
 {
-    private const string VersionKey = "public-catalog-index-v1";
+    private const string VersionKey = "public-catalog-index-v2";
     private static readonly Expression<Func<ContentItem, ContentItem>> PublicFields = i => new ContentItem
     {
         Id = i.Id,
@@ -191,6 +191,8 @@ public static class PublicCatalogIndex
             projection.SourceKey = projection.SourceName.ToUpperInvariant();
             projection.TypeKey = projection.Type.ToUpperInvariant();
             projection.Excerpt = item.Excerpt == null ? null : ProviderAdapters.Plain(item.Excerpt, 600);
+            projection.ArchiveCandidate = ArchiveDiscovery.IsCandidate(projection.Type, projection.Title, projection.Excerpt, projection.Provider);
+            projection.RotationKey = ArchiveDiscovery.RotationKey(id.ToString());
             projection.EmbedUrl = PublicCatalogPolicy.SafeEmbed(item.EmbedUrl);
             projection.ImageUrl = PublicCatalogPolicy.SafeUrl(item.ImageUrl);
             var wanted = item.TopicIds.Where(topicNames.ContainsKey).ToHashSet();

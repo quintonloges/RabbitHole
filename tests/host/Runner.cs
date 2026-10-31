@@ -65,6 +65,13 @@ public class FixtureFetcher : IRemoteFetcher
                 </channel></rss>
                 """;
         }
+        else if (url.Host == "hn.algolia.com")
+        {
+            mime = "application/json";
+            body = """
+                {"nbPages":1,"hits":[{"objectID":"101","title":"TEST FIXTURE: How oscillators work (1999)","url":"https://example.org/archive-fixture/discovered-online","created_at_i":1262304000,"author":"Not the original author"}]}
+                """;
+        }
         else if (url.Host == "api.openalex.org")
         {
             mime = "application/json";
@@ -91,6 +98,11 @@ public class FixtureFetcher : IRemoteFetcher
             body = """{"title":"TEST FIXTURE: Track","author_name":"Fixture artist","type":"rich","html":"<iframe src='https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/123456'></iframe>"}""";
         }
         else if (url.AbsolutePath == "/robots.txt") { mime = "text/plain"; body = "User-agent: *\nAllow: /"; }
+        else if (url.Host == "example.org" && url.AbsolutePath.StartsWith("/archive-fixture/", StringComparison.Ordinal))
+        {
+            mime = "text/html";
+            body = "<html><head><title>TEST FIXTURE: How oscillators work</title><meta name='description' content='An explanation of oscillators and waveforms, with sound design techniques.'/><meta property='article:published_time' content='2001-02-03T00:00:00Z'/></head><body>TEST FIXTURE only.</body></html>";
+        }
         else if (url.Host == "example.org")
         {
             mime = "text/html";

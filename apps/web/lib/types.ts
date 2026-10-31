@@ -13,6 +13,6 @@ export type Hole = HoleSummary & { nodes: HoleNode[] };
 export type Book = { id: string; title: string; author?: string | null; fileName: string; status: string; error?: string | null; pageCount: number; createdAt: string };
 export type BookSection = { id: string; documentId: string; itemId: string; title: string; order: number; startPage?: number | null; endPage?: number | null; locator?: string | null; isSuperseded?: boolean };
 export type Prompt = { id: string; itemId: string; itemTitle?: string; question: string; reference?: string | null; provenance: string; dueAt: string; reviews: number; attempts?: { id: string; response: string; rating: string; createdAt: string }[] };
-export type Settings = { ingestionPaused: boolean; editionSize: number; serendipity: number; freshness: number; practiceEnabled: boolean; theme: "system" | "light" | "dark"; aiEnabled: boolean };
+export type Settings = { ingestionPaused: boolean; editionSize: number; serendipity: number; freshness: number; archiveShare: number; practiceEnabled: boolean; theme: "system" | "light" | "dark"; aiEnabled: boolean };
 export type Job = { id: string; sourceId: string; status: string; imported: number; error?: string | null; startedAt: string; finishedAt?: string | null };
 export type SystemStatus = { status?: string; counts?: { topics?: number; sources?: number; items?: number; books?: number; holes?: number }; configuration?: { aiConfigured?: boolean; openAlexConfigured?: boolean; youtubeConfigured?: boolean } };

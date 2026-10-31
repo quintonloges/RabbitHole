@@ -12,6 +12,8 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
   query.set("page", String(page));
   if (!search && ["q", "source", "type", "from", "to"].some(key => query.has(key))) redirect(`/search?${query}`);
   query.set("pageSize", "24");
+  if (!search) query.set("sort", value("sort") === "newest" ? "newest" : "mix");
+  const mixed = !search && query.get("sort") === "mix";
   const [pageResult, filterResult] = await Promise.allSettled([publicApi<PublicPage>(`/items?${query}`), publicApi<PublicFilters>("/filters")]);
   const result = pageResult.status === "fulfilled" ? pageResult.value : null;
   const filters = filterResult.status === "fulfilled" ? filterResult.value : { topics: [], sources: [], types: [] };
@@ -19,6 +21,7 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
   const error = invalid ? pageResult.reason.message : "Please try again in a moment.";
   const base = search ? "/search" : "/";
   function pageUrl(next: number) { const nextQuery = new URLSearchParams(query); nextQuery.delete("pageSize"); nextQuery.set("page", String(next)); return `${base}?${nextQuery}`; }
+  function sortUrl(sort: string) { const nextQuery = new URLSearchParams(query); nextQuery.delete("pageSize"); nextQuery.delete("page"); nextQuery.set("sort", sort); return `${base}?${nextQuery}`; }
   return <div className="public-catalog">
     <div className="page-heading catalog-heading"><div>
       <h1 className="hero-title">{search ? "Search the catalog" : "Discover"}</h1>
@@ -66,9 +69,11 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
       {!invalid && <a className="btn" href={pageUrl(page)}>Reload catalog</a>}
     </div> : <section aria-label="Public catalog">
       <div className="edition-heading"><h2>{value("q") ? `Results for “${value("q")}”` : !search && value("topicId") ? filters.topics.find(topic => topic.id === value("topicId"))?.name || "Selected topic" : "The collection"}</h2>
-        <span>{result.total} {result.total === 1 ? "item" : "items"} · Newest added first</span>
+        <span>{result.total} {result.total === 1 ? "item" : "items"} · {mixed ? "Fresh finds + archive picks" : "Newest added first"}</span>
+        {!search && <Link prefetch={false} className="text-link" href={sortUrl(mixed ? "newest" : "mix")}>{mixed ? "Newest added" : "Daily mix"}</Link>}
         {!search && value("topicId") && <Link prefetch={false} className="text-link" href="/">All topics →</Link>}
       </div>
+      {mixed && <p className="subtle">Older essays, explainers, and research rotate daily alongside recent discoveries. Dates refer to original publication when supplied.</p>}
       {result.items.length ? <PublicItems items={result.items} start={(result.page - 1) * result.pageSize + 1}/> : <div className="empty">
         <h2>No items found</h2><p>{search ? "Try another topic, source, or search phrase." : value("topicId") ? "There are no public items in this topic yet." : "The collection is waiting for its first discoveries."}</p>
         {(search || value("topicId")) && <Link prefetch={false} className="btn" href={base}>{search ? "Clear filters" : "Browse all topics"}</Link>}

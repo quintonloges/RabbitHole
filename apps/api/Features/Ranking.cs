@@ -44,7 +44,6 @@ public sealed class Ranking(AppDbContext db)
             preference += (ownState?.Saved == true ? 0.3 : 0) + (ownState?.Feedback ?? 0) * 0.35;
             var age = item.PublishedAt is { } published ? (now - published).TotalDays : double.NaN;
             var freshness = double.IsNaN(age) ? 0 : Math.Exp(-Math.Max(0, age) / 45.0) * settings.Freshness;
-            var evergreen = age > 180 && StableHash(seed + "evergreen" + item.Id) % 5 == 0 ? 0.3 : 0;
             var connections = history.Where(h => h.Id != item.Id).Select(h => new
             {
                 Item = h,
@@ -73,8 +72,11 @@ public sealed class Ranking(AppDbContext db)
             }
             var format = FormatSignal(item);
             var formatWeight = ownState?.Saved == true || ownState?.Feedback > 0 ? Math.Max(0, format.Value) : format.Value;
+            var archive = (age >= ArchiveDiscovery.MinimumAgeDays || item.PublishedAt == null && item.Provider == "web-archive") && ownState?.Feedback is not < 0 &&
+                (matchedTopics.Any(t => t.Weight > 0 || t.Pinned) || continuity > 0 || ownState?.Saved == true || ownState?.Feedback > 0) &&
+                ArchiveDiscovery.IsCandidate(item.Kind, item.Title, item.Excerpt, item.Provider);
             var jitter = StableHash(seed + item.Id) % 1000 / 1000.0 * 0.12;
-            var score = interest + preference + freshness + evergreen + continuity + formatWeight + jitter;
+            var score = interest + preference + freshness + continuity + formatWeight + jitter;
             var outside = lastingTopics.Count > 0 && !item.TopicIds.Any(lastingTopics.Contains);
             var rationale = new RecommendationRationale
             {
@@ -90,10 +92,9 @@ public sealed class Ranking(AppDbContext db)
                     new("explicit-preference", preference, "Bounded saved-item and More/Less like this feedback"),
                     new("continuity", continuity, "Only saved, explicitly read, liked, or user-created trail items; opens alone add no continuity"),
                     new("freshness", freshness, item.PublishedAt?.ToString("yyyy-MM-dd") ?? "Unknown publication date"),
-                    new("older-rotation", evergreen, "Deterministic rotation of sources older than 180 days"),
                     new("format", formatWeight, format.Detail), new("tie-break", jitter, "Stable daily seed")]
             };
-            candidates.Add(new(item, rationale, score, outside));
+            candidates.Add(new(item, rationale, score, outside, archive));
         }
         var chosen = new List<Recommendation>();
         var sourceCounts = new Dictionary<string, int>();
@@ -101,6 +102,8 @@ public sealed class Ranking(AppDbContext db)
         var kindCounts = new Dictionary<string, int>();
         var outsideTarget = Math.Min(candidates.Count(c => c.Outside), (int)Math.Ceiling(count * settings.Serendipity));
         var outsideSelected = 0;
+        var archiveTarget = Math.Min(candidates.Count(c => c.Archive), (int)Math.Floor(count * settings.ArchiveShare));
+        var archiveSelected = 0;
         while (chosen.Count < count && candidates.Count > 0)
         {
             var remaining = count - chosen.Count;
@@ -108,19 +111,29 @@ public sealed class Ranking(AppDbContext db)
                 ? candidates.Where(c => c.Outside).ToList()
                 : outsideSelected >= outsideTarget && candidates.Any(c => !c.Outside) ? candidates.Where(c => !c.Outside).ToList() : candidates;
             if (eligible.Count == 0) eligible = candidates;
+            var archiveSlot = archiveSelected < archiveTarget &&
+                (Math.Floor((chosen.Count + 1) * settings.ArchiveShare) > archiveSelected || remaining <= archiveTarget - archiveSelected);
+            var stream = eligible.Where(c => c.Archive == archiveSlot).ToList();
+            if (stream.Count > 0) eligible = stream;
             var underCap = eligible.Where(c => sourceCounts.GetValueOrDefault(SourceKey(c.Item)) < Math.Max(2, (int)Math.Ceiling(count * 0.15))).ToList();
             if (underCap.Count > 0) eligible = underCap;
             double Diversity(DailyCandidate c) => -0.35 * sourceCounts.GetValueOrDefault(SourceKey(c.Item)) - c.Item.TopicIds.Sum(id => topicCounts.GetValueOrDefault(id) * 0.2)
                 - 0.08 * kindCounts.GetValueOrDefault(c.Item.Kind) - (chosen.Any(x => SimilarTitles(x.Item, c.Item)) ? 1.5 : 0);
-            var next = eligible.OrderByDescending(c => c.Score + Diversity(c)).ThenBy(c => StableHash(seed + c.Item.Id)).ThenBy(c => c.Item.Id).First();
+            double Rotation(DailyCandidate c) => archiveSlot && c.Archive ? StableHash(seed + ":archive:" + c.Item.Id) / (double)uint.MaxValue * 2 : 0;
+            var next = eligible.OrderByDescending(c => c.Score + Diversity(c) + Rotation(c)).ThenBy(c => StableHash(seed + c.Item.Id)).ThenBy(c => c.Item.Id).First();
+            var fromArchive = archiveSlot && next.Archive;
             candidates.Remove(next);
             chosen.Add(new(next.Item, next.Rationale with
             {
+                Detail = (fromArchive ? "From the archive: older material connected to your interests or explicit choices. " : "") + next.Rationale.Detail,
                 Signals = [.. next.Rationale.Signals,
+                new("archive-slot", fromArchive ? 1 : 0, "Older publications with lasting-format cues, or topic-matched older web discoveries; announcements are not given archive slots"),
+                new("archive-rotation", Rotation(next), "Seeded variation among relevant archive candidates"),
                 new("diversity", Diversity(next), "Source, topic, format and near-duplicate balance"),
                 new("serendipity-slot", next.Outside ? 1 : 0, "Outside strongest lasting topics; contributes to the configured serendipity share"),
-                new("selected-score", next.Score + Diversity(next), "Score at selection, after diversity adjustments")]
+                new("selected-score", next.Score + Diversity(next) + Rotation(next), "Score at selection, after diversity and archive rotation")]
             }));
+            if (next.Archive) archiveSelected++;
             if (next.Outside) outsideSelected++;
             var key = SourceKey(next.Item);
             sourceCounts[key] = sourceCounts.GetValueOrDefault(key) + 1;
@@ -299,6 +312,6 @@ public sealed class Ranking(AppDbContext db)
         foreach (var ch in value) hash = (hash ^ ch) * 16777619;
         return hash;
     }
-    private sealed record DailyCandidate(ContentItem Item, RecommendationRationale Rationale, double Score, bool Outside);
+    private sealed record DailyCandidate(ContentItem Item, RecommendationRationale Rationale, double Score, bool Outside, bool Archive);
     private sealed record RelatedCandidate(ContentItem Item, RecommendationRationale Rationale, double Score, int Tier, List<string> Concepts);
 }

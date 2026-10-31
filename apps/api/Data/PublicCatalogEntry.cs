@@ -12,6 +12,8 @@ public sealed class PublicCatalogEntry
     public string? Author { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
     public int? PublishedDay { get; set; }
+    public bool ArchiveCandidate { get; set; }
+    public long RotationKey { get; set; }
     public DateTimeOffset IngestedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public string Type { get; set; } = "";

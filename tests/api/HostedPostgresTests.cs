@@ -87,6 +87,57 @@ public class HostedPostgresTests
     }
 
     [HostedPostgresFact]
+    public async Task Archive_upgrade_backfills_existing_index_and_daily_mix_executes_on_postgres()
+    {
+        await using var fixture = await IsolatedPostgres.CreateAsync();
+        var topic = Guid.NewGuid(); var legacyId = Guid.NewGuid();
+        var published = new DateTimeOffset(2015, 2, 3, 0, 0, 0, TimeSpan.Zero);
+        await using (var before = fixture.Open())
+        {
+            await before.GetService<IMigrator>().MigrateAsync("20261030172205_PublicCatalogIndex");
+            // Insert into the old schema without materializing the new read model.
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "Topics" ("Id", "Name", "Description", "Keywords", "Aliases", "Weight", "Pinned", "CuriosityOnly", "Enabled")
+                VALUES ({topic}, 'TEST FIXTURE Archive', '', '', '', 3, false, false, true)
+                """);
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "Items" ("Id","Kind","Title","CanonicalUrl","Provider","TextProvenance","PublishedAt","IngestedAt","UpdatedAt","TopicIds","ClassificationOrigin","IsPublic")
+                VALUES ({legacyId}, 'article', 'TEST FIXTURE How legacy circuits work', 'https://example.org/legacy-archive', 'rss', 'metadata', {published}, {published}, {published}, {JsonSerializer.Serialize(new[] { topic })}, 'manual', true)
+                """);
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "PublicCatalogEntries" ("Id","IsPublic","Title","CanonicalUrl","PublishedAt","PublishedDay","IngestedAt","UpdatedAt","Type","Provider","SourceName","SourceKey","TypeKey","SearchText")
+                VALUES ({legacyId}, true, 'TEST FIXTURE How legacy circuits work', 'https://example.org/legacy-archive', {published.UtcTicks}, {DateOnly.FromDateTime(published.UtcDateTime).DayNumber}, {published.UtcTicks}, {published.UtcTicks}, 'article', 'rss', 'rss', 'RSS', 'ARTICLE', 'TEST FIXTURE HOW LEGACY CIRCUITS WORK')
+                """);
+            before.Settings.Add(new AppSetting { Key = "public-catalog-index-v1", Value = "complete" });
+            await before.SaveChangesAsync();
+        }
+        using var factory = new Factory(fixture); using var anonymous = factory.CreateAnonymousClient();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.AddRange(Enumerable.Range(0, 20).Select(n => new ContentItem
+            {
+                Title = n < 10 ? $"TEST FIXTURE Introducing model {n}" : $"TEST FIXTURE How circuits work {n}",
+                CanonicalUrl = "https://example.org/archive-check/" + Guid.NewGuid(),
+                Kind = "article",
+                IsPublic = true,
+                TopicIds = [topic],
+                PublishedAt = DateTimeOffset.UtcNow.AddYears(n < 10 ? 0 : -5)
+            }));
+            await db.SaveChangesAsync();
+            var upgraded = await db.PublicCatalogEntries.SingleAsync(i => i.Id == legacyId);
+            Assert.True(upgraded.ArchiveCandidate); Assert.True(upgraded.RotationKey > 0);
+            Assert.Equal(published, upgraded.PublishedAt);
+        }
+        var first = await Read(await anonymous.GetAsync("/api/public/items?sort=mix&pageSize=8"));
+        var second = await Read(await anonymous.GetAsync("/api/public/items?sort=mix&pageSize=8&page=2"));
+        Assert.Equal(21, first.GetProperty("total").GetInt32());
+        Assert.Equal(2, first.GetProperty("items").EnumerateArray().Count(i => i.GetProperty("title").GetString()!.Contains("How")));
+        Assert.Empty(first.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid())
+            .Intersect(second.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid())));
+    }
+
+    [HostedPostgresFact]
     public async Task Legacy_postgres_schema_upgrades_backfill_before_merge_and_preserve_private_records()
     {
         await using var fixture = await IsolatedPostgres.CreateAsync();

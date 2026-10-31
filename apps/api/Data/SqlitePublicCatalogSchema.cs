@@ -30,5 +30,23 @@ public static class SqlitePublicCatalogSchema
             CREATE INDEX IF NOT EXISTS "IX_PublicCatalogEntries_PublishedDay" ON "PublicCatalogEntries" ("PublishedDay");
             CREATE INDEX IF NOT EXISTS "IX_PublicCatalogTopics_TopicId" ON "PublicCatalogTopics" ("TopicId");
             """, ct);
+        var connection = db.Database.GetDbConnection();
+        var wasOpen = connection.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await connection.OpenAsync(ct);
+        try
+        {
+            var columns = new HashSet<string>();
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info('PublicCatalogEntries')";
+                await using var reader = await command.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct)) columns.Add(reader.GetString(1));
+            }
+            if (!columns.Contains("ArchiveCandidate"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"PublicCatalogEntries\" ADD COLUMN \"ArchiveCandidate\" INTEGER NOT NULL DEFAULT 0", ct);
+            if (!columns.Contains("RotationKey"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"PublicCatalogEntries\" ADD COLUMN \"RotationKey\" INTEGER NOT NULL DEFAULT 0", ct);
+        }
+        finally { if (!wasOpen) await connection.CloseAsync(); }
     }
 }

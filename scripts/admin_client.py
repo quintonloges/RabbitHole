@@ -1,7 +1,9 @@
-"""Cookie + CSRF client for maintenance tools. Passwords are prompted, never arguments."""
+"""Cookie + CSRF client. Passwords are prompted or read from an explicit private file, never arguments."""
 import getpass
 import http.cookiejar
 import json
+import os
+import stat
 import urllib.parse
 import urllib.request
 
@@ -23,11 +25,12 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class AdminClient:
-    def __init__(self, base):
+    def __init__(self, base, password_file=None):
         self.base = validate_base(base)
         self.opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
         self.token = None
         self.authenticated = False
+        self.password_file = password_file
 
     def _request(self, path, method='GET', body=None):
         if not path.startswith('/') or path.startswith('//'):
@@ -41,14 +44,22 @@ class AdminClient:
             return None if response.status == 204 else json.load(response)
 
     def login(self):
+        password = read_password_file(self.password_file) if self.password_file else getpass.getpass(f'Administrator password for {self.base}: ')
         self.token = self._request('/auth/csrf')['token']
-        password = getpass.getpass(f'Administrator password for {self.base}: ')
         try:
             self._request('/auth/login', 'POST', {'password': password})
         finally:
             password = None
         self.token = self._request('/auth/csrf')['token']
         self.authenticated = True
+
+    def logout(self):
+        try:
+            if self.authenticated:
+                self._request('/auth/logout', 'POST')
+        finally:
+            self.authenticated = False
+            self.token = None
 
     def request(self, path, method='GET', body=None):
         if not self.authenticated:
@@ -57,6 +68,34 @@ class AdminClient:
 
 
 _clients = {}
+
+
+def read_password_file(path):
+    """Explicit CI input: bounded, regular, owner-only file; no ambient env fallback."""
+    if os.path.islink(path):
+        raise ValueError('The password file must not be a symlink.')
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
+    with os.fdopen(descriptor, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError('The password file must be a regular file.')
+        if os.name == 'posix' and (stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.geteuid()):
+            raise ValueError('The password file must be owned by the current user with permissions 600.')
+        value = stream.read(4097)
+    if not value or len(value) > 4096 or any(character in value for character in (b'\n', b'\r', b'\0')):
+        raise ValueError('The password file must contain one nonempty password, without a trailing newline (maximum 4096 bytes).')
+    return value.decode('utf-8')
+
+
+def use_password_file(base, path):
+    base = validate_base(base)
+    _clients[base] = AdminClient(base, password_file=path)
+
+
+def logout(base):
+    client = _clients.pop(validate_base(base), None)
+    if client:
+        client.logout()
 
 
 def request(base, path, method='GET', body=None):

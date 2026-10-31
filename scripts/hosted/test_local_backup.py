@@ -37,6 +37,21 @@ class LocalBackupTests(unittest.TestCase):
                                str(self.keys / self.project / (category + '.password')), *args],
                               capture_output=True, text=True, check=check, env=environment)
 
+    def test_same_day_pre_and_post_upgrade_snapshots_both_survive_retention(self):
+        self.prepare()
+        payload = self.root / 'upgrade'; payload.mkdir()
+        snapshots = []
+        for version in ('before migration', 'after migration', 'retry backup', 'nightly backup'):
+            (payload / 'database').write_text(version)
+            result = self.restic('backup', str(payload), '--host', self.project, '--tag', 'rabbithole-content',
+                                 '--tag', 'rollback-fixture' if not snapshots else 'later-fixture', '--json')
+            self.assertEqual(0, result.returncode, result.stderr)
+            snapshots.append(next(row['snapshot_id'] for row in map(json.loads, result.stdout.splitlines()) if row.get('message_type') == 'summary'))
+        self.restic('forget', '--host', self.project, '--tag', 'rabbithole-content', '--group-by', 'host',
+                    '--keep-last', '2', '--keep-daily', '7', '--keep-weekly', '4', '--keep-tag', 'rollback-fixture', '--prune')
+        retained = {row['id'] for row in json.loads(self.restic('snapshots', '--json').stdout)}
+        self.assertTrue({snapshots[0], *snapshots[-2:]}.issubset(retained))
+
     def test_real_encrypted_pair_restore_retention_and_repeated_setup_preserve_keys(self):
         self.prepare()
         key_bytes = self.key.read_bytes()

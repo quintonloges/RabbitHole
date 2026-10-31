@@ -58,9 +58,21 @@ resume
 pair="rabbithole-pair-$(python3 -c 'import uuid;print(uuid.uuid4().hex)')"
 restic backup "$work/content" --host "$PROJECT_NAME" --tag rabbithole-content --tag "$pair" --json >"$work/content-result.json"
 restic -r "$RECOVERY_REPOSITORY" --password-file "$RECOVERY_PASSWORD_FILE" backup "$work/recovery" --host "$PROJECT_NAME" --tag rabbithole-recovery --tag "$pair" --json >"$work/recovery-result.json"
+# Keep both sides of a same-day upgrade, including the pre-migration rollback pair.
 # Group by host: a unique pairing tag must not create an unbounded retention group.
-restic forget --host "$PROJECT_NAME" --tag rabbithole-content --group-by host --keep-daily 7 --keep-weekly 4 --prune
-restic -r "$RECOVERY_REPOSITORY" --password-file "$RECOVERY_PASSWORD_FILE" forget --host "$PROJECT_NAME" --tag rabbithole-recovery --group-by host --keep-daily 7 --keep-weekly 4 --prune
+rollback_tag=$(python3 - "$STATE_PATH/rollback-backup.json" "$PROJECT_NAME" <<'PY'
+import json,pathlib,re,sys
+path=pathlib.Path(sys.argv[1])
+if path.exists():
+    record=json.loads(path.read_text()); tag=record.get('pairTag','')
+    if record.get('project')!=sys.argv[2] or not re.fullmatch(r'rabbithole-pair-[a-f0-9]{32}',tag):
+        raise SystemExit('Invalid rollback backup reference; retention withheld.')
+    print(tag)
+PY
+)
+rollback_keep=(); [[ -z "$rollback_tag" ]] || rollback_keep=(--keep-tag "$rollback_tag")
+restic forget --host "$PROJECT_NAME" --tag rabbithole-content --group-by host --keep-last 2 --keep-daily 7 --keep-weekly 4 "${rollback_keep[@]}" --prune
+restic -r "$RECOVERY_REPOSITORY" --password-file "$RECOVERY_PASSWORD_FILE" forget --host "$PROJECT_NAME" --tag rabbithole-recovery --group-by host --keep-last 2 --keep-daily 7 --keep-weekly 4 "${rollback_keep[@]}" --prune
 restic check
 restic -r "$RECOVERY_REPOSITORY" --password-file "$RECOVERY_PASSWORD_FILE" check
 python3 - "$work" "$STATE_PATH" "$PROJECT_NAME" "$RH_RELEASE/release.env" "$pair" <<'PY'
@@ -77,4 +89,4 @@ manifest=state/'last-backup-manifest.json.tmp'; manifest.write_bytes((work/'cont
 temporary=state/'last-backup.json.tmp'; temporary.write_text(json.dumps(record,indent=2)); temporary.replace(state/'last-backup.json')
 PY
 date -u +%FT%TZ >"$STATE_PATH/last-backup"
-echo "Encrypted content and recovery snapshots stored ($BACKUP_MODE mode); seven daily and four weekly retained."
+echo "Encrypted content and recovery snapshots stored ($BACKUP_MODE mode); two latest, seven daily and four weekly retained."

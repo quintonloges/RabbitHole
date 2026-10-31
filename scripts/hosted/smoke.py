@@ -1,6 +1,6 @@
 """Authenticated, read-only launch checks. Run on the host with public maintenance active.
 
-Use --base https://rabbithole.quintonloges.me/api. Password is prompted. Public API probes run
+Use --base https://rabbithole.quintonloges.me/api. Password is prompted or supplied via a private file. Public API probes run
 inside the API container so the public maintenance response can remain in place.
 """
 import argparse
@@ -19,11 +19,26 @@ from admin_client import AdminClient
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base', required=True)
-    parser.add_argument('--output', required=True)
-    parser.add_argument('--compose-prefix', required=True, help='Path to a JSON array of local docker compose arguments; no secrets.')
+    parser.add_argument('--output')
+    parser.add_argument('--compose-prefix', help='Path to a JSON array of local docker compose arguments; no secrets.')
+    parser.add_argument('--password-file', help='Explicit owner-only temporary file containing the existing admin password.')
+    parser.add_argument('--check-login-only', action='store_true', help='Verify real HTTPS cookie/CSRF login before maintenance.')
     args = parser.parse_args()
-    client = AdminClient(args.base)
-    client.login()
+    if not args.check_login_only and (not args.output or not args.compose_prefix):
+        parser.error('--output and --compose-prefix are required for full privacy checks.')
+    client = AdminClient(args.base, password_file=args.password_file)
+    try:
+        client.login()
+        assert client.request('/auth/session')['authenticated'] is True, 'Administrator session was not established'
+        if args.check_login_only:
+            print('PASS: existing administrator credentials authenticated over HTTPS with CSRF.')
+            return
+        check_privacy(client, args)
+    finally:
+        client.logout()
+
+
+def check_privacy(client, args):
     prefix = json.loads(Path(args.compose_prefix).read_text())
     def public(path, expected=200):
         for attempt in range(4):
@@ -63,7 +78,6 @@ def main():
     before.pop('exportedAt', None)
     after.pop('exportedAt', None)
     assert before == after, 'Read-only anonymous browsing changed personal data'
-    client.request('/auth/logout', 'POST')
     Path(args.output).write_text(json.dumps({'passed': True, 'publicItems': len(visible)}, indent=2))
     print(f'PASS: authenticated access, anonymous legacy denial, {len(visible)} safe public records, private exclusions, no state changes.')
 

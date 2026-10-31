@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -9,13 +10,52 @@ from types import SimpleNamespace
 
 scripts = Path(__file__).resolve().parents[2] / 'scripts'
 sys.path.insert(0, str(scripts))
-from admin_client import validate_base, NoRedirect
+from admin_client import validate_base, NoRedirect, read_password_file, AdminClient
 spec = importlib.util.spec_from_file_location('preservation', scripts / 'preservation-manifest.py')
 preservation = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preservation)
 
 
 class MaintenanceBoundaries(unittest.TestCase):
+    def test_explicit_password_file_is_bounded_and_preserves_the_exact_password(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder, 'password')
+            path.write_bytes(b'  TEST FIXTURE password!  ')
+            path.chmod(0o600)
+            self.assertEqual('  TEST FIXTURE password!  ', read_password_file(path))
+            for value in (b'', b'x' * 4097, b'fixture\n', b'fixture\r', b'fixture\0'):
+                path.write_bytes(value)
+                with self.assertRaises(ValueError):
+                    read_password_file(path)
+
+    @unittest.skipUnless(os.name == 'posix', 'Requires POSIX permissions and symlinks')
+    def test_password_file_rejects_shared_permissions_links_and_nonfiles(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder, 'password'); path.write_text('TEST FIXTURE password')
+            path.chmod(0o644)
+            with self.assertRaises(ValueError):
+                read_password_file(path)
+            path.chmod(0o600)
+            link = Path(folder, 'alias'); link.symlink_to(path)
+            with self.assertRaises(ValueError):
+                read_password_file(link)
+            fifo = Path(folder, 'pipe'); os.mkfifo(fifo)
+            with self.assertRaises(ValueError):
+                read_password_file(fifo)
+
+    def test_automated_login_uses_normal_csrf_login_and_logout_without_prompting(self):
+        client = AdminClient('https://fixture.example/api', password_file='explicit-fixture-path')
+        with (patch('admin_client.read_password_file', return_value='TEST FIXTURE password'),
+              patch('admin_client.getpass.getpass', side_effect=AssertionError('Unexpected prompt')),
+              patch.object(client, '_request', side_effect=[{'token': 'before'}, {}, {'token': 'after'}, None]) as calls):
+            client.login()
+            self.assertTrue(client.authenticated)
+            self.assertEqual('after', client.token)
+            self.assertEqual(('/auth/login', 'POST', {'password': 'TEST FIXTURE password'}), calls.call_args_list[1].args)
+            client.logout()
+            self.assertFalse(client.authenticated)
+            self.assertEqual(('/auth/logout', 'POST'), calls.call_args.args)
+
     def test_remote_requires_https_without_embedded_credentials(self):
         for base in ('http://evil.example/api', 'https://user:secret@example.org/api',
                      'https://example.org/api?key=secret', 'https://example.org/other', 'file:///api'):

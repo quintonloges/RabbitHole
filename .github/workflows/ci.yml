@@ -26,6 +26,8 @@ jobs:
         options: --health-cmd "pg_isready -U rabbithole -d rabbithole_recommendation_test_ci" --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4
+      - name: Validate workflow definitions
+        run: docker run --rm -v "$PWD/.github:/work/.github:ro" -w /work rhysd/actionlint:1.7.12 .github/workflows/ci.yml .github/workflows/deploy.yml
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '10.0.x' }
       - uses: actions/setup-node@v4

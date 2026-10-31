@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 source "$(dirname "$0")/common.sh"
+[[ $# == 0 || ($# == 2 && "$1" == --password-file) ]] || { echo 'Usage: launch.sh [--password-file PRIVATE_FILE]' >&2; exit 1; }
+authentication=(); [[ $# == 0 ]] || authentication=(--password-file "$2")
 operation_lock
 [[ "$PROJECT_NAME" == rabbithole-hosted ]] || { echo 'Staging and rehearsal projects cannot be launched or indexed.' >&2; exit 1; }
 [[ -f "$STATE_PATH/preservation-verified.json" ]] || { echo 'Restore/preservation rehearsal must pass first.' >&2; exit 1; }
@@ -22,7 +24,7 @@ cleanup() {
 }
 trap cleanup EXIT
 python3 -c 'import json,sys; json.dump(sys.argv[2:],open(sys.argv[1],"w"))' "$prefix" "${COMPOSE[@]}"
-python3 "$RH_RELEASE/scripts/hosted/smoke.py" --base "https://$PUBLIC_HOST/api" --output "$STATE_PATH/smoke-verified.json" --compose-prefix "$prefix"
+python3 "$RH_RELEASE/scripts/hosted/smoke.py" --base "https://$PUBLIC_HOST/api" --output "$STATE_PATH/smoke-verified.json" --compose-prefix "$prefix" "${authentication[@]}"
 # This command fails on a missing/untrusted certificate or an unavailable HTTPS gateway.
 curl --fail --silent --show-error "https://$PUBLIC_HOST/api/healthz" >/dev/null
 opening=true
@@ -31,4 +33,5 @@ set_setting INGESTION_PAUSED false
 compose up -d --wait --no-build --pull never
 rm -f -- "$STATE_PATH/maintenance"
 curl --fail --silent --show-error "https://$PUBLIC_HOST/api/public/items?pageSize=1" >/dev/null
+curl --fail --silent --show-error "https://$PUBLIC_HOST/" >/dev/null
 echo "RabbitHole is live at https://$PUBLIC_HOST. Preserve the stopped desktop recovery copy."

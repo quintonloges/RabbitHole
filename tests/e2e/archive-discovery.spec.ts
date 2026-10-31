@@ -8,7 +8,7 @@ test('daily public mix and private rows show original years, while unknown dates
   for (const item of [older, unknown]) expect((await request.patch(`/api/items/${item.id}`, { data: { topicIds: [topic.id] } })).ok()).toBe(true);
   const context = await browser.newContext({ baseURL }); const publicPage = await context.newPage();
   await publicPage.goto(`/?topicId=${topic.id}`);
-  await expect(publicPage.getByText('Fresh finds + archive picks', { exact: false })).toBeVisible();
+  await expect(publicPage.getByText('2 items', { exact: true })).toBeVisible();
   const headline = publicPage.getByRole('link', { name: 'TEST FIXTURE: How oscillators work (2001)', exact: true });
   await expect(headline).toBeVisible();
   await expect(headline.locator('xpath=ancestor::article')).toContainText('Published Feb 3, 2001');

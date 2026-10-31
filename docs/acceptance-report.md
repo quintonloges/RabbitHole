@@ -1,5 +1,27 @@
 # RabbitHole acceptance report
 
+## Approval-to-live GitHub releases — 31 October 2026
+
+Completed the routine release path from GitHub approval through automatic public launch. A default-branch push queues validation and the protected production job. The live GitHub environment now requires `quintonloges` approval and only accepts `codex/rabbithole`; self-review remains available for the sole owner. The agent does not approve releases. Manual staging runs remain isolated in maintenance.
+
+After approval, the workflow checks configuration, builds/pins images, transfers over verified SSH and runs `release.sh`. It authenticates with the existing password before maintenance, checks backup prerequisites, takes the pre-upgrade encrypted backup, migrates and compares preservation manifests, takes a new-release backup, restores that exact pair into disposable volumes, runs the existing authenticated privacy checks, opens the public site and verifies HTTPS API/home responses. An explicit workflow checkbox can apply the curated source pack after launch. Reruns reuse installed immutable image bundles.
+
+The one-time `DEPLOY_ADMIN_PASSWORD` production environment secret supplies the real cookie/CSRF login. It travels over SSH stdin into a bounded private temporary file and is cleaned up on success or failure; it is not added to runtime configuration, command arguments or artifacts. Manual password prompting and interactive initial provisioning remain available. No authentication bypass or session fabrication was added. Wrong credentials fail before maintenance; later failures prevent opening, and failed public probes restore maintenance.
+
+Review also found that daily-only backup retention could discard a same-day pre-upgrade backup. Retention now keeps the latest two snapshots and preserves the precise pre-migration pair referenced in private `rollback-backup.json`. Repeating the same release cannot replace that reference with an already migrated database; a later distinct release replaces it deliberately. Source-activation failure is reported separately after launch and does not reclose the verified site.
+
+Verification:
+
+- Isolated Linux run using `.cache/release-ci/Dockerfile` and `.cache/release-ci/run.sh`: **13 script tests and 29 hosted tests passed**, with no skips. This includes real restic encryption/restoration and retention, exact backup/release matching, rollback-reference retry behavior, secret-file validation, and shell orchestration tests covering failed preflight, backup, restore, privacy and public-opening gates. External deployment commands are replaced by explicit fixtures in orchestration tests; they do not claim a real hosted release.
+- `npm run test:e2e -- tests/e2e/maintenance-login.spec.ts`: **1 passed**, exercising the real isolated ASP.NET cookie/CSRF login, private-route rejection and a wrong password via the Python maintenance client.
+- `docker run ... rhysd/actionlint:1.7.12 .github/workflows/ci.yml .github/workflows/deploy.yml`: passed. Workflow lint is now included in normal CI. All hosted Bash scripts passed `bash -n`.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore`, frontend lint/typecheck and `git diff --check`: passed. The preceding source-expansion section records full backend, PostgreSQL, browser and development-build coverage.
+- GitHub API readback confirmed the required reviewer and exact branch restriction. No environment secrets were read or printed, and no deployment approval was submitted by the agent.
+
+Also removed the two requested public-catalog explanatory lines: “Fresh finds + archive picks” and the paragraph describing daily archive rotation. Item counts, dates and sorting controls remain functional. The existing archive browser assertion now checks the item count.
+
+First real rollout still requires the owner to add the environment secret and approve the queued GitHub deployment. That rollout includes the prior source-expansion commit and earlier unpublished local commits (public index, catalog refinements and Blackjack Lab); all are subject to the same full validation and production approval. The original desktop production snapshot and volumes remain untouched. Setup instructions and failure recovery are in [public hosting](public-hosting.md).
+
 ## Expanded sources and older web discovery — 31 October 2026
 
 Added 15 newly verified feed choices and six topic-scoped older-web searches to the shared opt-in source catalog. The `web-archive` adapter searches historical HN links, skips known canonical URLs, retrieves permitted original metadata, and uses existing deduplicating imports, source jobs and backoff. It does not merely recycle daily editions. Calls are bounded to two index requests and three original lookups per refresh, with a 60-second deadline and daily scheduling. Original dates/authors remain distinct from discovery provenance; confirmed 404/410 pages are skipped and denied metadata access stays explicitly link-only.

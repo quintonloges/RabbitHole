@@ -31,11 +31,17 @@ if docker volume inspect "${PROJECT_NAME}_database" >/dev/null 2>&1; then
   RH_RELEASE="$previous" bash "$previous/scripts/hosted/backup.sh" --keep-stopped
   # Invalidate prior verification before applying migrations to the preserved data.
   rm -f -- "$STATE_PATH/preservation-verified.json"
-  python3 - "$STATE_PATH" <<'PY'
+  python3 - "$STATE_PATH" "$previous" "$release" <<'PY'
 import hashlib,json,pathlib,sys
 state=pathlib.Path(sys.argv[1]); record=json.loads((state/'last-backup.json').read_text())
 if record.get('manifestSha256')!=hashlib.sha256((state/'last-backup-manifest.json').read_bytes()).hexdigest():
     raise SystemExit('The pre-upgrade backup manifest does not match backup evidence.')
+# Retain the exact pre-migration pair across post-upgrade backups and reruns.
+# A retry of the same release must not replace it with an already migrated DB.
+if sys.argv[2]!=sys.argv[3]:
+    record.update(previousRelease=sys.argv[2],upgradingTo=sys.argv[3])
+    temporary=state/'rollback-backup.json.tmp'; temporary.write_text(json.dumps(record,indent=2))
+    temporary.replace(state/'rollback-backup.json')
 PY
 else
   set_setting INGESTION_PAUSED true

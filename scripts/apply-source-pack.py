@@ -12,7 +12,7 @@ import sys
 import urllib.parse
 import urllib.request
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from admin_client import request, validate_base
+from admin_client import request, validate_base, use_password_file, logout
 
 
 def identity(source):
@@ -29,11 +29,22 @@ def main():
     parser.add_argument('--refresh', action='store_true')
     parser.add_argument('--only', help='Only a named source; exact match')
     parser.add_argument('--report', default='data/curation/source-pack-run.json')
+    parser.add_argument('--password-file', help='Explicit private temporary password file for approved automated releases.')
     args = parser.parse_args()
     try:
         validate_base(args.base)
     except ValueError as error:
         parser.error(str(error))
+    if args.password_file:
+        use_password_file(args.base, args.password_file)
+    try:
+        return apply_pack(args)
+    finally:
+        if args.password_file:
+            logout(args.base)
+
+
+def apply_pack(args):
     pack = json.loads(Path(args.pack).read_text(encoding='utf-8-sig'))
     topics = {t['name']: t['id'] for t in request(args.base, '/topics')}
     sources = {identity(s): s for s in request(args.base, '/sources')}

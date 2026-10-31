@@ -58,7 +58,11 @@ Hosted uses project `rabbithole-hosted`, PostgreSQL **17**, and separate `databa
 
 ## GitHub Actions release
 
-`Validate` runs script tests, backend tests, PostgreSQL migration/HTTP regressions, lint, TypeScript, optimized frontend build, Playwright and hosted config checks. `Deploy to DigitalOcean` is manually dispatched after choosing `staging` or `production` and `linux/amd64` or `linux/arm64`; it runs validation before building. Add the following in [repository Actions secrets](https://github.com/quintonloges/RabbitHole/settings/secrets/actions), or as secrets in the chosen GitHub environment. Environment secrets can target separate staging and production servers. Configure environment release-branch restrictions as appropriate.
+`Validate` runs workflow lint, script tests, backend tests, PostgreSQL migration/HTTP regressions, lint, TypeScript, optimized frontend build, Playwright and hosted config checks. A push to the default `codex/rabbithole` branch queues `Deploy to DigitalOcean`: validation runs first, then the `release` job waits for the owner's **Review deployments → production → Approve and deploy** action. After approval it builds, backs up, deploys, restores a backup in isolation, checks privacy through the real administrator login, and opens the site automatically. No terminal password prompt is needed for routine releases.
+
+The workflow also accepts manual runs for `production` or `staging`, with `linux/amd64` or `linux/arm64`. Automatic pushes use production and linux/amd64. Production runs must use the default branch; staging stays in maintenance and never opens publicly. The `production` environment is configured with `quintonloges` as required reviewer and only `codex/rabbithole` allowed. Self-review is permitted because the owner is the sole administrator. Agents must not approve the deployment themselves. If the default branch changes, update both the workflow's push branches and the environment's branch restriction.
+
+Configure the following secrets. Existing SSH values may remain in [repository Actions secrets](https://github.com/quintonloges/RabbitHole/settings/secrets/actions), or in the chosen environment. The administrator password must be an **environment secret** in [production settings](https://github.com/quintonloges/RabbitHole/settings/environments); it is released to the job only after the owner's approval.
 
 | Type | Name | Value |
 |---|---|---|
@@ -67,14 +71,25 @@ Hosted uses project `rabbithole-hosted`, PostgreSQL **17**, and separate `databa
 | Secret, optional | `SSH_PORT` | SSH port; defaults to 22 |
 | Secret | `SSH_PRIVATE_KEY` | Dedicated deployment private key |
 | Secret | `SSH_KNOWN_HOSTS` | Independently verified server host-key entry; include `[host]:port` for nonstandard ports |
+| Production environment secret | `DEPLOY_ADMIN_PASSWORD` | The existing RabbitHole administrator password, entered directly in GitHub; one line with no trailing newline |
 
 The workflow uses these secrets directly. `SSH_HOST`, `SSH_USER` and `SSH_PORT` also accept Actions variables as a fallback, with secrets taking precedence. `SSH_SECRET` is accepted as a compatibility name for `SSH_PRIVATE_KEY`; when both exist, `SSH_PRIVATE_KEY` takes precedence. A configuration check reports missing names or invalid connection formats before building images, without printing secret values. See [GitHub's secrets instructions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) for adding them. Server runtime settings remain in private `/etc/rabbithole/hosted.env` as described above.
 
-The job builds commit-tagged API/web images, includes PostgreSQL 17 and Caddy, transfers a checksummed image archive over verified SSH and installs `/srv/rabbithole/releases/<git-sha>`. `release.env` pins all four runtime images by SHA-256 ID. Reusing a commit with different image IDs is rejected. Retain release directories/image archives and matching backups for rollback.
+The job builds commit-tagged API/web images, includes PostgreSQL 17 and Caddy, transfers a checksummed image archive over verified SSH and installs `/srv/rabbithole/releases/<git-sha>`. `release.env` pins all four runtime images by SHA-256 ID. A rerun reuses an installed pinned bundle rather than overwriting it with rebuilt images; `deploy.sh` still rejects mismatching pins. Retain release directories/image archives and matching backups for rollback.
 
-When promoting a release already tested in staging on the same Droplet, reuse its installed bundle: run `RH_CONFIG=/etc/rabbithole/hosted.env bash /srv/rabbithole/releases/SHA/scripts/hosted/deploy.sh /srv/rabbithole/releases/SHA` as the deployment account, replacing both `SHA` placeholders with that release's full Git commit. Do not dispatch a second image rebuild for the same commit into the existing release directory; rebuilt image IDs may differ from its immutable pins.
+When promoting a release already tested in staging on the same Droplet, dispatch production for that same commit and approve it. The installed bundle is reused. Manual `deploy.sh` remains available for maintenance/recovery, but it intentionally stops before launch.
 
-On first install, deploy loads images and sets the current release pointer **without creating application data volumes**. Restore the personal library before starting the site. On later releases, deploy first creates an encrypted backup of the previous pinned release even when its stack is stopped, then upgrades in maintenance mode. Backups use local storage unless `BACKUP_MODE=offserver` is explicitly configured. Deployment does not automatically open the public site.
+On first install, use the manual restore/provision/launch procedure below; automated routine release refuses an absent or invalid current release. `deploy.sh` loads images and sets the first release pointer **without creating application data volumes**. Restore the personal library before starting the site.
+
+For routine upgrades, `release.sh` first verifies the existing password via HTTPS, cookie and CSRF endpoints, and checks the backup timer/tools before entering maintenance. Missing/wrong credentials fail without taking down the running site. `deploy.sh` backs up the previous pinned release and verifies preserved records/uploads after migration. The orchestrator then backs up the new release, restores that exact encrypted snapshot pair into disposable volumes, runs the full authenticated privacy smoke test, enables ingestion/indexing and verifies both the public API and home page over HTTPS. One operation lock covers the sequence. Backups remain local by default.
+
+The GitHub secret travels over verified SSH stdin into a bounded mode-600 file in a mode-700 temporary directory. It is never a command argument, release artifact, application environment setting or log value. Cleanup removes it on success or failure; the smoke client logs out even after a failed check. Authentication is not bypassed and no password is provisioned or reset. After changing the administrator password, update this GitHub secret before the next release.
+
+The pre-migration snapshot pair is recorded in private `STATE_PATH/rollback-backup.json` with its previous release path. Retention preserves that exact pair by its existing pairing tag until the next distinct release records a replacement. Retrying the same release does not overwrite this reference with a migrated database. The post-upgrade backup/restore gate therefore cannot prune the rollback snapshot it just created.
+
+A failed migration, backup, restoration or privacy gate does not open the site. A failed public opening probe restores maintenance and pauses ingestion/indexing. Inspect the failed Actions step and use the matching release/backup recovery procedure; do not downgrade images against a migrated database. The Actions job reports success only when launch checks succeed.
+
+Manual workflow runs can additionally select **Verify and activate missing curated sources**. This explicitly applies the source pack after launch using the same authenticated client, preserving existing subscriptions. Normal automatic pushes do not apply it. Source failures leave affected new subscriptions disabled and fail that step with a report on the server; the verified live site stays open. See [source expansion](source-expansion.md). This is the intended option for the initial expanded-source rollout.
 
 ## Isolated staging and local rehearsal
 
@@ -131,7 +146,7 @@ bash scripts/hosted/backup.sh
 bash scripts/hosted/restore-test.sh
 ```
 
-Backups stop writers for a consistent database/files copy, then restore the previous service state. Content snapshots include database, uploads and hash manifest; the separate recovery repository contains hosted configuration, auth keys and certificate data. Restic encrypts both. Retention keeps seven daily and four weekly snapshots; each backup verifies repository integrity. The timer runs around 03:30 UTC with up to 15 minutes of randomized delay; inspect failures with `systemctl status rabbithole-backup.service` and `journalctl -u rabbithole-backup.service`.
+Backups stop writers for a consistent database/files copy, then restore the previous service state. Content snapshots include database, uploads and hash manifest; the separate recovery repository contains hosted configuration, auth keys and certificate data. Restic encrypts both. Retention keeps the two latest snapshots as well as seven daily and four weekly snapshots, preserving both sides of a same-day upgrade; each backup verifies repository integrity. The timer runs around 03:30 UTC with up to 15 minutes of randomized delay; inspect failures with `systemctl status rabbithole-backup.service` and `journalctl -u rabbithole-backup.service`.
 
 `restore-test.sh` reads the **actual recorded snapshot pair** from the selected repositories, restores DB/API in disposable non-public volumes, compares record/upload/key/recovery hashes, and records evidence bound to that release and snapshot pair. It does not merely check that backup files exist. It cleans up only its generated rehearsal project. Initial import preservation is insufficient for this gate.
 
@@ -149,7 +164,7 @@ Off-server mode rejects local destinations, shared repository/password paths and
 bash scripts/hosted/launch.sh
 ```
 
-Launch requires initial preservation evidence, a backup less than 24 hours old, a successful restoration of that exact snapshot pair/release, an active/enabled backup timer, a valid HTTPS certificate and an interactive authenticated privacy smoke check. A verified local backup satisfies the backup checks. It then enables indexing and ingestion and removes maintenance. Failed opening checks re-enable maintenance and pause ingestion. Do not create evidence markers by hand or bypass these checks.
+Launch requires initial preservation evidence, a backup less than 24 hours old, a successful restoration of that exact snapshot pair/release, an active/enabled backup timer, a valid HTTPS certificate and an authenticated privacy smoke check. Manual launch prompts interactively; the approved routine workflow supplies the existing password through an explicit private file. Both paths use the same real authentication and checks. A verified local backup satisfies the backup checks. Launch then enables indexing and ingestion and removes maintenance. Failed opening checks re-enable maintenance and pause ingestion. Do not create evidence markers by hand or bypass these checks.
 
 After entering the administrator password, the privacy check can run quietly for several minutes. It probes every private item and waits 61 seconds when the public API rate limiter returns HTTP 429. Keep the SSH terminal open until the check prints its result and the launch command reports that RabbitHole is live.
 

@@ -1,5 +1,7 @@
 # RabbitHole
 
+Hosted releases now follow **push → validation → GitHub production approval → automatic backup, deploy, restore verification and launch**. Set the existing administrator password once as the protected `DEPLOY_ADMIN_PASSWORD` environment secret. Routine releases use real cookie/CSRF login without a terminal prompt. See [GitHub release setup and recovery](docs/public-hosting.md#github-actions-release).
+
 A public catalog with a private learning workspace. Visitors browse real published articles, research, videos and music. One administrator follows branching trails, keeps notes, reads private books and revisits ideas. There are no visitor accounts, analytics, streaks or fabricated feed entries.
 
 Public catalog routes are `/`, `/search`, `/items/{id}`. **Blackjack Lab** at `/blackjack` is a separate, public interactive learning feature. Personal features are under `/admin`, with sign-in at `/admin/login`. Public records expose approved metadata and bounded source excerpts. Uploads, full stored text, notes, history, trails, personal practice and AI output stay private. Control visibility with **Show publicly** in item Details and the Library visibility filter. The upgrade publishes eligible existing external records; document-derived records are always private.

@@ -55,9 +55,9 @@ This is discovery through the HN index, not a whole-web search engine. Publisher
 
 ## Activate on the hosted instance
 
-The source pack remains opt-in. Deploy the tested code through [the hosted release procedure](public-hosting.md), including its pre-upgrade encrypted backup, preservation check, current-release backup/restore rehearsal and interactive administrator launch check. Do not begin maintenance until the operator can complete that password prompt. The original desktop production snapshot remains untouched.
+The source pack remains opt-in. Deploy the tested code through [the hosted release procedure](public-hosting.md), including its pre-upgrade encrypted backup, preservation check, current-release backup/restore rehearsal and authenticated launch check. The completed CI/CD flow runs those steps automatically after the owner's GitHub production approval, using the existing password from a protected environment secret. For this initial rollout, manually queue the workflow with **Verify and activate missing curated sources** selected; it applies the pack after verified launch. Normal automatic releases leave subscriptions unchanged. The original desktop production snapshot remains untouched.
 
-Once the new hosted release is live, run these from the checkout. Each invocation prompts for the administrator password with hidden input; do not put it in arguments or chat:
+Alternatively, once the new hosted release is live, run these from the checkout. Each invocation prompts for the administrator password with hidden input; do not put it in arguments or chat:
 
 ```powershell
 python scripts/apply-source-pack.py --base https://rabbithole.quintonloges.me/api --report data/curation/hosted-source-plan.json

@@ -83,10 +83,20 @@ public static class IngestionEndpoints
                 source.ResearchCursor = null; source.ResearchFromDate = null;
                 source.ResearchWindowStartedAt = null; source.ResearchCheckpointAt = null;
             }
-            foreach (var link in (await db.ItemSources.Where(x => x.SourceId == id).ToListAsync(ct)).Where(x => x.SourceId == id))
-            { link.Name = source.Name; link.Kind = source.Kind; link.Url = source.Url; link.TopicIds = source.TopicIds.ToList(); }
+            var updateItemTopics = replaceOrigin || input.TopicIds is not null;
+            if (updateItemTopics || input.Name is not null)
+            {
+                var links = await db.ItemSources.Where(x => x.SourceId == id).ToListAsync(ct);
+                foreach (var link in links.Where(x => x.SourceId == id))
+                {
+                    link.Name = source.Name;
+                    link.Kind = source.Kind;
+                    link.Url = source.Url;
+                    link.TopicIds = source.TopicIds.ToList();
+                }
+            }
             await db.SaveChangesAsync(ct);
-            await TopicClassification.ReclassifyAsync(db, ct);
+            if (updateItemTopics) await TopicClassification.ReclassifyAsync(db, ct);
             return Results.Ok(source);
         });
         group.MapDelete("/sources/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>

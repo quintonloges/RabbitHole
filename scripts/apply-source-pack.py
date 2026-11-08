@@ -9,8 +9,8 @@ import datetime
 import json
 from pathlib import Path
 import sys
+import urllib.error
 import urllib.parse
-import urllib.request
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from admin_client import request, validate_base, use_password_file, logout
 
@@ -19,6 +19,20 @@ def identity(source):
     url = urllib.parse.urlsplit(source.get('url', '').strip())
     canonical = urllib.parse.urlunsplit((url.scheme.lower(), url.netloc.lower(), url.path.rstrip('/'), url.query, ''))
     return source['kind'], canonical, source.get('query', '').strip()
+
+
+def activate_source(base, source_id):
+    try:
+        return request(base, '/sources/' + source_id, 'PATCH', {'enabled': True})
+    except (TimeoutError, urllib.error.URLError) as error:
+        if isinstance(error, urllib.error.URLError) and not isinstance(error.reason, TimeoutError):
+            raise
+        # The write may have committed before the response timed out.
+        for source in request(base, '/sources'):
+            if source['id'] == source_id and source['enabled'] is True:
+                print(f'Confirmed source {source_id} is enabled after an activation timeout.', file=sys.stderr, flush=True)
+                return source
+        raise RuntimeError('Activation timed out and the source could not be confirmed enabled.') from error
 
 
 def main():
@@ -80,10 +94,10 @@ def apply_pack(args):
                 report['job'] = job
                 if job['status'] != 'completed':
                     raise ValueError('Refresh failed; source left disabled: ' + str(job.get('error')))
-                activated = request(args.base, '/sources/' + source['id'], 'PATCH', {'enabled': True})
+                activated = activate_source(args.base, source['id'])
                 report.update(action='imported and activated', imported=job['imported'], nextSyncAt=activated['nextSyncAt'])
         except Exception as error:
-            report.update(action='failed; no settings overwritten', error=str(error))
+            report.update(action='failed', error=str(error))
         results.append(report)
         print(json.dumps({k: v for k, v in report.items() if k not in ('verification', 'job')}, ensure_ascii=False), flush=True)
         output = Path(args.report)

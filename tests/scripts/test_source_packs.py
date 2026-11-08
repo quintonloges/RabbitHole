@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 
 def load_script(name):
@@ -161,6 +162,33 @@ class SourcePackTests(unittest.TestCase):
                 self.assertEqual(0, code)
                 self.assertNotIn('job', report[0])
                 self.assertEqual(2, len(calls))
+
+    def test_activation_timeout_confirms_the_created_source_before_reporting_success(self):
+        enabled = dict(self.source, enabled=True, nextSyncAt='2026-11-09T12:00:00Z')
+        other = dict(enabled, id='other-source')
+        timeout = TimeoutError('The read operation timed out')
+        rejected = HTTPError('https://example.org/api/sources', 403, 'Forbidden', {}, None)
+        for error, readback, success, should_read in (
+            (timeout, [enabled], True, True),
+            (URLError(timeout), [enabled], True, True),
+            (timeout, [other, self.source], False, True),
+            (timeout, [], False, True),
+            (timeout, rejected, False, True),
+            (rejected, [enabled], False, False),
+        ):
+            with self.subTest(error=error, readback=readback):
+                responses = [[], [], self.source, {'ok': True, 'count': 20},
+                             {'status': 'completed', 'imported': 20}, error, readback]
+                code, report, calls, _ = run_pack(source_pack, {'sources': [self.source]}, responses, '--apply')
+                self.assertEqual(('/sources/existing-source', 'PATCH', {'enabled': True}), calls[5].args[1:])
+                self.assertEqual([('/sources',)] if should_read else [], [c.args[1:] for c in calls[6:]])
+                self.assertEqual(0 if success else 1, code)
+                if success:
+                    self.assertEqual('imported and activated', report[0]['action'])
+                    self.assertEqual(20, report[0]['imported'])
+                    self.assertEqual(enabled['nextSyncAt'], report[0]['nextSyncAt'])
+                else:
+                    self.assertIn('error', report[0])
 
 
 if __name__ == '__main__':

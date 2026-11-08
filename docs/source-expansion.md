@@ -1,6 +1,6 @@
 # Source expansion and older web discovery
 
-Implemented 31 October 2026. The changes are built in development; hosted release and subscription activation are separate operations.
+On 8 November 2026, production enabled all 15 additional publisher feeds and all six older-web searches. Each search refreshes daily. Their first import added 16 original links.
 
 ## What changes in discovery
 
@@ -55,7 +55,7 @@ This is discovery through the HN index, not a whole-web search engine. Publisher
 
 ## Activate on the hosted instance
 
-The source pack remains opt-in. Deploy the tested code through [the hosted release procedure](public-hosting.md), including its pre-upgrade encrypted backup, preservation check, current-release backup/restore rehearsal and authenticated launch check. The completed CI/CD flow runs those steps automatically after the owner's GitHub production approval, using the existing password from a protected environment secret. For this initial rollout, manually queue the workflow with **Verify and activate missing curated sources** selected; it applies the pack after verified launch. Normal automatic releases leave subscriptions unchanged. The original desktop production snapshot remains untouched.
+For a new installation or future additions to the pack, select **Verify and activate missing curated sources** when manually queuing the hosted workflow. After the owner's GitHub production approval, the workflow verifies backup restoration, migration, privacy and public HTTPS access, then applies the pack. Existing subscriptions continue on their own schedules across releases. See [the hosted release procedure](public-hosting.md).
 
 Alternatively, once the new hosted release is live, run these from the checkout. Each invocation prompts for the administrator password with hidden input; do not put it in arguments or chat:
 
@@ -64,6 +64,6 @@ python scripts/apply-source-pack.py --base https://rabbithole.quintonloges.me/ap
 python scripts/apply-source-pack.py --base https://rabbithole.quintonloges.me/api --apply --report data/curation/hosted-source-expansion.json
 ```
 
-The plan reports missing sources and preserved existing ones. Apply creates missing enabled pack entries as disabled, tests their real response, imports once, then enables them after success. It preserves existing subscriptions and their settings; do not add `--refresh` unless an existing-source refresh is intended. Failures remain disabled with a report. The pack also contains earlier curated choices; the read-only plan makes any older missing choices visible before application. `--only 'Distill'` or another exact source name limits the operation. Individual choices are also available in **Settings → Sources → Browse suggested sources**.
+The plan lists missing and existing subscriptions. Apply creates each new subscription disabled, tests its response, imports once and then enables it. If the activation request times out, the installer checks the saved subscription by ID before reporting success. An unconfirmed activation or a failed test or import produces an error in the report. Existing subscriptions retain their settings. Pass `--refresh` to refresh them explicitly or `--only 'Distill'` to limit the operation to one named source. Individual choices are also available in **Settings → Sources → Browse suggested sources**.
 
 After applying, check source health/jobs, a second refresh for duplicates, public date labels and the daily mix. Disabling an older-web source stops scheduled discovery; hiding an item removes it from public output independently of source enablement. No new environment variable or API key is required for this provider.

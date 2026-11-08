@@ -91,7 +91,7 @@ The pre-migration snapshot pair is recorded in private `STATE_PATH/rollback-back
 
 A failed migration, backup, restoration or privacy gate does not open the site. A failed public opening probe restores maintenance and pauses ingestion/indexing. Inspect the failed Actions step and use the matching release/backup recovery procedure; do not downgrade images against a migrated database. The Actions job reports success only when launch checks succeed.
 
-Manual workflow runs can additionally select **Verify and activate missing curated sources**. This explicitly applies the source pack after launch using the same authenticated client, preserving existing subscriptions. Normal automatic pushes do not apply it. Source failures leave affected new subscriptions disabled and fail that step with a report on the server; the verified live site stays open. See [source expansion](source-expansion.md). This is the intended option for the initial expanded-source rollout.
+Manual workflow runs can additionally select **Verify and activate missing curated sources**. This applies the source pack after launch using the same authenticated client, preserving existing subscriptions. A failed test, import or unconfirmed activation produces a nonzero exit and a report on the server. The verified site stays live. See [source expansion](source-expansion.md).
 
 ## Isolated staging and local rehearsal
 

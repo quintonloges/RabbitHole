@@ -270,6 +270,30 @@ public class CatalogEndpointTests
     }
 
     [Fact]
+    public async Task ActivatingSourceSkipsCatalogReclassificationAndTopicEditsStillApply()
+    {
+        using var factory = new ApiFactory(); using var client = factory.CreateClient();
+        var source = new Source { Name = "TEST FIXTURE feed", Url = "https://example.org/feed", Enabled = false };
+        var topic = new Topic { Name = "TEST FIXTURE inherited topic" };
+        var item = new ContentItem { Title = "TEST FIXTURE legacy item", CanonicalUrl = "https://example.org/legacy", SourceId = source.Id };
+        using (var setup = factory.Services.CreateScope())
+        {
+            var db = setup.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.AddRange(source, topic, item);
+            await db.SaveChangesAsync();
+        }
+
+        var activated = await Read(await client.PatchAsJsonAsync($"/api/sources/{source.Id}", new { enabled = true }));
+        Assert.True(activated.GetProperty("enabled").GetBoolean());
+        using var verification = factory.Services.CreateScope();
+        var saved = verification.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False(await saved.ItemTopics.AnyAsync(x => x.ItemId == item.Id));
+
+        await Read(await client.PatchAsJsonAsync($"/api/sources/{source.Id}", new { topicIds = new[] { topic.Id } }));
+        Assert.True(await saved.ItemTopics.AnyAsync(x => x.ItemId == item.Id && x.TopicId == topic.Id && x.SourceAssigned));
+    }
+
+    [Fact]
     public async Task ReplacingFeedUrlKeepsOldGuidRecordTextPersonalStateAndOriginSnapshot()
     {
         using var factory = new ApiFactory(); using var client = factory.CreateClient();

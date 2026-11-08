@@ -1,5 +1,17 @@
 # RabbitHole acceptance report
 
+## Hosted source activation — 8 November 2026
+
+Release `7d7fcb2` passed backup restoration and privacy checks and opened the public site. The post-launch installer received a read timeout while enabling Julia Evans. Its saved report shows a successful feed test and 20 imported articles. A subsequent read-only check of the hosted database confirmed the subscription was enabled and its next refresh succeeded. [GitHub Actions run 41216738363](https://github.com/quintonloges/RabbitHole/actions/runs/41216738363)
+
+All 15 added publisher feeds and all six older-web searches were enabled and had a successful refresh. The six searches each had a 1,440-minute interval and no recorded error. Their initial import added 16 records. The public homepage returned HTTP 200 and the public catalog reported 851 items at verification time.
+
+The source toggle now skips catalog reclassification. After an activation timeout the installer reads the saved subscription by ID. It reports success only if that read confirms activation. Failed verification, refresh and authorization still produce a failing exit status.
+
+- `python3 -m unittest discover -s tests/scripts -v` and `python3 -m unittest discover -s scripts/hosted -p 'test_*.py' -v` passed all 14 script tests and 33 hosted tests in Linux.
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore` passed 282 tests in the local run. Four PostgreSQL-only cases require the separate PostgreSQL suite.
+- The new installer and API regressions both failed against the previous implementation. They cover committed and unconfirmed activations, authorization failures, and topic edits after activation. `dotnet format RabbitHole.slnx --verify-no-changes --no-restore` passed.
+
 ## Hosted release recovery and SSH observability — 31 October 2026
 
 Release `d9446d57192f2fe2970027b0930299c0de3da372` is live. The first attempt rejected a mismatched administrator secret before maintenance; the owner corrected it. The second attempt authenticated, preserved the database/uploads during migration, created encrypted before/after backups and restored the new pair into disposable volumes. The SSH connection then reset during the silent authenticated privacy scan. The server completed that scan afterwards (`smoke-verified.json`: passed, 418 public records), but the disconnected output prevented the remaining opening steps.
@@ -12,7 +24,7 @@ The workflow now sends SSH keepalives every 15 seconds, limits unanswered keepal
 - Actionlint 1.7.12 and `git diff --check`: passed.
 - Hosted browser verification with `RH_SMOKE_BASE=https://rabbithole.quintonloges.me node .cache/archive-smoke.cjs`: **418 unique public records**, private API 401, no browser errors or horizontal overflow, mobile entry and login routing passed at 320/390 pixels, plus desktop and light/dark checks. Captures remain in ignored `.cache/ui-review/`.
 
-Additional source activation was not reached by the disconnected run and remains pending a corrected workflow run. The earlier "not deployed" notes below record prior states, not the current hosted status.
+The disconnected October run stopped before source activation. The 8 November entry above records the completed activation.
 
 ## Mobile workspace entry — 31 October 2026
 

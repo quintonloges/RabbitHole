@@ -1,5 +1,13 @@
 # RabbitHole acceptance report
 
+## Hosted privacy checks — 8 November 2026
+
+The previous release took 4m 46s for its privacy checks. It requested 435 private detail URLs and hit the production rate limiter three times, waiting 61 seconds each time. [Production release log](https://github.com/quintonloges/RabbitHole/actions/runs/42505744168/job/128809909124)
+
+An isolated PostgreSQL 17 and RabbitHole API rehearsal used 851 public and 435 private fixture records, including a hidden external item, uploads and a merged ID. The normal password, cookie and CSRF login, both authenticated exports, nine anonymous catalog pages, one read-only publication index query, three private detail requests, one public detail request and anonymous rejection on eight private routes passed in 3.75 seconds locally. The measurement covers the smoke script from login through logout. Production timing depends on the host.
+
+`python3 -m unittest discover -s tests/scripts -v` passed 14 tests in Linux. `python3 -m unittest discover -s scripts/hosted -p 'test_*.py' -v` passed 40, including an unprobed private item on a later page, an unlisted private alias marked public in the index, a broken public detail route, a failed index query, and the manual exhaustive audit. All hosted Bash scripts passed `bash -n`.
+
 ## Hosted source activation — 8 November 2026
 
 Release `7d7fcb2` passed backup restoration and privacy checks and opened the public site. The post-launch installer received a read timeout while enabling Julia Evans. Its saved report shows a successful feed test and 20 imported articles. A subsequent read-only check of the hosted database confirmed the subscription was enabled and its next refresh succeeded. [GitHub Actions run 41216738363](https://github.com/quintonloges/RabbitHole/actions/runs/41216738363)

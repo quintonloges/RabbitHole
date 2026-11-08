@@ -53,7 +53,9 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from admin_client import read_password_file
 password=read_password_file(sys.argv[sys.argv.index('--password-file')+1])
-with open(os.environ['FIXTURE_LOG'],'a') as f: f.write('preflight\\n')
+with open(os.environ['FIXTURE_LOG'],'a') as f:
+    f.write('preflight\\n')
+    if '--all-private-details' in sys.argv: f.write('all-private-details\\n')
 if password!='TEST FIXTURE password' or os.environ.get('FAIL_STAGE')=='preflight': raise SystemExit(9)
 ''')
         shutil.copyfile(SCRIPTS.parent / 'admin_client.py', self.release / 'scripts/admin_client.py')
@@ -130,8 +132,16 @@ if os.environ.get('FAIL_STAGE')=='sources': raise SystemExit(9)
         self.assertEqual(0, result.returncode, result.stderr)
         calls = self.log.read_text().splitlines()
         self.assertLess(calls.index('preflight'), calls.index('PUBLIC_INDEXING_ENABLED=true'))
+        self.assertNotIn('all-private-details', calls)
         self.assertEqual(3, calls.count('https-probe'))
         self.assertFalse((self.root / 'state/maintenance').exists())
+
+    def test_manual_launch_can_request_exhaustive_detail_checks(self):
+        password = self.prepare_real_launch()
+        result = subprocess.run(['bash', str(self.hosted / 'launch.sh'), '--all-private-details', '--password-file', str(password)],
+                                capture_output=True, text=True, env=self.environment)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('all-private-details', self.log.read_text().splitlines())
 
     def test_real_launch_keeps_maintenance_when_privacy_check_fails(self):
         password = self.prepare_real_launch()

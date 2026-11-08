@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--compose-prefix', help='Path to a JSON array of local docker compose arguments; no secrets.')
     parser.add_argument('--password-file', help='Explicit owner-only temporary file containing the existing admin password.')
     parser.add_argument('--check-login-only', action='store_true', help='Verify real HTTPS cookie/CSRF login before maintenance.')
+    parser.add_argument('--all-private-details', action='store_true', help='Also request every private detail URL during a manual audit.')
     args = parser.parse_args()
     if not args.check_login_only and (not args.output or not args.compose_prefix):
         parser.error('--output and --compose-prefix are required for full privacy checks.')
@@ -39,6 +40,47 @@ def main():
         client.logout()
 
 
+def check_private_exclusions(baseline, visible, prefix, public, all_details):
+    section_items = {section['itemId'] for section in baseline['sections']}
+    private_ids = set()
+    samples = {}
+    for item in baseline['items']:
+        item_id = item['id']
+        uploaded = (item.get('documentId') or item.get('sectionId') or item_id in section_items
+                    or item.get('provider') == 'local-upload')
+        if item.get('isPublic') and not uploaded:
+            continue
+        private_ids.add(item_id)
+        category = 'upload' if uploaded else 'hidden'
+        if item.get('mergedIntoId'):
+            category = 'alias'
+        samples.setdefault(category, item_id)
+
+    if not private_ids.isdisjoint(visible):
+        raise AssertionError('Private item surfaced in the public catalog')
+    # Detail lookups require a published index row for the requested ID, including merged IDs omitted from lists.
+    query = 'SELECT "Id" FROM "PublicCatalogEntries" WHERE "IsPublic"'
+    result = subprocess.run([*prefix, 'exec', '-T', 'db', 'psql', '-XAt', '-v', 'ON_ERROR_STOP=1',
+                             '-U', 'rabbithole', '-d', 'rabbithole', '-c', query],
+                            check=True, capture_output=True, text=True, timeout=45)
+    indexed = set(result.stdout.splitlines())
+    if not private_ids.isdisjoint(indexed):
+        raise AssertionError('Private item marked public in the detail index')
+    if not visible.issubset(indexed):
+        raise AssertionError('Public catalog contains an item missing from the detail index')
+    probes = sorted(private_ids) if all_details else list(samples.values())
+    print(f'Checked {len(private_ids)} private IDs against the catalog and detail index. '
+          f'Probing {len(probes)} private detail URLs.', flush=True)
+    for number, item_id in enumerate(probes, 1):
+        try:
+            public('/public/items/' + item_id, 404)
+        except subprocess.SubprocessError as error:
+            raise RuntimeError(f'Private detail request failed ({type(error).__name__}).') from None
+        if all_details and number % 25 == 0:
+            print(f'Checked {number} of {len(probes)} private detail URLs.', flush=True)
+    return len(private_ids), len(probes)
+
+
 def check_privacy(client, args):
     prefix = json.loads(Path(args.compose_prefix).read_text())
     def public(path, expected=200):
@@ -52,7 +94,8 @@ def check_privacy(client, args):
             print(f'Privacy probe rate-limited; waiting 61 seconds before retry {attempt + 2}/4.', flush=True)
             time.sleep(61)
         if int(status) != expected:
-            raise AssertionError(f'{path}: expected {expected}, got {status}')
+            route = '/public/items/{id}' if path.startswith('/public/items/') else path
+            raise AssertionError(f'{route}: expected {expected}, got {status}')
         return json.loads(body) if expected == 200 else None
 
     print('Checking anonymous rejection on private endpoints.', flush=True)
@@ -75,19 +118,19 @@ def check_privacy(client, args):
         number += 1
         page = public(f'/public/items?pageSize=100&page={number}')
         assert page['items'], 'Pagination stopped early'
-    private = [item for item in before['items'] if not item.get('isPublic') or item.get('documentId') or item.get('provider') == 'local-upload']
-    print(f'Checking exclusion of {len(private)} private records.', flush=True)
-    for index, item in enumerate(private, 1):
-        public('/public/items/' + item['id'], 404)
-        assert item['id'] not in visible, 'Private item surfaced'
-        if index % 25 == 0 or index == len(private):
-            print(f'Checked {index} of {len(private)} private records.', flush=True)
+    private_count, detail_probes = check_private_exclusions(before, visible, prefix, public, args.all_private_details)
+    if visible:
+        public_id = min(visible)
+        detail = public('/public/items/' + public_id)
+        if detail.get('id') != public_id or not set(detail).issubset(allowed):
+            raise AssertionError('Public detail did not return the expected public record')
     print('Verifying that anonymous browsing did not change personal state.', flush=True)
     after = client.request('/export', 'POST')
     before.pop('exportedAt', None)
     after.pop('exportedAt', None)
     assert before == after, 'Read-only anonymous browsing changed personal data'
-    Path(args.output).write_text(json.dumps({'passed': True, 'publicItems': len(visible)}, indent=2))
+    Path(args.output).write_text(json.dumps({'passed': True, 'publicItems': len(visible),
+                                           'privateItemsChecked': private_count, 'privateDetailProbes': detail_probes}, indent=2))
     print(f'PASS: authenticated access, anonymous legacy denial, {len(visible)} safe public records, private exclusions, no state changes.', flush=True)
 
 

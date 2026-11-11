@@ -3,15 +3,16 @@ import Link from "next/link";
 import { ArrowRight, Bookmark, BookOpen, Check, RotateCcw, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { api, json, publicationDate, safeExternal } from "@/lib/api";
 import type { Item, ItemState } from "@/lib/types";
-import { contentType, itemHeading, sourceLabel } from "@/lib/item-display";
+import { contentType, itemHeading } from "@/lib/item-display";
 import { ItemByline, ItemExcerpt, ItemFormat } from "./item-summary";
+import { ItemSources } from "./source-link";
 import { useEffect, useRef, useState } from "react";
 
 export function Notice({ error, onRetry }: { error?: string | null; onRetry?: () => void }) { return error ? <div role="alert" className="error" style={{ marginBottom: 18 }}>{error} {onRetry && <button className="btn small" onClick={onRetry} style={{ marginLeft: 10 }}><RotateCcw size={13}/> Retry</button>}</div> : null; }
 export function Empty({ icon = <BookOpen size={22}/>, title, body, action }: { icon?: React.ReactNode; title: string; body: string; action?: React.ReactNode }) { return <div className="empty"><div className="empty-icon">{icon}</div><h2>{title}</h2><p>{body}</p>{action}</div>; }
 export function Loading() { return <div className="loading" role="status">Loading…</div>; }
 export function Kind({ kind, item }: { kind: string; item?: Item }) { return <span className="kind-label"><span>✳</span>{item ? contentType(item) : kind === "paper" ? "Research paper" : kind === "book-section" ? "Book section" : kind.replaceAll("-", " ")}</span>; }
-export function SourceLine({ item }: { item: Item }) { return <span className="meta-line"><b>{sourceLabel(item)}</b>{!item.document && <><span className="dot-sep">·</span><span>{publicationDate(item.publishedAt)}</span></>}{item.author && <><span className="dot-sep">·</span><span>{item.author}</span></>}</span>; }
+export function SourceLine({ item }: { item: Item }) { return <span className="meta-line"><b><ItemSources item={item}/></b>{!item.document && <><span className="dot-sep">·</span><span>{publicationDate(item.publishedAt)}</span></>}{item.author && <><span className="dot-sep">·</span><span>{item.author}</span></>}</span>; }
 export function SourceDomain({ item }: { item: Item }) {
   const url = safeExternal(item.canonicalUrl);
   return url ? <a className="source-domain" href={url} target="_blank" rel="noopener noreferrer" aria-label={`Original source: ${item.title}`}>({new URL(url).hostname.replace(/^www\./, "")})</a> : null;

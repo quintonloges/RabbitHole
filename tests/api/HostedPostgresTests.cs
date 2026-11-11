@@ -87,6 +87,57 @@ public class HostedPostgresTests
     }
 
     [HostedPostgresFact]
+    public async Task Source_upgrade_backfills_each_public_membership_and_preserves_private_state()
+    {
+        await using var fixture = await IsolatedPostgres.CreateAsync();
+        var sourceId = Guid.NewGuid(); var retainedSourceId = Guid.NewGuid(); var visibleId = Guid.NewGuid(); var hiddenId = Guid.NewGuid();
+        var date = DateTimeOffset.UtcNow;
+        const string primary = "TEST FIXTURE Science, art & ideas";
+        const string secondary = "TEST FIXTURE retained secondary";
+        await using (var before = fixture.Open())
+        {
+            await before.GetService<IMigrator>().MigrateAsync("20261031130254_ArchiveDiscovery");
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "Sources" ("Id","Name","Kind","Url","Query","TopicIds","Enabled","IntervalMinutes","ResultLimit","NextSyncAt","FailureCount","LastImportedCount")
+                VALUES ({sourceId},{primary},'rss','https://example.org/feed','','[]',false,360,30,{date},0,0)
+                """);
+            foreach (var id in new[] { visibleId, hiddenId })
+            {
+                await before.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO "Items" ("Id","SourceId","Kind","Title","CanonicalUrl","Provider","TextProvenance","IngestedAt","UpdatedAt","TopicIds","ClassificationOrigin","IsPublic")
+                    VALUES ({id},{sourceId},'article','TEST FIXTURE legacy source item',{"https://example.org/source-upgrade/" + id},'rss','metadata',{date},{date},'[]','manual',{id == visibleId})
+                    """);
+                await before.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO "PublicCatalogEntries" ("Id","IsPublic","Title","CanonicalUrl","IngestedAt","UpdatedAt","Type","Provider","SourceName","SourceKey","TypeKey","SearchText")
+                    VALUES ({id},{id == visibleId},'TEST FIXTURE legacy source item',{"https://example.org/source-upgrade/" + id},{date.UtcTicks},{date.UtcTicks},'article','rss',{primary},{primary.ToUpperInvariant()},'ARTICLE','TEST FIXTURE')
+                    """);
+            }
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "ItemSources" ("Id","ItemId","SourceKey","Name","Kind","Url","TopicIds","LastSeenAt")
+                VALUES ({Guid.NewGuid()},{visibleId},{retainedSourceId},{secondary},'rss','https://example.org/retained','[]',{date})
+                """);
+            before.Settings.Add(new AppSetting { Key = "public-catalog-index-v2", Value = "complete" });
+            before.Settings.Add(new AppSetting { Key = PublicationUpgrade.VersionKey, Value = "1" });
+            before.States.Add(new ItemState { ItemId = hiddenId, Saved = true, Read = true });
+            await before.SaveChangesAsync();
+        }
+        using var factory = new Factory(fixture); using var anonymous = factory.CreateAnonymousClient();
+        foreach (var source in new[] { primary, secondary })
+        {
+            var page = await Read(await anonymous.GetAsync("/api/public/items?source=" + Uri.EscapeDataString(source) + "&pageSize=1"));
+            Assert.Equal(1, page.GetProperty("total").GetInt32());
+            Assert.Equal(visibleId, page.GetProperty("items")[0].GetProperty("id").GetGuid());
+            Assert.Equal(2, page.GetProperty("items")[0].GetProperty("sources").GetArrayLength());
+        }
+        await using var after = fixture.Open();
+        Assert.False((await after.Items.SingleAsync(i => i.Id == hiddenId)).IsPublic);
+        Assert.True((await after.States.SingleAsync()).Saved);
+        Assert.Equal(3, await after.PublicCatalogSources.CountAsync());
+        await PublicCatalogIndex.BackfillAsync(after);
+        Assert.Equal(3, await after.PublicCatalogSources.CountAsync());
+    }
+
+    [HostedPostgresFact]
     public async Task Archive_upgrade_backfills_existing_index_and_daily_mix_executes_on_postgres()
     {
         await using var fixture = await IsolatedPostgres.CreateAsync();

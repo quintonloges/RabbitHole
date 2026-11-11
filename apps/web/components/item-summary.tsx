@@ -1,6 +1,7 @@
 import { publicationDate } from "@/lib/api";
-import { contentAccess, contentType, itemHeading, pageLocation, sourceExcerpt, sourceLabel } from "@/lib/item-display";
+import { contentAccess, contentType, itemHeading, pageLocation, sourceExcerpt } from "@/lib/item-display";
 import type { Item } from "@/lib/types";
+import { ItemSources } from "./source-link";
 
 export function ItemFormat({ item }: { item: Item }) {
   return <span className="item-format">({contentType(item)})</span>;
@@ -11,7 +12,7 @@ export function ItemByline({ item }: { item: Item }) {
   const location = pageLocation(item);
   const access = contentAccess(item);
   return <div className="item-byline">
-    {itemHeading(item) === item.title && <span className="item-source">{item.document ? "From " : ""}{sourceLabel(item)}</span>}
+    {itemHeading(item) === item.title && <span className="item-source"><ItemSources item={item}/></span>}
     {author && <span>by {author}</span>}
     {!item.document && <span>{item.publishedAt ? "Published " : ""}{publicationDate(item.publishedAt)}</span>}
     {location && <span>{location}</span>}

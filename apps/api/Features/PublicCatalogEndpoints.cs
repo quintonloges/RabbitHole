@@ -48,7 +48,7 @@ public static class PublicCatalogEndpoints
         // Search the bounded, rendered fields only: no note/body/metadata predicates.
         var selected = PublicCatalog.Visible(db);
         if (topicId.HasValue) selected = selected.Where(i => i.Topics.Any(t => t.TopicId == topicId));
-        if (source.Length > 0) { var key = source.ToUpperInvariant(); selected = selected.Where(i => i.SourceKey == key); }
+        if (source.Length > 0) { var key = source.ToUpperInvariant(); selected = selected.Where(i => i.Sources.Any(s => s.Key == key)); }
         if (type.Length > 0) { var key = type.ToUpperInvariant(); selected = selected.Where(i => i.TypeKey == key); }
         if (from.HasValue) { var day = from.Value.DayNumber; selected = selected.Where(i => i.PublishedDay >= day); }
         if (to.HasValue) { var day = to.Value.DayNumber; selected = selected.Where(i => i.PublishedDay <= day); }
@@ -94,7 +94,7 @@ public static class PublicCatalogEndpoints
         return Results.Ok(new
         {
             topics = await items.SelectMany(i => i.Topics).Select(t => new { Id = t.TopicId, t.Name }).Distinct().OrderBy(t => t.Name).ToListAsync(ct),
-            sources = await items.Select(i => i.SourceName).Distinct().OrderBy(s => s).ToListAsync(ct),
+            sources = await items.SelectMany(i => i.Sources).Select(s => s.Name).Distinct().OrderBy(s => s).ToListAsync(ct),
             types = await items.Select(i => i.Type).Distinct().OrderBy(t => t).ToListAsync(ct)
         });
     }

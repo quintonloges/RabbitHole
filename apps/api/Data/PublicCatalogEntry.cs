@@ -26,6 +26,14 @@ public sealed class PublicCatalogEntry
     public string? EmbedUrl { get; set; }
     public string? ImageUrl { get; set; }
     public List<PublicCatalogTopic> Topics { get; set; } = [];
+    public List<PublicCatalogSource> Sources { get; set; } = [];
+}
+
+public sealed class PublicCatalogSource
+{
+    public Guid ItemId { get; set; }
+    public string Key { get; set; } = "";
+    public string Name { get; set; } = "";
 }
 
 public sealed class PublicCatalogTopic

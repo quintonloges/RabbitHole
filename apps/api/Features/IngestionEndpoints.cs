@@ -37,6 +37,13 @@ public static class IngestionEndpoints
         });
         group.MapGet("/sources", async (AppDbContext db, CancellationToken ct) =>
             await db.Sources.OrderBy(x => x.Name).ToListAsync(ct));
+        group.MapGet("/sources/{id:guid}", async (Guid id, AppDbContext db, CancellationToken ct) =>
+        {
+            var source = await db.Sources.AsNoTracking().Where(s => s.Id == id).Select(s => new { s.Id, s.Name }).SingleOrDefaultAsync(ct)
+                ?? await db.ItemSources.AsNoTracking().Where(s => s.SourceKey == id).OrderByDescending(s => s.SourceVersion)
+                    .ThenBy(s => s.Name).Select(s => new { Id = s.SourceKey, s.Name }).FirstOrDefaultAsync(ct);
+            return source is null ? Results.Problem(title: "Source not found", detail: "This source is no longer in your library.", statusCode: 404) : Results.Ok(source);
+        });
         group.MapGet("/sources/presets", () => SourcePresets.All);
         group.MapPost("/sources", async (SourceInput input, AppDbContext db, CancellationToken ct) =>
         {

@@ -59,9 +59,9 @@ class SmokeProgressTests(unittest.TestCase):
         path = command[-1].split('/api', 1)[1]
         self.requests.append(path)
         if path.startswith('/public/items?'):
-            return SimpleNamespace(stdout=json.dumps({'items': [{'id': 'public-fixture'}], 'total': 1})+'\n200')
+            return SimpleNamespace(stdout=json.dumps({'items': [{'id': 'public-fixture', 'sources': ['TEST FIXTURE source']}], 'total': 1})+'\n200')
         if path == '/public/items/public-fixture':
-            return SimpleNamespace(stdout='{"id":"public-fixture"}\n200')
+            return SimpleNamespace(stdout='{"id":"public-fixture","sources":["TEST FIXTURE source"]}\n200')
         return SimpleNamespace(stdout='\n404' if path.startswith('/public/items/') else '\n401')
 
     def run_checks(self, response):

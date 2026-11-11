@@ -121,9 +121,13 @@ public static class CoreEndpoints
             if (!bool.TryParse(request.Query["isPublic"], out var isPublic)) return Bad("isPublic must be true or false.");
             query = query.Where(i => i.IsPublic == isPublic);
         }
-        if (Guid.TryParse(request.Query["sourceId"], out var sourceId)) query = query.Where(i => i.SourceId == sourceId || db.ItemSources.Any(s => s.ItemId == i.Id && s.SourceKey == sourceId));
+        if (request.Query.TryGetValue("sourceId", out var sourceText))
+        {
+            if (!Guid.TryParse(sourceText, out var sourceId)) return Bad("sourceId must be a valid ID.");
+            query = query.Where(i => i.SourceId == sourceId || db.ItemSources.Any(s => s.ItemId == i.Id && s.SourceKey == sourceId));
+        }
         if (request.Query.TryGetValue("kind", out var kind) && !string.IsNullOrWhiteSpace(kind)) query = query.Where(i => i.Kind == kind.ToString());
-        var all = (await query.ToListAsync(ct)).OrderByDescending(i => i.IngestedAt).ToList();
+        var all = (await query.ToListAsync(ct)).OrderByDescending(i => i.IngestedAt).ThenBy(i => i.Id).ToList();
         if (Guid.TryParse(request.Query["topicId"], out var topicId)) all = all.Where(i => i.TopicIds.Contains(topicId)).ToList();
         var states = await db.States.AsNoTracking().ToDictionaryAsync(s => s.ItemId, ct);
         if (bool.TryParse(request.Query["saved"], out var saved)) all = all.Where(i => states.GetValueOrDefault(i.Id)?.Saved == saved).ToList();

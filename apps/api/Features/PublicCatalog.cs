@@ -10,7 +10,7 @@ namespace RabbitHole.Features;
 public sealed record PublicTopicDto(Guid Id, string Name);
 public sealed record PublicItemDto(Guid Id, string Title, string CanonicalUrl, string? Author,
     DateTimeOffset? PublishedAt, DateTimeOffset IngestedAt, string Type, string Provider,
-    string SourceName, string? Excerpt, List<PublicTopicDto> Topics, string? EmbedUrl, string? ImageUrl);
+    string SourceName, string? Excerpt, List<PublicTopicDto> Topics, string? EmbedUrl, string? ImageUrl, List<string> Sources);
 public sealed record PublicCatalogPage(List<PublicItemDto> Items, int Total, int Page, int PageSize);
 
 public static class PublicCatalogPolicy
@@ -140,7 +140,9 @@ public static class PublicCatalog
         var ids = list.Select(i => i.Id).ToList();
         var topics = (await db.PublicCatalogTopics.AsNoTracking().Where(t => ids.Contains(t.ItemId)).OrderBy(t => t.Name).ToListAsync(ct))
             .ToLookup(t => t.ItemId, t => new PublicTopicDto(t.TopicId, t.Name));
+        var sources = (await db.PublicCatalogSources.AsNoTracking().Where(s => ids.Contains(s.ItemId)).OrderBy(s => s.Name).ToListAsync(ct))
+            .ToLookup(s => s.ItemId, s => s.Name);
         return list.Select(i => new PublicItemDto(i.Id, i.Title, i.CanonicalUrl, i.Author, i.PublishedAt,
-            i.IngestedAt, i.Type, i.Provider, i.SourceName, i.Excerpt, topics[i.Id].ToList(), i.EmbedUrl, i.ImageUrl)).ToList();
+            i.IngestedAt, i.Type, i.Provider, i.SourceName, i.Excerpt, topics[i.Id].ToList(), i.EmbedUrl, i.ImageUrl, sources[i.Id].ToList())).ToList();
     }
 }

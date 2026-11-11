@@ -65,6 +65,14 @@ public class FixtureFetcher : IRemoteFetcher
                 </channel></rss>
                 """;
         }
+        else if (url.Host == "example.org" && url.AbsolutePath.StartsWith("/source-library/", StringComparison.Ordinal) && url.AbsolutePath.EndsWith("/feed.xml", StringComparison.Ordinal))
+        {
+            mime = "application/rss+xml";
+            var key = System.Security.SecurityElement.Escape(url.Segments[^2].TrimEnd('/'));
+            var count = url.Query.Contains("large=true", StringComparison.Ordinal) ? 60 : 3;
+            var entries = Enumerable.Range(1, count).Select(n => $"<item><guid>{key}-{n}</guid><title>TEST FIXTURE: Source library {key} item {n}</title><link>https://example.org/source-library/{key}/item-{n}</link><description>Deterministic source browsing fixture.</description></item>");
+            body = "<rss version=\"2.0\"><channel><title>TEST FIXTURE source library</title>" + string.Join("", entries) + "</channel></rss>";
+        }
         else if (url.Host == "hn.algolia.com")
         {
             mime = "application/json";

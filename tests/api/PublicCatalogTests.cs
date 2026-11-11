@@ -104,7 +104,7 @@ public class PublicCatalogTests
         Assert.Equal(JsonValueKind.Null, item.GetProperty("imageUrl").ValueKind);
         Assert.Equal(JsonValueKind.Null, item.GetProperty("embedUrl").ValueKind);
         var names = item.EnumerateObject().Select(p => p.Name).ToHashSet();
-        Assert.Equal(new[] { "id", "title", "canonicalUrl", "author", "publishedAt", "ingestedAt", "type", "provider", "sourceName", "excerpt", "topics", "embedUrl", "imageUrl" }.Order(), names.Order());
+        Assert.Equal(new[] { "id", "title", "canonicalUrl", "author", "publishedAt", "ingestedAt", "type", "provider", "sourceName", "excerpt", "topics", "embedUrl", "imageUrl", "sources" }.Order(), names.Order());
         foreach (var query in new[] { "private-body-sentinel", "private-metadata-sentinel", "private-note-sentinel", "private-hidden-sentinel", "private-topic-keyword-sentinel", "private-truncated-excerpt-sentinel" })
             Assert.Equal(0, (await Read(await anonymous.GetAsync("/api/public/items?q=" + query))).GetProperty("total").GetInt32());
         foreach (var route in new[] { "/api/public/filters", "/api/public/sitemap", $"/api/public/items/{publicId}", $"/api/public/items/{publicId}/related" })
@@ -404,6 +404,60 @@ public class PublicCatalogTests
         Assert.Equal(0.7, stored.GetProperty("freshness").GetDouble());
     }
 
+    [Fact]
+    public async Task Public_source_browsing_includes_all_memberships_and_filters_privacy_before_counts_and_pages()
+    {
+        var observer = new PublicReadObserver();
+        using var factory = new Factory(observer);
+        using var anonymous = factory.CreateAnonymousClient();
+        using var admin = factory.CreateClient();
+        var primary = new Source { Name = "TEST FIXTURE: Science, art & ideas", Enabled = false, Url = "https://example.org/feed?token=PRIVATE-SUBSCRIPTION" };
+        var secondary = new Source { Name = "TEST FIXTURE second source", Enabled = false };
+        var privateSource = new Source { Name = "PRIVATE-SOURCE-NAME", Enabled = false };
+        var first = External("unsaved source item"); first.SourceId = primary.Id;
+        var saved = External("saved read dismissed source item"); saved.SourceId = primary.Id;
+        var shared = External("shared source item"); shared.SourceId = secondary.Id;
+        var other = External("second source only"); other.SourceId = secondary.Id;
+        var hidden = External("PRIVATE-HIDDEN", false); hidden.SourceId = primary.Id;
+        var hiddenOnly = External("PRIVATE-ONLY-SOURCE", false); hiddenOnly.SourceId = privateSource.Id;
+        var document = External("PRIVATE-DOCUMENT"); document.SourceId = primary.Id; document.Provider = "local-upload";
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.AddRange(primary, secondary, privateSource, first, saved, shared, other, hidden, hiddenOnly, document,
+                new ItemState { ItemId = saved.Id, Saved = true, Read = true, Dismissed = true },
+                new Note { ItemId = first.Id, Body = "PRIVATE-NOTE" },
+                new ItemSource { ItemId = shared.Id, SourceId = primary.Id, SourceKey = primary.Id, Name = primary.Name, Url = primary.Url },
+                new ItemSource { ItemId = shared.Id, SourceKey = primary.Id, SourceVersion = 1, Name = primary.Name, Url = primary.Url });
+            await db.SaveChangesAsync();
+        }
+        observer.Reset();
+        var route = "/api/public/items?source=" + Uri.EscapeDataString(primary.Name);
+        var one = await Read(await anonymous.GetAsync(route + "&pageSize=2"));
+        var two = await Read(await anonymous.GetAsync(route + "&pageSize=2&page=2"));
+        Assert.Equal(3, one.GetProperty("total").GetInt32());
+        Assert.Equal(3, two.GetProperty("total").GetInt32());
+        var ids = one.GetProperty("items").EnumerateArray().Concat(two.GetProperty("items").EnumerateArray()).Select(i => i.GetProperty("id").GetGuid()).ToList();
+        Assert.Equal(3, ids.Distinct().Count());
+        Assert.True(new HashSet<Guid> { first.Id, saved.Id, shared.Id }.SetEquals(ids));
+        Assert.Equal(2, (await Read(await anonymous.GetAsync("/api/public/items?source=" + Uri.EscapeDataString(secondary.Name)))).GetProperty("total").GetInt32());
+        Assert.Equal(3, (await Read(await anonymous.GetAsync("/api/public/items?source=" + Uri.EscapeDataString(primary.Name.ToLowerInvariant())))).GetProperty("total").GetInt32());
+        var detail = await Read(await anonymous.GetAsync($"/api/public/items/{shared.Id}"));
+        Assert.Equal(new[] { primary.Name, secondary.Name }.Order(), detail.GetProperty("sources").EnumerateArray().Select(s => s.GetString()).Order());
+        var filters = await Read(await anonymous.GetAsync("/api/public/filters"));
+        Assert.Equal(2, filters.GetProperty("sources").GetArrayLength());
+        foreach (var result in new[] { one, two, detail, filters }) Assert.DoesNotContain("PRIVATE-", result.GetRawText());
+        AssertPublicTablesOnly(observer);
+        Assert.All(observer.Commands, sql => { Assert.DoesNotContain("\"ItemSources\"", sql); Assert.DoesNotContain("\"Sources\"", sql); Assert.DoesNotContain("\"States\"", sql); });
+        foreach (var id in new[] { first.Id, saved.Id, shared.Id })
+            (await admin.PatchAsJsonAsync($"/api/items/{id}/publication", new { isPublic = false })).EnsureSuccessStatusCode();
+        Assert.Equal(0, (await Read(await anonymous.GetAsync(route))).GetProperty("total").GetInt32());
+        Assert.DoesNotContain(primary.Name, (await Read(await anonymous.GetAsync("/api/public/filters"))).GetProperty("sources").EnumerateArray().Select(s => s.GetString()));
+        using var check = factory.Services.CreateScope();
+        var state = await check.ServiceProvider.GetRequiredService<AppDbContext>().States.SingleAsync();
+        Assert.True(state.Saved && state.Read && state.Dismissed);
+    }
+
     private static void AssertPublicTablesOnly(PublicReadObserver observer)
     {
         Assert.NotEmpty(observer.Commands);
@@ -489,10 +543,13 @@ public class PublicCatalogTests
         await db.Database.EnsureCreatedAsync();
         var visible = External("upgrade visible"); var hidden = External("upgrade hidden", false);
         db.AddRange(visible, hidden, new ItemState { ItemId = hidden.Id, Saved = true }); await db.SaveChangesAsync();
+        db.Settings.Add(new AppSetting { Key = "public-catalog-index-v2", Value = "complete" }); await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
-        await db.Database.ExecuteSqlRawAsync("DROP TABLE \"PublicCatalogTopics\"; DROP TABLE \"PublicCatalogEntries\";");
+        await db.Database.ExecuteSqlRawAsync("DROP TABLE \"PublicCatalogSources\"; DROP TABLE \"PublicCatalogTopics\"; DROP TABLE \"PublicCatalogEntries\";");
         await SqlitePublicCatalogSchema.ApplyAsync(db); await PublicCatalogIndex.BackfillAsync(db);
         Assert.Equal(visible.Id, (await PublicCatalog.Visible(db).SingleAsync()).Id);
+        Assert.Equal(2, await db.PublicCatalogSources.CountAsync());
+        Assert.True(await db.Settings.AnyAsync(s => s.Key == "public-catalog-index-v3"));
         Assert.True((await db.States.SingleAsync()).Saved);
         var tracked = await db.Items.FindAsync(visible.Id); tracked!.IsPublic = false; await db.SaveChangesAsync();
         await SqlitePublicCatalogSchema.ApplyAsync(db); await PublicCatalogIndex.BackfillAsync(db);

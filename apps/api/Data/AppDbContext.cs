@@ -31,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
     public DbSet<PublicCatalogEntry> PublicCatalogEntries => Set<PublicCatalogEntry>();
     public DbSet<PublicCatalogTopic> PublicCatalogTopics => Set<PublicCatalogTopic>();
+    public DbSet<PublicCatalogSource> PublicCatalogSources => Set<PublicCatalogSource>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -65,6 +66,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<ItemTopic>().HasKey(x => new { x.ItemId, x.TopicId });
         builder.Entity<PublicCatalogEntry>().HasOne<ContentItem>().WithMany().HasForeignKey(x => x.Id).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<PublicCatalogEntry>().HasMany(x => x.Topics).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PublicCatalogEntry>().HasMany(x => x.Sources).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PublicCatalogSource>().HasKey(x => new { x.ItemId, x.Key });
+        builder.Entity<PublicCatalogSource>().Property(x => x.Key).HasMaxLength(200);
+        builder.Entity<PublicCatalogSource>().Property(x => x.Name).HasMaxLength(200);
+        builder.Entity<PublicCatalogSource>().HasIndex(x => x.Key);
         builder.Entity<PublicCatalogEntry>().HasIndex(x => new { x.IsPublic, x.MergedIntoId, x.IngestedAt, x.Id });
         builder.Entity<PublicCatalogEntry>().HasIndex(x => x.SourceKey);
         builder.Entity<PublicCatalogEntry>().HasIndex(x => x.TypeKey);

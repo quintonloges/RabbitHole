@@ -110,7 +110,7 @@ test('public SSR, filters, related items and sitemap exclude hidden records and 
   const search = await anonymous.get(`/api/public/items?q=${encodeURIComponent(title)}`); expect(search.ok()).toBe(true);
   const catalog = await search.json(); expect(catalog.total).toBe(1); expect(catalog.items[0].id).toBe(item.id);
   const publicDetail = await (await anonymous.get(`/api/public/items/${item.id}`)).json();
-  expect(Object.keys(publicDetail).sort()).toEqual(['author', 'canonicalUrl', 'embedUrl', 'excerpt', 'id', 'imageUrl', 'ingestedAt', 'provider', 'publishedAt', 'sourceName', 'title', 'topics', 'type'].sort());
+  expect(Object.keys(publicDetail).sort()).toEqual(['author', 'canonicalUrl', 'embedUrl', 'excerpt', 'id', 'imageUrl', 'ingestedAt', 'provider', 'publishedAt', 'sourceName', 'sources', 'title', 'topics', 'type'].sort());
   const htmlResponse = await anonymous.get(`/items/${item.id}`); expect(htmlResponse.status()).toBe(200);
   const html = await htmlResponse.text(); expect(html).toContain(title); expect(html).toContain('Open original source');
   expect(html).not.toContain(sentinel); expect(html).not.toContain(hiddenTitle); expect(html).not.toMatch(/"saved":true|"progress":0\.37|metadataJson|providerId/);

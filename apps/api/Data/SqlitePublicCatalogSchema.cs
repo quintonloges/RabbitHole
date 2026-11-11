@@ -29,6 +29,12 @@ public static class SqlitePublicCatalogSchema
             CREATE INDEX IF NOT EXISTS "IX_PublicCatalogEntries_TypeKey" ON "PublicCatalogEntries" ("TypeKey");
             CREATE INDEX IF NOT EXISTS "IX_PublicCatalogEntries_PublishedDay" ON "PublicCatalogEntries" ("PublishedDay");
             CREATE INDEX IF NOT EXISTS "IX_PublicCatalogTopics_TopicId" ON "PublicCatalogTopics" ("TopicId");
+            CREATE TABLE IF NOT EXISTS "PublicCatalogSources" (
+                "ItemId" TEXT NOT NULL REFERENCES "PublicCatalogEntries" ("Id") ON DELETE CASCADE,
+                "Key" TEXT NOT NULL, "Name" TEXT NOT NULL,
+                PRIMARY KEY ("ItemId", "Key")
+            );
+            CREATE INDEX IF NOT EXISTS "IX_PublicCatalogSources_Key" ON "PublicCatalogSources" ("Key");
             """, ct);
         var connection = db.Database.GetDbConnection();
         var wasOpen = connection.State == System.Data.ConnectionState.Open;

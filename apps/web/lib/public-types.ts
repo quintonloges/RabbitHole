@@ -3,7 +3,7 @@ export type PublicTopic = { id: string; name: string };
 export type PublicItem = {
   id: string; title: string; canonicalUrl: string; author?: string | null;
   publishedAt?: string | null; ingestedAt: string; type: string; provider: string;
-  sourceName: string; excerpt?: string | null; topics: PublicTopic[];
+  sourceName: string; sources?: string[]; excerpt?: string | null; topics: PublicTopic[];
   embedUrl?: string | null; imageUrl?: string | null;
 };
 export type PublicPage = { items: PublicItem[]; total: number; page: number; pageSize: number };

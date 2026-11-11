@@ -108,6 +108,27 @@ namespace RabbitHole.Data.Migrations
                     b.ToTable("PublicCatalogEntries");
                 });
 
+            modelBuilder.Entity("RabbitHole.Data.PublicCatalogSource", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("ItemId", "Key");
+
+                    b.HasIndex("Key");
+
+                    b.ToTable("PublicCatalogSources");
+                });
+
             modelBuilder.Entity("RabbitHole.Data.PublicCatalogTopic", b =>
                 {
                     b.Property<Guid>("ItemId")
@@ -991,6 +1012,15 @@ namespace RabbitHole.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RabbitHole.Data.PublicCatalogSource", b =>
+                {
+                    b.HasOne("RabbitHole.Data.PublicCatalogEntry", null)
+                        .WithMany("Sources")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RabbitHole.Data.PublicCatalogTopic", b =>
                 {
                     b.HasOne("RabbitHole.Data.PublicCatalogEntry", null)
@@ -1170,6 +1200,8 @@ namespace RabbitHole.Data.Migrations
 
             modelBuilder.Entity("RabbitHole.Data.PublicCatalogEntry", b =>
                 {
+                    b.Navigation("Sources");
+
                     b.Navigation("Topics");
                 });
 #pragma warning restore 612, 618

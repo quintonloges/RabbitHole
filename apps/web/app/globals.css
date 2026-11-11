@@ -40,6 +40,8 @@
 .item-byline { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 1px; color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .item-byline > span + span::before { content: '·'; margin-right: 6px; }
 .item-source { font-weight: 400; }
+.source-link { text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.source-link:hover { color: var(--accent); }
 .item-excerpt, .collection-row p.item-excerpt { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin: 2px 0; color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .story-tools, .inline-state-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 14px; }
 .story-tools { margin-top: 1px; }

@@ -9,7 +9,7 @@ namespace RabbitHole.Data;
 /// <summary>Maintains the public read model before the same SaveChanges as its inputs.</summary>
 public static class PublicCatalogIndex
 {
-    private const string VersionKey = "public-catalog-index-v2";
+    private const string VersionKey = "public-catalog-index-v3";
     private static readonly Expression<Func<ContentItem, ContentItem>> PublicFields = i => new ContentItem
     {
         Id = i.Id,
@@ -162,8 +162,9 @@ public static class PublicCatalogIndex
         // A context may have saved before another writer changed these projections.
         // Reload their original values under the lock, just like the source fields.
         foreach (var tracked in db.ChangeTracker.Entries<PublicCatalogTopic>().Where(e => ids.Contains(e.Entity.ItemId)).ToList()) tracked.State = EntityState.Detached;
+        foreach (var tracked in db.ChangeTracker.Entries<PublicCatalogSource>().Where(e => ids.Contains(e.Entity.ItemId)).ToList()) tracked.State = EntityState.Detached;
         foreach (var tracked in db.ChangeTracker.Entries<PublicCatalogEntry>().Where(e => ids.Contains(e.Entity.Id)).ToList()) tracked.State = EntityState.Detached;
-        var existing = await db.PublicCatalogEntries.Where(i => ids.Contains(i.Id)).Include(i => i.Topics).ToDictionaryAsync(i => i.Id, ct);
+        var existing = await db.PublicCatalogEntries.Where(i => ids.Contains(i.Id)).Include(i => i.Topics).Include(i => i.Sources).AsSplitQuery().ToDictionaryAsync(i => i.Id, ct);
         foreach (var id in ids)
         {
             existing.TryGetValue(id, out var projection);
@@ -186,9 +187,21 @@ public static class PublicCatalogIndex
             projection.Provider = ProviderAdapters.Plain(item.Provider, 40);
             var sourceNames = names[id].ToList();
             if (item.SourceId is Guid sourceId && directNames.TryGetValue(sourceId, out var name)) sourceNames.Add(name);
-            var joined = string.Join(", ", sourceNames.Select(n => ProviderAdapters.Plain(n, 200)).Distinct().Order(StringComparer.Ordinal));
-            projection.SourceName = sourceNames.Count == 0 ? projection.Provider : joined[..Math.Min(600, joined.Length)];
+            var labels = sourceNames.Select(n => ProviderAdapters.Plain(n, 200)).Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).ToList();
+            if (labels.Count == 0) labels.Add(projection.Provider);
+            var joined = string.Join(", ", labels);
+            projection.SourceName = joined[..Math.Min(600, joined.Length)];
             projection.SourceKey = projection.SourceName.ToUpperInvariant();
+            var sourceLabels = labels.ToDictionary(n => n.ToUpperInvariant(), n => n);
+            foreach (var old in projection.Sources.Where(s => !sourceLabels.ContainsKey(s.Key)).ToList())
+            { projection.Sources.Remove(old); db.PublicCatalogSources.Remove(old); }
+            foreach (var (key, label) in sourceLabels)
+            {
+                var sourceLabel = projection.Sources.FirstOrDefault(s => s.Key == key);
+                if (sourceLabel == null) { sourceLabel = new PublicCatalogSource { ItemId = id, Key = key }; projection.Sources.Add(sourceLabel); }
+                sourceLabel.Name = label;
+            }
             projection.TypeKey = projection.Type.ToUpperInvariant();
             projection.Excerpt = item.Excerpt == null ? null : ProviderAdapters.Plain(item.Excerpt, 600);
             projection.ArchiveCandidate = ArchiveDiscovery.IsCandidate(projection.Type, projection.Title, projection.Excerpt, projection.Provider);

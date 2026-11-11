@@ -24,8 +24,8 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
   function sortUrl(sort: string) { const nextQuery = new URLSearchParams(query); nextQuery.delete("pageSize"); nextQuery.delete("page"); nextQuery.set("sort", sort); return `${base}?${nextQuery}`; }
   return <div className="public-catalog">
     <div className="page-heading catalog-heading"><div>
-      <h1 className="hero-title">{search ? "Search the catalog" : "Discover"}</h1>
-      <p>Real articles, research, and unexpected connections. Follow your curiosity.</p>
+      <h1 className="hero-title">{search ? value("source") || "Search the catalog" : "Discover"}</h1>
+      <p>{value("source") ? "Browse all content listed from this source." : "Real articles, research, and unexpected connections. Follow your curiosity."}</p>
     </div></div>
     {!search && filters.topics.length > 0 && <nav className="catalog-topics" aria-label="Browse topics">
       <Link prefetch={false} href="/" aria-current={!value("topicId") ? "page" : undefined}>All topics</Link>
@@ -36,7 +36,7 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
       <label className="field public-query">Search
         <input name="q" defaultValue={value("q")} placeholder="Title, author, or idea" maxLength={200}/>
       </label>
-      <details className="public-filter-options" open={["topicId", "source", "type", "from", "to"].some(key => Boolean(value(key)))}>
+      <details className="public-filter-options" open={["topicId", "type", "from", "to"].some(key => Boolean(value(key)))}>
         <summary>Filter by topic, source, type or date</summary>
         <div className="public-filters">
           <label className="field">Topic<select name="topicId" defaultValue={value("topicId")}>
@@ -72,6 +72,7 @@ export async function PublicCatalog({ params, search = false }: { params: Catalo
         <span>{result.total} {result.total === 1 ? "item" : "items"}{!mixed && " · Newest added first"}</span>
         {!search && <Link prefetch={false} className="text-link" href={sortUrl(mixed ? "newest" : "mix")}>{mixed ? "Newest added" : "Daily mix"}</Link>}
         {!search && value("topicId") && <Link prefetch={false} className="text-link" href="/">All topics →</Link>}
+        {value("source") && <Link prefetch={false} className="text-link" href="/search">All sources →</Link>}
       </div>
       {result.items.length ? <PublicItems items={result.items} start={(result.page - 1) * result.pageSize + 1}/> : <div className="empty">
         <h2>No items found</h2><p>{search ? "Try another topic, source, or search phrase." : value("topicId") ? "There are no public items in this topic yet." : "The collection is waiting for its first discoveries."}</p>

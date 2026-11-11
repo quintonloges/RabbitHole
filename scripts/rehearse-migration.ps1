@@ -59,7 +59,7 @@ try {
     }
     $html = Invoke-WebRequest "$base/" -TimeoutSec 120
     if ($html.StatusCode -ne 200) { throw 'Public server-rendered catalog failed.' }
-    $publicFields = @('id','title','canonicalUrl','author','publishedAt','ingestedAt','type','provider','sourceName','excerpt','topics','embedUrl','imageUrl')
+    $publicFields = @('id','title','canonicalUrl','author','publishedAt','ingestedAt','type','provider','sourceName','sources','excerpt','topics','embedUrl','imageUrl')
     $publicIds = [Collections.Generic.HashSet[string]]::new()
     $page = 1
     do {

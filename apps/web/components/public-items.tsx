@@ -4,8 +4,9 @@ import { datedTitle } from "@/lib/publication";
 
 export function PublicByline({ item, compact = false }: { item: PublicItem; compact?: boolean }) {
   const date = item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("en-US", { month: compact ? "short" : "long", day: "numeric", year: "numeric", timeZone: "UTC" }) : "Date unknown";
+  const sources = item.sources?.length ? item.sources : [item.sourceName || item.provider];
   return <div className="item-byline">
-    <span className="item-source">{item.sourceName || item.provider}</span>
+    <span className="item-source">{sources.map((source, index) => <span key={source}>{index > 0 && ", "}<Link prefetch={false} className="source-link" href={`/search?source=${encodeURIComponent(source)}`} title={`All listed content from ${source}`}>{source}</Link></span>)}</span>
     {item.author && <span>{item.author}</span>}
     <span>{item.publishedAt ? <time dateTime={item.publishedAt}>Published {date}</time> : date}</span>
     {compact && <span>{item.type.replaceAll("-", " ")}</span>}

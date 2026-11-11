@@ -54,6 +54,10 @@ The item reader puts the source text, abstract or consented media player first. 
 
 Fresh installations start empty. Deterministic fixtures live only under `tests/`; they are never inserted into the real database. The existing local instance was explicitly populated in October 2026; see the [feed curation report](docs/feed-curation-report.md) for actual counts, verified sources, editorial findings, and limitations.
 
+Click a source name in the public catalog or an item preview to see **all listed content from that source**, with pagination and optional search filters. Each source on a shared item has its own link. Only published, eligible items appear, and hiding an item removes it from these results immediately. No sign-in is required.
+
+In private **Settings**, item lists and the reader, source names open **Library → All items** for that source. The Saved tab remains an optional bookmark filter. **All sources** clears the source filter. Selection stays in the URL on reload and browser Back, and **Load more** includes the remaining results. Removing a subscription keeps its imported items and source links accessible.
+
 ## Blackjack Lab
 
 Open **Blackjack Lab** in the navigation or visit [the development lab](http://localhost:47832/blackjack). Learn through seven interactive lessons, drill basic strategy by category, or play complete blackjack rounds with virtual chips and an optional coach. All modes are immediately available. Lessons, exercises, coaching, and the reference chart use classic **Atlantic City blackjack**: eight decks, dealer stands on soft 17 (S17), American peek, double after non-Ace splits, late surrender, 3:2 naturals, and up to four hands with no resplitting aces. Actual casino rules can vary; the guide explains what to check.

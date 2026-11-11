@@ -105,7 +105,7 @@ def check_privacy(client, args):
     before = client.request('/export', 'POST')
     page = public('/public/items?pageSize=100')
     visible = set()
-    allowed = {'id', 'title', 'canonicalUrl', 'author', 'publishedAt', 'ingestedAt', 'type', 'provider', 'sourceName', 'excerpt', 'topics', 'embedUrl', 'imageUrl'}
+    allowed = {'id', 'title', 'canonicalUrl', 'author', 'publishedAt', 'ingestedAt', 'type', 'provider', 'sourceName', 'sources', 'excerpt', 'topics', 'embedUrl', 'imageUrl'}
     number = 1
     while True:
         for item in page['items']:

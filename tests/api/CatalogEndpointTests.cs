@@ -216,6 +216,78 @@ public class CatalogEndpointTests
     }
 
     [Fact]
+    public async Task SavedSourceLibraryFiltersBeforePaginationAndKeepsSecondaryMemberships()
+    {
+        using var factory = new ApiFactory(); using var client = factory.CreateClient();
+        Guid sourceId;
+        var expected = new HashSet<Guid>();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var source = new Source { Name = "TEST FIXTURE same name", Enabled = false };
+            var other = new Source { Name = source.Name, Enabled = false };
+            sourceId = source.Id;
+            db.AddRange(source, other);
+            var timestamp = DateTimeOffset.UtcNow;
+            for (var n = 0; n < 103; n++)
+            {
+                var item = new ContentItem { Title = $"TEST FIXTURE saved {n}", CanonicalUrl = $"https://example.org/saved/{n}", SourceId = n % 2 == 0 ? source.Id : other.Id, IngestedAt = timestamp, IsPublic = n % 2 == 0 };
+                db.AddRange(item, new ItemState { ItemId = item.Id, Saved = true, Read = true, Dismissed = true });
+                db.ItemSources.Add(new ItemSource { ItemId = item.Id, SourceId = source.Id, SourceKey = source.Id, Name = source.Name });
+                if (n == 0) db.ItemSources.Add(new ItemSource { ItemId = item.Id, SourceKey = source.Id, SourceVersion = 1, Name = source.Name });
+                expected.Add(item.Id);
+            }
+            var unrelated = new ContentItem { Title = "TEST FIXTURE saved elsewhere", SourceId = other.Id };
+            db.AddRange(unrelated, new ItemState { ItemId = unrelated.Id, Saved = true },
+                new ContentItem { Title = "TEST FIXTURE not saved", SourceId = source.Id });
+            await db.SaveChangesAsync();
+        }
+        var first = await Read(await client.GetAsync($"/api/items?sourceId={sourceId}&saved=true&limit=100"));
+        var next = await Read(await client.GetAsync($"/api/items?sourceId={sourceId}&saved=true&limit=100&offset=100"));
+        Assert.Equal(103, first.GetProperty("total").GetInt32());
+        Assert.Equal(103, next.GetProperty("total").GetInt32());
+        Assert.Equal(100, first.GetProperty("items").GetArrayLength());
+        Assert.Equal(3, next.GetProperty("items").GetArrayLength());
+        var items = first.GetProperty("items").EnumerateArray().Concat(next.GetProperty("items").EnumerateArray()).ToList();
+        Assert.Equal(103, items.Select(i => i.GetProperty("id").GetGuid()).Distinct().Count());
+        Assert.True(expected.SetEquals(items.Select(i => i.GetProperty("id").GetGuid())));
+        Assert.All(items, item => Assert.True(item.GetProperty("state").GetProperty("saved").GetBoolean()));
+        var privateItems = await Read(await client.GetAsync($"/api/items?sourceId={sourceId}&saved=true&isPublic=false&limit=100"));
+        Assert.Equal(51, privateItems.GetProperty("total").GetInt32());
+        using var anonymous = factory.CreateAnonymousClient();
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"/api/items?sourceId={sourceId}&saved=true")).StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"/api/sources/{sourceId}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task SourceLibraryRetainsItsNameAndSavedContentAfterSubscriptionRemoval()
+    {
+        using var factory = new ApiFactory(); using var client = factory.CreateClient();
+        Guid sourceId, itemId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var source = new Source { Name = "TEST FIXTURE removed source", Url = "https://example.org/retained.xml", Enabled = false };
+            db.Sources.Add(source); await db.SaveChangesAsync();
+            sourceId = source.Id;
+            itemId = (await scope.ServiceProvider.GetRequiredService<IngestionService>()
+                .UpsertAsync(Record("https://example.org/retained-item"), source.Id, [], default)).Item.Id;
+        }
+        (await client.PatchAsJsonAsync($"/api/items/{itemId}/state", new { saved = true })).EnsureSuccessStatusCode();
+        (await client.PatchAsJsonAsync($"/api/sources/{sourceId}", new { name = "TEST FIXTURE renamed source" })).EnsureSuccessStatusCode();
+        var before = await Read(await client.GetAsync($"/api/sources/{sourceId}"));
+        Assert.Equal("TEST FIXTURE renamed source", before.GetProperty("name").GetString());
+        Assert.Equal(2, before.EnumerateObject().Count());
+        (await client.DeleteAsync($"/api/sources/{sourceId}")).EnsureSuccessStatusCode();
+        var after = await Read(await client.GetAsync($"/api/sources/{sourceId}"));
+        Assert.Equal(before.ToString(), after.ToString());
+        var saved = await Read(await client.GetAsync($"/api/items?sourceId={sourceId}&saved=true"));
+        Assert.Equal(itemId, Assert.Single(saved.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, (await client.GetAsync($"/api/sources/{Guid.NewGuid()}")).StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, (await client.GetAsync("/api/items?sourceId=invalid&saved=true")).StatusCode);
+    }
+
+    [Fact]
     public async Task ExplicitEmptyTopicSelectionSurvivesRealRefreshAndKeywordEdits()
     {
         using var factory = new ApiFactory(); using var client = factory.CreateClient();

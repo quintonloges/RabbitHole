@@ -4,6 +4,7 @@
 !.env.hosted.example
 **/node_modules/
 **/.next/
+apps/web/public/pdfjs/
 **/bin/
 **/obj/
 .cache/
@@ -23,5 +24,6 @@ playwright-report/
 
 # Local Impeccable helper tokens, machine roots, journals, and session previews.
 /.impeccable/live/
+/.impeccable/review/
 /apps/web/.impeccable/live/*
 !/apps/web/.impeccable/live/config.json

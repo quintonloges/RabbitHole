@@ -8,9 +8,9 @@ import { readingSequence } from "@/lib/document-sections";
 import { BookSections } from "./book-sections";
 import { Notice } from "./ui";
 
-type Props = { sections?: BookSection[]; currentItemId: string; isPdf?: boolean; loading: boolean; error: string | null; onRetry: () => void; footer?: boolean };
+type Props = { sections?: BookSection[]; currentItemId: string; isPdf?: boolean; loading: boolean; error: string | null; onRetry: () => void; footer?: boolean; entryMode?: boolean };
 
-export function ReaderNavigation({ sections, currentItemId, isPdf, loading, error, onRetry, footer = false }: Props) {
+export function ReaderNavigation({ sections, currentItemId, isPdf, loading, error, onRetry, footer = false, entryMode = false }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const heading = useId();
@@ -20,14 +20,14 @@ export function ReaderNavigation({ sections, currentItemId, isPdf, loading, erro
   if (footer && !previous && !next) return null;
   return <>
     <nav className="reader-document-nav" aria-label={footer ? "Continue reading" : "Document navigation"}>
-      {previous ? <Link className="text-link" href={`/admin/items/${previous.itemId}`} aria-label={`Previous ${label}`}>← Previous</Link> : <span/>}
+      {previous ? <Link className="text-link" href={`/admin/items/${previous.itemId}`} aria-label={`Previous ${label}`} title={entryMode ? "Previous reading entry" : undefined}>← {entryMode ? "Previous entry" : "Previous"}</Link> : <span/>}
       <div className="reader-location">
         {!footer && <button ref={trigger} className="reader-text-button" onClick={() => dialog.current?.showModal()}><List size={14}/>Contents</button>}
-        {index >= 0 && <span>{index + 1} of {sequence.length} {label === "page" ? "pages" : "sections"}</span>}
+        {index >= 0 && <span>{entryMode ? `Reading entry ${index + 1} of ${sequence.length}` : `${index + 1} of ${sequence.length} ${label === "page" ? "pages" : "sections"}`}</span>}
         {!footer && loading && !sections && <span role="status">Loading navigation…</span>}
         {!footer && error && <button className="reader-text-button" onClick={onRetry}>Retry navigation</button>}
       </div>
-      {next ? <Link className="text-link" href={`/admin/items/${next.itemId}`} aria-label={`Next ${label}`}>Next →</Link> : <span/>}
+      {next ? <Link className="text-link" href={`/admin/items/${next.itemId}`} aria-label={`Next ${label}`} title={entryMode ? "Next reading entry" : undefined}>{entryMode ? "Next entry" : "Next"} →</Link> : <span/>}
     </nav>
     {!footer && <>
       {current?.isSuperseded && <p className="subtle">This is an earlier version with your saved notes and progress.</p>}

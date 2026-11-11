@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, GitBranch, Highlighter, MessageCircle, X } from "lucide-react";
@@ -17,6 +18,8 @@ import { ReaderNavigation } from "./reader-navigation";
 import { PublicationControl } from "./publication-control";
 
 type Tool = "notes" | "explore" | "details";
+const PdfViewer = dynamic(() => import("./pdf-viewer"), { ssr: false, loading: () => <p role="status">Loading PDF viewer…</p> });
+const EpubViewer = dynamic(() => import("./epub-viewer"), { ssr: false, loading: () => <p role="status">Loading EPUB viewer…</p> });
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
 export function ItemReader({ id }: { id: string }) {
@@ -44,6 +47,7 @@ export function ItemReader({ id }: { id: string }) {
   const [highlightMessage, setHighlightMessage] = useState<string | null>(null);
   const [embedConsent, setEmbedConsent] = useState(false);
   const [preservePdfLines, setPreservePdfLines] = useState(false);
+  const [documentView, setDocumentView] = useState<"original" | "text">("original");
   const [holeBusy, setHoleBusy] = useState(false);
   const [holeError, setHoleError] = useState<string | null>(null);
   const [aiText, setAiText] = useState<string | null>(null);
@@ -193,8 +197,14 @@ export function ItemReader({ id }: { id: string }) {
   const originalFile = item.documentId ? `/api/library/books/${item.documentId}/file${item.document?.format === "PDF" && item.document.startPage ? `#page=${item.document.startPage}` : ""}` : null;
   const navigation = { sections: sections.data, currentItemId: item.id, isPdf: item.document ? item.document.format === "PDF" : undefined, loading: sections.loading, error: sections.error, onRetry: () => void sections.reload() };
   const notes = item.notes || [];
+  const isPdf = !!item.documentId && item.document?.format === "PDF";
+  const isEpub = !!item.documentId && item.document?.format === "EPUB";
+  const showPdf = isPdf && documentView === "original";
+  const showEpub = isEpub && documentView === "original";
+  const showOriginal = showPdf || showEpub;
+  const entryLabel = item.document?.sectionType === "page" && item.document.startPage ? `Page ${item.document.startPage}` : item.title;
 
-  return <div className="reader item-reader">
+  return <div className={`reader item-reader${showPdf ? " item-reader-pdf" : ""}`}>
     <Link href="/admin" className="reader-back"><ArrowLeft size={14}/>Discover</Link>
     <header className="reader-header">
       <div className="reader-title"><h1>{itemHeading(item)}</h1><ItemFormat item={item}/></div>
@@ -208,9 +218,16 @@ export function ItemReader({ id }: { id: string }) {
       <PublicationControl item={item} onChange={itemQuery.setData}/>
       {item.importWarning && <p className="reader-content-notice">{item.importWarning}</p>}
     </header>
-    {item.documentId && <ReaderNavigation {...navigation}/>}
+    {item.documentId && <ReaderNavigation {...navigation} entryMode={showOriginal}/>}
+    {(isPdf || isEpub) && <div className="reader-view-options" role="group" aria-label="Document view">
+      <button className="btn small" aria-pressed={showOriginal} onClick={() => setDocumentView("original")}>Original {isPdf ? "PDF" : "EPUB"}</button>
+      <button className="btn small" aria-pressed={!showOriginal} onClick={() => setDocumentView("text")}>Extracted text</button>
+    </div>}
+    {showOriginal && <p className="reader-entry-scope">Notes, read status and Extracted text apply to <strong>{entryLabel}</strong>.</p>}
 
-    <article className="reader-content" aria-label={embed ? "Media" : item.textProvenance === "provider-abstract" ? "Abstract" : "Source content"}>
+    {showPdf ? <PdfViewer key={item.id} documentId={item.documentId!} initialPage={item.document?.startPage || 1} positionKey={item.id} title={item.document?.title || item.title}/>
+    : showEpub ? <EpubViewer key={item.id} documentId={item.documentId!} itemId={item.id} title={item.document?.title || item.title}/>
+    : <article className="reader-content" aria-label={embed ? "Media" : item.textProvenance === "provider-abstract" ? "Abstract" : "Source content"}>
       {embed && <div className="reader-player">
         {embedConsent ? <iframe title={`Embedded ${item.title}`} src={embed} loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation" className={item.provider === "soundcloud" ? "audio-player" : "video-player"}/>
           : <div className="reader-player-consent"><h2>{item.kind === "video" ? "Watch" : "Listen"} on {sourceLabel(item)}</h2><p>Loading the player connects to {sourceLabel(item)}.</p><button className="btn primary" onClick={() => setEmbedConsent(true)}>Load player <ArrowRight size={14}/></button></div>}
@@ -219,12 +236,12 @@ export function ItemReader({ id }: { id: string }) {
       {showExcerpt && <p className="reader-lede">{excerpt}</p>}
       {body ? <div ref={sourceText} className="reader-body">{displayedBody}</div>
         : !embed && <div className="reader-content-notice"><p>{item.documentId ? "No text was extracted. Open the original file to read it." : excerpt ? "Only an excerpt is available here. Read the full text at the source." : "The text isn’t available here. Read it at the original source."}</p>{originalFile ? <Link className="btn small" href={originalFile} target="_blank">Open original file <ArrowUpRight size={14}/></Link> : <ExternalLink url={item.canonicalUrl} className="btn small">Open original source <ArrowUpRight size={14}/></ExternalLink>}</div>}
-    </article>
-    {item.documentId && <ReaderNavigation {...navigation} footer/>}
+    </article>}
+    {item.documentId && <ReaderNavigation {...navigation} footer entryMode={showOriginal}/>}
 
     <div className="reader-after-content"><button className="btn small" disabled={holeBusy} onClick={startHole}><GitBranch size={14}/>{holeBusy ? "Starting trail…" : "Follow the rabbit hole"}</button><button className="reader-text-button" onClick={() => openTool("notes", true)}><MessageCircle size={14}/>Add a note</button><button className="reader-text-button" onClick={() => openTool("explore")}>Related items <ArrowRight size={14}/></button></div>
     <Notice error={holeError}/>
-    {item.documentId && <details className="reader-progress"><summary>Progress within this {item.document?.sectionType === "page" ? "page" : "item"} · {Math.round(item.state.progress * 100)}%</summary><label className="field">Reading progress<input type="range" min="0" max="100" disabled={progressBusy} value={Math.round(item.state.progress * 100)} onChange={event => itemQuery.setData(old => old ? { ...old, state: { ...old.state, progress: Number(event.target.value) / 100 } } : old)} onPointerUp={event => void saveProgress(Number(event.currentTarget.value) / 100)} onKeyUp={event => void saveProgress(Number(event.currentTarget.value) / 100)} onBlur={event => void saveProgress(Number(event.target.value) / 100)}/></label><Notice error={progressError}/></details>}
+    {item.documentId && <details className="reader-progress"><summary>{showOriginal ? `Progress for ${entryLabel}` : `Progress within this ${item.document?.sectionType === "page" ? "page" : "item"}`} · {Math.round(item.state.progress * 100)}%</summary><label className="field">Reading progress<input type="range" min="0" max="100" disabled={progressBusy} value={Math.round(item.state.progress * 100)} onChange={event => itemQuery.setData(old => old ? { ...old, state: { ...old.state, progress: Number(event.target.value) / 100 } } : old)} onPointerUp={event => void saveProgress(Number(event.currentTarget.value) / 100)} onKeyUp={event => void saveProgress(Number(event.currentTarget.value) / 100)} onBlur={event => void saveProgress(Number(event.target.value) / 100)}/></label><Notice error={progressError}/></details>}
 
     <section ref={toolsRef} className="reader-tools" aria-label="Item tools">
       <div className="reader-tool-tabs" role="tablist" aria-label="Item tools">
@@ -235,14 +252,14 @@ export function ItemReader({ id }: { id: string }) {
       </div>
 
       <section id="panel-notes" role="tabpanel" aria-labelledby="tool-notes" hidden={tool !== "notes"} className="reader-tool-panel">
-        <h2>Notes & highlights</h2>
+        <h2>{showOriginal ? `Notes for ${entryLabel}` : "Notes & highlights"}</h2>
         <div className="reader-note-editor">
           <label className="field">Your note<textarea ref={noteInput} value={noteBody} disabled={noteBusy} onChange={event => updateDraft(event.target.value, quote)} placeholder="Write a note…"/></label>
           {quote && <blockquote className="reader-note-quote">{quote}<button className="reader-text-button" disabled={noteBusy} onClick={() => updateDraft(noteBody, "")}>Remove quote</button></blockquote>}
           <div className="action-row"><button className="btn small" onClick={saveNote} disabled={noteBusy || !noteBody.trim()}>{noteBusy ? "Saving…" : "Save note"}</button><span className="subtle">Unsaved drafts are kept in this tab until you close it.</span></div>
           <Notice error={noteError}/>{noteMessage && <p className="subtle" role="status">{noteMessage}</p>}
         </div>
-        {notes.length === 0 && <p className="subtle">No notes yet.{body ? " Select a passage to highlight it or quote it in a note." : ""}</p>}
+        {notes.length === 0 && <p className="subtle">No notes yet.{body ? showOriginal ? " Use Extracted text to highlight a passage or quote it in a note." : " Select a passage to highlight it or quote it in a note." : ""}</p>}
         {notes.map(note => <article className="reader-note" key={note.id}>{note.quote && <blockquote className="reader-note-quote">{note.quote}</blockquote>}{note.body !== "Highlighted passage" && <p>{note.body}</p>}<small className="muted">{readableDate(note.createdAt)}</small></article>)}
       </section>
 
@@ -256,7 +273,7 @@ export function ItemReader({ id }: { id: string }) {
 
       <section id="panel-details" role="tabpanel" aria-labelledby="tool-details" hidden={tool !== "details"} className="reader-tool-panel">
         <h2>Source details</h2><dl className="reader-facts"><div><dt>{item.documentId ? "Document" : "Source"}</dt><dd>{sourceLabel(item)}</dd></div><div><dt>Imported</dt><dd>{readableDate(item.ingestedAt)}</dd></div><div><dt>Available content</dt><dd>{item.textProvenance === "provider-abstract" ? "Abstract supplied by the research provider" : item.documentId ? body ? "Text extracted from your uploaded file" : "Original file; text extraction unavailable" : body ? "Text supplied by the source" : excerpt ? "Source excerpt and original link" : "Link and source details"}</dd></div></dl>
-        {body && item.document?.format === "PDF" && <div className="reader-pdf-layout"><label><input type="checkbox" checked={preservePdfLines} onChange={event => {
+        {body && isPdf && !showPdf && <div className="reader-pdf-layout"><label><input type="checkbox" checked={preservePdfLines} onChange={event => {
           setPreservePdfLines(event.target.checked);
           try { sessionStorage.setItem(`rabbithole-pdf-lines:${item.documentId}`, event.target.checked ? "original" : "reflow"); } catch { /* Optional display preference. */ }
         }}/>Preserve PDF line breaks</label><p className="subtle">Useful for poetry, lists, and tables. Open the original file for page layout.</p></div>}

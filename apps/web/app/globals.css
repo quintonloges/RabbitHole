@@ -72,6 +72,10 @@
 
 /* Reading comes before record management. */
 .item-reader { max-width: 800px; }
+.item-reader-pdf { max-width: 1060px; }
+.reader-view-options { display: flex; gap: 8px; margin-top: 16px; }
+.reader-view-options [aria-pressed="true"] { background: var(--accentsoft); color: var(--accent); }
+.reader-entry-scope { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .reader-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 18px; font-size: 12px; color: var(--muted); }
 .reader-back:hover { color: var(--accent); }
 .reader-title { line-height: 1.25; overflow-wrap: anywhere; }

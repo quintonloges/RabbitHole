@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import { type Game, roundTotals } from "@/lib/blackjack/engine";
 import { money } from "@/lib/blackjack/rules";
 
@@ -5,14 +6,19 @@ function netAmount(value: number) {
   return value === 0 ? money(0) : `${value > 0 ? "+" : "−"}${money(Math.abs(value))}`;
 }
 
+export function RoundSummary({ game, expanded, onToggle }: { game: Game; expanded: boolean; onToggle: () => void }) {
+  const totals = roundTotals(game);
+  if (!totals) return null;
+  const net = totals.net === 0 ? "Even" : netAmount(totals.net);
+  return <button type="button" className="bj-round-summary" aria-label={`Round result: ${net}`} aria-expanded={expanded} aria-controls={expanded ? "bj-round-breakdown" : undefined} onClick={onToggle}>
+    <span>Last round</span><strong role="status">{net}<ChevronDown size={14} aria-hidden="true"/></strong>
+  </button>;
+}
+
 export function RoundResult({ game }: { game: Game }) {
   const totals = roundTotals(game);
   if (!totals) return null;
-  return <section className={`bj-round-result${totals.net > 0 ? " bj-round-win" : ""}`} aria-label="Round result">
-    <div className="bj-round-heading" role="status">
-      <div><span>Round result · all bets</span><strong>{totals.net === 0 ? "Even" : netAmount(totals.net)}</strong></div>
-      <p>Available chips: {money(game.bankroll)}</p>
-    </div>
+  return <section id="bj-round-breakdown" className="bj-round-result" aria-label="Round result breakdown">
     <table className="bj-settlement" aria-label="Round wager breakdown">
       <thead><tr><th scope="col">Wager</th><th scope="col">Bet</th><th scope="col">Returned</th><th scope="col">Net</th></tr></thead>
       <tbody>

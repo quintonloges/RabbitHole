@@ -4,7 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 
 const config = [
-  { ignores: [".next/**", "node_modules/**", "next-env.d.ts"] },
+  { ignores: [".next/**", "node_modules/**", "public/pdfjs/**", "next-env.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

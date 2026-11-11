@@ -102,7 +102,7 @@
 .bj-bank-bar span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 .bj-bank-bar strong { font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .bj-bank-value { animation: bj-content-arrive 240ms ease-out both; }
-.bj-play-table { padding: 27px 25px 19px; }
+.bj-play-table { position: relative; padding: 27px 25px 19px; }
 .bj-felt-lettering { margin: 24px auto 22px; color: #c2d2b4; font-family: Georgia, serif; }
 .bj-felt-lettering>span { display: block; font-size: 13px; letter-spacing: 2.5px; }
 .bj-felt-lettering small { font-size: 11px; display: block; margin-top: 6px; opacity: .8; }
@@ -119,16 +119,57 @@
 .bj-hand-state { display: block; margin-top: 12px; font-size: 12px; color: #d7e3cc; }
 .bj-player-hand>small { font-size: 11px; margin-top: 7px; display: block; color: #c0d3c3; line-height: 1.5; }
 .bj-table-status { margin-top: 14px; min-height: 17px; font-size: 11px; color: #c0d3c3; line-height: 1.6; }
-.bj-insurance { padding: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
-.bj-insurance h3 { font: 400 24px Georgia, serif; margin: 0 0 8px; }
-.bj-insurance p { font-size: 13px; line-height: 1.7; color: var(--muted); }
+.bj-insurance-layer { position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; }
+.bj-insurance-layer[data-open="true"] { background: #08140f24; }
+.bj-insurance, .bj-insurance-trigger { position: absolute; inset: var(--bj-insurance-center, 50%) auto auto 50%; transform: translate(-50%, -50%); pointer-events: auto; }
+.bj-insurance { padding: 8px 12px 12px; width: min(400px, calc(100% - 24px)); max-width: 100%; max-height: var(--bj-insurance-space, 160px); margin: 0; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px #00000030; text-align: left; resize: none; overflow: hidden; }
+.bj-insurance[open] { display: flex; flex-direction: column; }
+.bj-insurance[data-expanded="true"] { max-height: min(var(--bj-insurance-expanded-space, calc(100% - 24px)), calc(100dvh - 32px)); }
+.bj-insurance-heading { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.bj-insurance-heading h3 { flex: 1; font: 400 20px Georgia, serif; margin: 0; }
+.bj-insurance-icon { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink); }
+.bj-insurance-icon:hover, .bj-insurance-icon[aria-expanded="true"] { background: var(--paper2); }
+.bj-insurance p { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 0; }
+.bj-insurance-copy { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) var(--paper); }
+.bj-insurance-details { margin-top: 8px; }
+.bj-insurance-details p+p { margin-top: 8px; }
+.bj-insurance .bj-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; flex-shrink: 0; }
+.bj-insurance .bj-actions .btn { min-height: 44px; min-width: 0; padding: 8px; font-size: 12px; }
+.bj-wager-drawer { position: fixed; inset: auto 0 var(--bj-drawer-bottom, 0); z-index: 50; margin: 0 auto; width: min(520px, 100%); max-width: 100%; max-height: calc(var(--bj-visible-height, 100dvh) - 12px); padding: 12px 16px max(16px, env(safe-area-inset-bottom)); background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0; box-shadow: 0 -8px 28px #00000024; overflow: hidden; resize: none; }
+.bj-wager-drawer[open] { display: flex; flex-direction: column; animation: bj-drawer-open 200ms cubic-bezier(.16, 1, .3, 1); }
+.bj-drawer-context { display: flex; align-items: center; gap: 12px; min-height: 44px; flex-shrink: 0; }
+.bj-drawer-balance { flex: 1; min-width: 0; }
+.bj-drawer-balance>span, .bj-round-summary>span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.bj-drawer-balance>strong { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bj-round-summary { border: 0; border-radius: 6px; background: transparent; color: var(--ink); padding: 4px 8px; min-height: 44px; text-align: left; }
+.bj-round-summary>strong { display: flex; align-items: center; gap: 7px; font: 400 18px Georgia, serif; white-space: nowrap; }
+.bj-round-summary[aria-expanded="true"] svg { transform: rotate(180deg); }
+.bj-round-summary:hover, .bj-round-summary[aria-expanded="true"], .bj-drawer-close:hover { background: var(--paper2); }
+.bj-drawer-close { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--ink); }
+.bj-drawer-content { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: var(--line) var(--paper); scrollbar-width: thin; }
+.bj-drawer-content:empty { display: none; }
+.bj-drawer-content:not(:empty) { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 12px; }
+.bj-wager-actions { display: grid; grid-template-columns: minmax(112px, .75fr) minmax(0, 1.25fr); gap: 12px; flex-shrink: 0; margin-top: 10px; }
+.bj-change-wager { display: grid; grid-template-columns: 1fr auto; text-align: left; align-items: center; column-gap: 12px; min-height: 64px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; color: var(--ink); background: var(--paper2); }
+.bj-change-wager>span { font-size: 11px; }
+.bj-change-wager>span, .bj-round-summary>span { color: var(--ink); }
+.bj-change-wager>strong { font: 400 25px Georgia, serif; white-space: nowrap; }
+.bj-change-wager>svg { grid-column: 2; grid-row: 1 / 3; }
+.bj-change-wager:hover, .bj-change-wager[aria-expanded="true"] { border-color: var(--accent); }
+.bj-wager-actions>.btn { min-width: 0; min-height: 64px; margin: 0; font-size: 15px; }
+.bj-bet-editor .bj-chip-row { max-width: 360px; margin: 0 auto 18px; padding: 6px 5px; justify-content: space-between; flex-wrap: nowrap; gap: 8px; }
+.bj-custom-wager { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.bj-custom-wager input { font-size: 16px; min-height: 48px; appearance: textfield; }
+.bj-custom-wager input::-webkit-inner-spin-button, .bj-custom-wager input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.bj-custom-wager>.btn { min-height: 48px; min-width: 72px; }
+.bj-reset { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
+.bj-reset:hover { color: var(--accent); }
+.bj-wager-message { font-size: 12px; line-height: 1.6; margin: 0; padding: 0 0 4px; }
+.bj-wager-trigger { position: fixed; inset: auto 0 0; z-index: 40; width: min(520px, 100%); margin: 0 auto; min-height: 52px; justify-content: space-between; padding: 16px 24px max(16px, env(safe-area-inset-bottom)); border-bottom: 0; border-radius: 12px 12px 0 0; box-shadow: 0 -8px 32px #00000024; }
 .bj-insurance-result { font-size: 12px; line-height: 1.6; }
-.bj-round-result { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 18px 23px; margin: 18px 0; animation: bj-content-arrive 280ms ease-out both; }
-.bj-round-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
-.bj-round-heading span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
-.bj-round-heading strong { font: 400 29px Georgia, serif; display: block; margin-top: 6px; white-space: nowrap; }
+.bj-round-result { padding-bottom: 4px; }
 .bj-round-result p { color: var(--muted); font-size: 12px; line-height: 1.7; margin: 0; }
-.bj-settlement { width: 100%; border-collapse: collapse; margin: 16px 0 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.bj-settlement { width: 100%; border-collapse: collapse; margin: 0 0 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .bj-settlement th, .bj-settlement td { padding: 10px 8px; text-align: right; }
 .bj-settlement th:first-child { text-align: left; padding-left: 0; }
 .bj-settlement th:last-child, .bj-settlement td:last-child { padding-right: 0; }
@@ -139,20 +180,12 @@
 .bj-settlement tfoot { border-top: 1px solid var(--line); font-weight: 600; }
 .bj-settlement tfoot th { font-weight: 600; }
 .bj-round-result .bj-settlement-note { font-size: 11px; }
-.bj-round-win { border-color: var(--bj-green); }
-.bj-betting { padding: 20px 0 0; }
-.bj-bet-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
-.bj-bet-heading h3 { font: 400 23px Georgia, serif; margin: 0; }
-.bj-bet-heading>span { font-size: 10px; color: var(--muted); }
-.bj-bet-controls { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 13px; }
-.bj-bet-controls .field { flex: 1; min-width: 95px; max-width: 140px; }
 .bj-chip-row { display: flex; gap: 9px; flex-wrap: wrap; }
 .bj-chip { background: var(--paper); color: var(--ink); border: 3px dashed var(--muted); border-radius: 50%; height: 49px; width: 49px; display: grid; place-items: center; padding: 3px; box-shadow: 0 3px 0 var(--line); font-size: 11px; transition: transform 160ms ease, box-shadow 160ms ease; }
 .bj-chip>span { border: 1px solid var(--line); border-radius: 50%; width: 100%; height: 100%; display: grid; place-items: center; }
 .bj-chip-5 { border-color: #aa6050; }.bj-chip-10 { border-color: #4a7d8a; }.bj-chip-25 { border-color: #5e8c65; }.bj-chip-50 { border-color: #8a76a2; }
 .bj-chip-selected { outline: 2px solid var(--ink); outline-offset: 3px; transform: translateY(-3px); box-shadow: 0 5px 0 var(--line); }
 .bj-chip:active:not(:disabled) { transform: translateY(1px); }
-.bj-deal { min-width: 125px; min-height: 46px; margin-left: auto; }
 .bj-reference, .bj-rules { border-top: 1px solid var(--line); margin-top: 30px; padding: 19px 0; }
 .bj-reference>summary, .bj-rules>summary { cursor: pointer; color: var(--ink); font-size: 13px; font-weight: 600; min-height: 28px; line-height: 28px; }
 .bj-reference>summary>span { color: var(--accent); margin-left: 7px; }
@@ -187,8 +220,17 @@
   .bj-practice-toolbar { gap: 12px; }.bj-practice-toolbar>.btn { padding-inline: 6px; font-size: 11px; }.bj-practice-toolbar select { min-width: 145px; }
   .bj-bank-bar { padding: 15px 12px; }.bj-bank-bar strong { font-size: 18px; }.bj-bank-bar span { font-size: 9px; letter-spacing: .2px; }
   .bj-felt { padding: 24px 17px; }.bj-play-table { padding: 24px 12px 16px; }.bj-player-hands { gap: 8px; }.bj-player-hand { padding: 13px 7px; }.bj-split-hands .bj-card { width: 51px; height: 75px; }.bj-split-hands .bj-cards { gap: 5px; }.bj-split-hands .bj-card-corner { top: 4px; left: 5px; font-size: 15px; }.bj-split-hands .bj-card-bottom { top: auto; left: auto; right: 5px; bottom: 4px; }.bj-split-hands .bj-card-pip { font-size: 26px; }.bj-split-hands .bj-card-corner>span { font-size: 11px; }
-  .bj-felt-lettering>span { font-size: 11px; letter-spacing: 1.5px; }.bj-table-rule { letter-spacing: 1.4px; }.bj-bet-controls { gap: 18px 13px; }.bj-chip-row { flex-basis: 100%; justify-content: space-between; padding-inline: 4px; }.bj-deal { flex: 1; margin-left: 0; }.bj-bet-controls .field { max-width: 120px; }
-  .bj-round-result { padding: 17px; }.bj-settlement { font-size: 11px; }.bj-settlement th, .bj-settlement td { padding: 9px 4px; }.bj-settlement small { font-size: 9px; }.bj-footer { flex-direction: column; align-items: start; }.bj-lesson-footer { padding: 12px; }.bj .bj-actions .btn { padding-inline: 12px; }
+  .bj-felt-lettering>span { font-size: 11px; letter-spacing: 1.5px; }.bj-table-rule { letter-spacing: 1.4px; }
+  .bj-settlement { font-size: 11px; }.bj-settlement th, .bj-settlement td { padding: 9px 4px; }.bj-settlement small { font-size: 9px; }.bj-footer { flex-direction: column; align-items: start; }.bj-lesson-footer { padding: 12px; }.bj .bj-actions .btn { padding-inline: 12px; }
+}
+@media (max-width: 480px) {
+  .bj-bet-editor .bj-chip-row { gap: 4px; }
+  .bj-play .bj-decision-area>.bj-actions { flex-wrap: nowrap; gap: 6px; }
+  .bj-play .bj-decision-area>.bj-actions .btn { padding-inline: 6px; min-width: 0; }
+}
+@keyframes bj-drawer-open {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 @keyframes bj-card-arrive {
   from { opacity: 0; transform: translate(24px, -20px) rotate(7deg) scale(.94); }

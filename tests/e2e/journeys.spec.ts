@@ -96,8 +96,10 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     const books = await (await request.get('/api/library/books')).json();
     book = books.find((b: { title: string }) => b.title === 'TEST FIXTURE: Private book').id;
     expect(books[0].status).toBe('ready');
-    await page.getByRole('button', { name: 'Sections', exact: true }).click();
-    await page.getByRole('link', { name: 'Read', exact: true }).first().click();
+    const bookCard = page.locator('.document-card').filter({ has: page.getByRole('heading', { name: 'TEST FIXTURE: Private book', exact: true }) });
+    await bookCard.getByRole('button', { name: 'Sections', exact: true }).click();
+    await bookCard.getByRole('link', { name: 'Read', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Extracted text', exact: true }).click();
     await expect(page.getByText(/This is the first actual chapter/).last()).toBeVisible();
     const sectionId = page.url().split('/').pop()!;
     await page.locator('summary').filter({ hasText: /^Progress within this/ }).click();
@@ -105,6 +107,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
     await page.getByRole('slider').blur();
     await expect.poll(async () => (await (await request.get(`/api/items/${sectionId}`)).json()).state.progress).toBe(0.42);
     await page.reload();
+    await page.getByRole('button', { name: 'Extracted text', exact: true }).click();
     await page.locator('summary').filter({ hasText: /^Progress within this/ }).click();
     await expect(page.getByRole('slider')).toHaveValue('42');
     expect((await request.get(`/api/library/books/${book}/file`)).ok()).toBe(true);

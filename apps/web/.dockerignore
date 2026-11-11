@@ -1,5 +1,6 @@
 node_modules
 .next
+public/pdfjs
 npm-debug.log
 .impeccable
 .impeccable-live

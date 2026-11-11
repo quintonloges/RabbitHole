@@ -54,7 +54,7 @@ export function BlackjackLab() {
     {!ready ? <p role="status">Opening Blackjack Lab…</p> : <>
       <section role="tabpanel" id="bj-panel-learn" aria-labelledby="bj-tab-learn" hidden={mode !== "learn"}><LearnMode key={resetKey} progress={progress} onProgress={save} onPlay={() => setMode("play")}/></section>
       <section role="tabpanel" id="bj-panel-practice" aria-labelledby="bj-tab-practice" hidden={mode !== "practice"}><PracticeMode/></section>
-      <section role="tabpanel" id="bj-panel-play" aria-labelledby="bj-tab-play" hidden={mode !== "play"}><PlayMode coaching={progress.coach} onCoaching={coach => save({ type: "coach", coach })}/></section>
+      <section role="tabpanel" id="bj-panel-play" aria-labelledby="bj-tab-play" hidden={mode !== "play"}><PlayMode active={mode === "play"} coaching={progress.coach} onCoaching={coach => save({ type: "coach", coach })}/></section>
     </>}
     <TableRules/>
     <footer className="bj-footer"><p>At your pace. Lesson progress stays in this browser.<br/>Practice scores and virtual chips last for this visit.</p><button className="btn ghost small" onClick={resetProgress}>Reset lesson progress & preferences</button></footer>

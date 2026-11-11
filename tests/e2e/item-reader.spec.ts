@@ -39,6 +39,7 @@ async function fixture(page: Page, ai = false) {
 }
 
 async function selectText(page: Page, selector: string, length: number) {
+  if (selector === '.reader-body' && !await page.locator(selector).count()) await page.getByRole('button', { name: 'Extracted text', exact: true }).click();
   await page.locator(selector).evaluate((element, count) => {
     const range = document.createRange();
     range.setStart(element.firstChild!, 0);
@@ -52,6 +53,7 @@ test('reading stays above the fold while contents and secondary actions remain a
   await fixture(page);
   await page.route(`**/api/library/books/${bookId}/sections`, route => route.fulfill({ status: 503, json: { detail: 'TEST FIXTURE: navigation temporarily unavailable' } }), { times: 1 });
   await page.goto(`/admin/items/${first.id}`);
+  await page.getByRole('button', { name: 'Extracted text', exact: true }).click();
   await expect(page.locator('.reader-body')).toContainText(opening);
   await expect(page.locator('.reader-lede')).toHaveCount(0);
   const reflowed = await page.locator('.reader-body').textContent();
@@ -87,6 +89,7 @@ test('reading stays above the fold while contents and secondary actions remain a
   expect(await page.locator('.reader-body').textContent()).toBe(body);
   await navigation.getByRole('link', { name: 'Next page', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/items/${second.id}$`));
+  await page.getByRole('button', { name: 'Extracted text', exact: true }).click();
   await expect(page.locator('.reader-body')).toContainText(opening);
   await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await expect(page.getByLabel('Preserve PDF line breaks')).toBeChecked();
@@ -130,6 +133,7 @@ test('note drafts and quotes stay with their item and survive a failed save', as
 test('highlights accept only source selections and report persistence without duplicating a note draft', async ({ page }) => {
   const records = await fixture(page);
   await page.goto(`/admin/items/${first.id}`);
+  await page.getByRole('button', { name: 'Extracted text', exact: true }).click();
   await expect(page.locator('.reader-body')).toBeVisible();
   await selectText(page, '.reader-title h1', 12);
   await expect(page.getByRole('region', { name: 'Selected passage' })).toHaveCount(0);
@@ -178,7 +182,7 @@ test('an AI response that finishes after page navigation never appears on the ne
   await page.locator('.reader-ai-tools > summary').click();
   const answer = page.waitForResponse(response => response.url().endsWith(`/api/items/${first.id}/ai`));
   await page.getByRole('button', { name: 'Summarize', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Generating');
+  await expect(page.getByRole('tabpanel', { name: 'Explore', exact: true }).getByRole('status')).toContainText('Generating');
   try {
     await page.getByRole('navigation', { name: 'Document navigation', exact: true }).getByRole('link', { name: 'Next page', exact: true }).click();
     await expect(page.getByRole('heading', { name: /page 166$/ })).toBeVisible();

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { api, json, readableDate } from "@/lib/api";
@@ -9,6 +10,7 @@ import { Notice } from "./ui";
 import { BookSections } from "./book-sections";
 
 export function DocumentCard({ book, refreshVersion, onChanged }: { book: Book; refreshVersion: number; onChanged: () => Promise<void> }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const sections = useApi<BookSection[]>(expanded ? `/library/books/${book.id}/sections` : null);
   const seenVersion = useRef(refreshVersion);
@@ -25,11 +27,25 @@ export function DocumentCard({ book, refreshVersion, onChanged }: { book: Book; 
   const [rangeTitle, setRangeTitle] = useState("");
   const [startPage, setStartPage] = useState(1);
   const [endPage, setEndPage] = useState(1);
-  const [busy, setBusy] = useState<"details" | "range" | "extraction" | null>(null);
+  const [busy, setBusy] = useState<"details" | "range" | "extraction" | "read" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isPdf = book.fileName.toLowerCase().endsWith(".pdf");
+  const format = isPdf ? "PDF" : "EPUB";
   const ready = book.status === "ready";
   const validRange = rangeTitle.trim() && Number.isInteger(startPage) && Number.isInteger(endPage) && startPage >= 1 && endPage >= startPage && (!book.pageCount || endPage <= book.pageCount);
+
+  async function readDocument() {
+    if (busy) return;
+    setBusy("read"); setError(null);
+    try {
+      const entries = await api<BookSection[]>(`/library/books/${book.id}/sections`);
+      const current = entries.filter(section => !section.isSuperseded);
+      const first = current.find(section => section.locator === "page=1") || current.sort((a, b) => a.order - b.order)[0];
+      if (!first) throw new Error("No reading entry is available. Open the original file or rebuild sections.");
+      router.push(`/admin/items/${first.itemId}`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not open the document."); }
+    finally { setBusy(null); }
+  }
 
   async function saveDetails() {
     if (!title.trim() || busy) return;
@@ -65,6 +81,7 @@ export function DocumentCard({ book, refreshVersion, onChanged }: { book: Book; 
     {book.error && <p className="error">{book.error}</p>}
     <Notice error={error}/>
     <div className="action-row" style={{ marginTop: 12 }}>
+      <button className="btn small primary" disabled={busy !== null} onClick={() => void readDocument()}>{busy === "read" ? `Opening ${format}…` : `Read ${format}`}</button>
       <Link href={`/api/library/books/${book.id}/file`} target="_blank" className="btn small">Open original file</Link>
       <button className="btn small" disabled={busy !== null || sections.loading} onClick={() => void rebuild()}>{busy === "extraction" ? ready ? "Rebuilding sections…" : "Retrying extraction…" : ready ? "Rebuild sections" : "Retry extraction"}</button>
       <button className="btn small" disabled={busy !== null} onClick={() => { setEditing(!editing); setTitle(book.title); setAuthor(book.author || ""); }}>Edit details</button>

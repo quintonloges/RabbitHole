@@ -58,6 +58,22 @@ The engine still executes each move atomically. Presentation frames reveal only 
 
 After a focused action finishes, focus returns to that action when still available, or moves to the next decision (insurance, player action, or Deal). This also covers transitions with reduced motion. Switching modes or deliberately focusing another control during playback takes precedence; the table does not steal focus back.
 
+### Mobile table
+
+Play retains the original heading, mode tabs, three-column available-chips panel and normal card sizes. The table follows the natural page flow; there is no fixed-height stage or automatic scroll on mode selection. Player actions share a compact row on phones, and coaching sits immediately below them throughout card animation, dealer play and settlement.
+
+Betting uses a nonmodal drawer attached to the bottom of the viewport, full width on phones and capped at 520px on desktop. It starts closed when entering Play; **Place your wager** stays visible at the bottom edge without scrolling. After the round's animation and settlement finish, the drawer opens with the previous wager retained. Its compact header shows available chips, an expandable **Last round** net amount, and Close. The bottom row keeps an editable **Bet** amount beside **Deal hand**, even when expanded content needs to scroll on short screens.
+
+Tap the amount to open the existing chip presets and custom **Wager ($)** field. Selecting a preset collapses the editor; custom amounts use **Done** or can be dealt directly. **Last round** expands the full main, split and insurance breakdown. The result and wager editor are mutually exclusive and start collapsed for each new hand. Reset lives inside the wager editor; when less than the $5 minimum remains, it replaces Deal as the primary action.
+
+The drawer leaves background scrolling, coaching and navigation available. Manual opening focuses Deal, the bet amount if the previous wager is unaffordable, or Reset if chips are exhausted. Automatic settlement preserves deliberate focus on another control. Opening the editor focuses the selected preset; closing it returns focus to the amount. Escape within the drawer or its Close button dismisses it without spending chips; **Place your wager** or **Bet again** reopens it. Dismissal is respected across mode changes, and a round finishing in another mode waits until Play is selected before offering the next wager. Reduced motion skips the short slide. The drawer responds to visual viewport changes so its actions remain above the mobile keyboard.
+
+Insurance uses a compact floating lightbox inside the green after the opening deal finishes. It overlays the existing space between the dealer and player cards; the felt lettering, table height, hand positions and card sizes remain unchanged when it opens, closes or shows help. A subtle dimming layer stays within the green. The compact decision measures the gap between the card rows and fits within it, keeping card faces uncovered at every supported width.
+
+The usual view shows the wager, 2:1 payout and side-by-side **Decline** / **Insure** actions. **How insurance works** expands the lightbox around its existing center to show the separate-wager risk, peek behavior and natural-blackjack explanation. Expanded help may overlap cards, while the hands stay in place. Its height is limited by the green and viewport; only constrained screens require the text area to scroll, keeping the title and decision buttons available. Closing help restores the compact decision. Despite its lightbox appearance, it is nonmodal: there is no focus trap or page scroll lock, and scrolling over the lightbox continues to scroll the page when its text area has no more content to scroll.
+
+Opening the decision brings its controls into view and focuses Decline. Escape within the lightbox or its Close button dismisses it without deciding or spending chips; **Decide on insurance** floats in the same position to reopen it with the explanation collapsed. A deal finishing in another mode waits until Play is selected before showing the lightbox. Accepting or declining preserves the existing engine, balance, presentation and next-action focus behavior.
+
 ## Run and verify
 
 ```powershell

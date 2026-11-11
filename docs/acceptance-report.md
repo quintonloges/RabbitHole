@@ -1,5 +1,182 @@
 # RabbitHole acceptance report
 
+## EPUB position survives leaving the reader — 11 November 2026
+
+The original EPUB viewer now retains its last live scroll offset before the iframe is removed. Cleanup saves that offset instead of the detached window's zero value, including when a scroll save is still pending. Browser-local position remains separate from explicit read status and progress.
+
+- Added permanent browser regressions for switching to Extracted text and returning, and for navigating to another reading entry and returning with browser Back. Both reproduced the original 900px-to-zero overwrite before the fix. The view-switch case also covers leaving immediately after a native scroll event, before its delayed save.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `npx playwright test --config .cache/unstaged-review-20261111/playwright.config.ts --reporter=line`: **11 passed** (five EPUB tests, four PDF tests, and two temporary review probes). The local wrapper uses the repository's real cookie/CSRF fixture with an isolated API on port 5083 because port 5081 was occupied. The permanent suites normally run with `npm run test:e2e -- tests/e2e/epub-viewer.spec.ts tests/e2e/pdf-viewer.spec.ts`.
+- `./scripts/dev.ps1 start`: optimized frontend build passed and all four development services became healthy. Development `/api/healthz` and `/admin/login` returned **200**; the checked two-minute API/web log window contained no error-pattern matches.
+- `git diff --check`: passed. Production and hosted deployments were not updated.
+
+## Expandable insurance help — 11 November 2026
+
+Opening **How insurance works** now lets the floating lightbox grow naturally to display the explanation. It retains its center and width, stays within the green and viewport, and leaves the hands stationary. Expanded help may overlap the cards; collapsing help restores the original compact decision with cards uncovered. Internal scrolling is used only when screen space is limited, with page scrolling still enabled.
+
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `./scripts/dev.ps1 start`: optimized build passed; all four development services healthy.
+- `npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser:.*insurance' --reporter=line`: **12 passed** against the compiled app. The updated viewport cases verify natural expansion with the entire explanation visible, containment, unchanged hands, exact compact-height restoration, and scrolling with reachable controls at a constrained 844×240 viewport.
+- Inspected expanded help at 390×844, 320×568, 844×390 and 1440×1000 in light/dark themes. The layout detector returned no findings before or after the change; `git diff --check` passed.
+
+Available in development at `http://127.0.0.1:47832/blackjack`. No production deployment.
+
+## Floating insurance without moving the hands — 11 November 2026
+
+Restored insurance as a floating lightbox inside the green, over the existing gap between the dealer and player cards. Its positioning layer is outside normal layout, preserving the felt lettering, table dimensions and hand positions. A subtle dimmer stays within the green. The compact decision keeps the wager, payout and side-by-side actions visible; expanded help scrolls within the available card gap. Page scrolling and background navigation remain enabled. The existing betting drawer and game logic are unchanged.
+
+- `npm run test:blackjack -- --reporter=line`: **130 passed**. Geometry assertions verify identical table dimensions and card positions when opening, expanding help, closing and reopening the lightbox at 390×844, 320×568, 844×390 and 1440×1000. The panel never covers the cards, retains their original 69×97 dimensions and stays below 170px in its normal state.
+- The insurance checks also exercise actual wheel scrolling over the lightbox, keyboard access to scrollable help, background navigation, orientation changes, dismissal/reopen, insufficient chips, focus after decisions, independent settlements and both motion preferences.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `./scripts/dev.ps1 start`: optimized build passed; all four isolated development services healthy. `npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser:.*insurance' --reporter=line`: **12 passed** against the compiled app.
+- Inspected the four viewport captures in both application themes and expanded mobile help under ignored `test-results/blackjack-insurance-floating-*.png`. The detector's only finding was the existing coaching accent border, outside this change. `git diff --check` passed.
+- A fresh independent visual reviewer returned **ship** for this insurance correction, with no material fixes. The review verified all five captures, floating placement, uncovered cards, retained typography/materials, confined dimming and compact scrollable help; it did not re-review the rest of the lab.
+
+Available in development at `http://127.0.0.1:47832/blackjack`. No production deployment or backend logic changes.
+
+## Compact insurance with visible cards and scrolling — 11 November 2026 (superseded)
+
+Replaced the modal insurance wrapper with a compact nonmodal panel between the hands inside the green. The normal view contains the wager, 2:1 payout and side-by-side Decline / Insure buttons. A help button expands the separate-wager risk, peek behavior and natural explanation. Both views participate in normal layout, leaving the original-size cards uncovered. Removed the native modal call, dimming layer, focus trap, body scroll lock and viewport-position tracking. Escape/close, reopening, insurance accounting and next-action focus remain functional.
+
+- `npm run test:blackjack -- --reporter=line`: **128 passed, 1 failed**. The failure was a rotation assertion at the viewport edge after Playwright's nearest-edge scroll. The test now centers the freely scrollable panel before checking visibility. `npm run test:blackjack -- --reporter=line --grep 'browser:.*insurance'`: **11 passed**, including that corrected case. All **129 distinct checks** passed across these runs.
+- Coverage verifies that no card intersects either compact or expanded content at 390×844, 320×568, 844×390 and 1440×1000; both hands' cards are fully within the portrait phone viewports. Default panel height stays below 170px. The tests exercise an actual wheel gesture over the panel, background navigation, keyboard exit, help expansion, orientation changes, dismissal/reopen, insurance acceptance/decline, settlements and animation focus.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `./scripts/dev.ps1 start`: optimized build passed and all four development services healthy. `npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser:.*insurance' --reporter=line`: **11 passed** against the compiled app, including actual page scrolling over the decision panel. Compiled screenshots in both themes were inspected, including expanded mobile help.
+- Inspected the desktop, portrait and landscape captures in both application themes. The detector's sole finding was the existing coaching accent border, outside this change. `git diff --check` passed.
+
+Available in development at `http://127.0.0.1:47832/blackjack`. No production deployment or backend logic changes.
+
+## Insurance lightbox contained within the green — 11 November 2026 (superseded)
+
+The native insurance modal now follows the playing green's bounds and rounded corners. Its dimming layer is restricted to that area, and the paper panel is centered within the visible part of the green. The table is brought into view when the decision opens; resize, rotation and scroll updates keep it aligned. Existing text, decisions, Escape/close behavior, focus management, card dimensions and the betting drawer are preserved.
+
+- `npm run test:blackjack -- --reporter=line`: **128 passed**. Four new viewport regressions verify panel/dimmer containment, reachable buttons, natural-blackjack explanatory text, unchanged 69×97 cards, and rotation at 390×844, 320×568, 844×390 and 1440×1000.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `./scripts/dev.ps1 start`: optimized build passed; all four isolated development services healthy.
+- `npx playwright test --config .cache/blackjack-built.config.ts --grep 'browser:.*insurance' --reporter=line`: **10 passed** against the compiled app. The containment cases explicitly select and verify both application themes. Existing insurance acceptance/decline, keyboard, dismissal/reopen, hidden-mode and settlement flows pass.
+- Inspected all four compiled containment screenshots under ignored `test-results/blackjack-insurance-contained-*.png`. The header and balance panel retain their normal appearance outside the dimmed green; mobile and short-landscape controls remain within the viewport. Layout scans returned no findings; `git diff --check` passed.
+
+Available in development at `http://127.0.0.1:47832/blackjack`. No production deployment or backend logic changes.
+
+## Player-reviewed Blackjack drawer — 11 November 2026
+
+An independent player agent played nine hands with the previous drawer and nine with the redesign across phone, short landscape and desktop sizes. The baseline blocked background scrolling, could scroll Deal offscreen, stacked the result and editor into a tall panel, and mishandled editor/settlement focus. The redesign uses a compact balance/result header and an editable Bet amount beside a fixed Deal hand action. Only one detail section expands at a time. Presets collapse after selection; custom amounts have Done; Reset is inside editing unless chips are exhausted. The drawer is nonmodal, initially closed, and preserves deliberate background focus. The existing table, header, balance panel, cards, action row, coaching and insurance lightbox remain intact.
+
+The player's follow-up confirmed the main ergonomic improvements and found two remaining details: the covered opener was still in keyboard order, and Reset before the first hand left editing open. Both were corrected and covered by the final browser run.
+
+- `npm run test:blackjack -- --reporter=line`: **124 passed** after the corrections. Includes real wager/repeat/result flows, independent background scrolling/navigation, deliberate focus preservation, short-viewport scrolling with fixed actions, initial-closed behavior, editor focus, Reset, and existing game/strategy/persistence regressions.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed. The temporary Next development server was stopped before type generation.
+- `./scripts/dev.ps1 start`: optimized frontend build and all four isolated development services healthy.
+- `node .local/blackjack-ergonomic-capture.cjs`: compiled smoke checks at **390×844**, **320×568**, **844×390** and **1440×1000**, with explicitly selected and verified light/dark application themes. Each returned HTTP 200 with no page errors or horizontal overflow. Preset $25, complete hands, result details, custom $37 and another deal worked. Deal's vertical position was identical in collapsed/result/editor states and fully within every viewport.
+- The collapsed drawer measured **152.5px** at all four sizes, versus 251px on the previous phone layout. Screenshots of collapsed, result and editor states were inspected; evidence and geometry are in ignored `.impeccable/review/blackjack-drawer/`. Player screenshots are in ignored `.local/blackjack-player-review/`.
+- The Impeccable detector ran once over the four changed UI files. Its only finding was the existing coaching accent border, outside this drawer change and retained to preserve the requested aesthetic.
+- The independent visual reviewer identified insufficient light-theme contrast on the small Bet and Last round labels. They now use the existing ink token; the rebuilt app measures **12.73:1** in light mode and **12.09:1** in dark mode on the shaded controls. The same screenshot matrix was recaptured, and DESIGN.md now records the completed drawer behavior.
+- Final reviewer disposition: **ship**. The verdict pass scored both the contrast and documentation findings resolved, validated all 12 recaptures, and observed no regression from those fixes; it was not a new whole-surface review.
+- `git diff --check`: passed. No backend logic or production deployment changes were made.
+
+Physical-phone software-keyboard behavior was not tested; visual-viewport handling and a reduced-height browser viewport were checked. Available in development at `http://127.0.0.1:47832/blackjack`.
+
+## Compact Blackjack drawer and expandable results — 11 November 2026 (superseded)
+
+Moved the round result into the betting drawer as a collapsed disclosure: the net win/loss or Even stays visible, and expanding it shows the existing full main, split and insurance wager breakdown. Chip presets and the custom wager field now appear only under Change bet. Deal retains the last wager, and both sections start collapsed for a new hand. Reset remains visible; an unaffordable previous wager focuses Change bet, while an exhausted bankroll focuses Reset. Initial-closed behavior, the table, coaching and insurance lightbox are preserved.
+
+- `npm run test:blackjack -- --reporter=line`: **121 passed**. Coverage includes keyboard expansion/collapse of results, complete result totals, repeating a wager without revealing options, resetting disclosures for the next hand, preset/custom edits, unaffordable wagers, all four existing viewport checks and the original gameplay/layout regressions.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `./scripts/dev.ps1 start`: optimized frontend build and the isolated development stack passed. Compiled checks at 390×844 and 1440×1000 in both themes returned HTTP 200 with no page errors. The default drawer measured 251px high on the phone and 267px on desktop, with every default control visible. Compact, expanded-result and wager-editing screenshots were inspected together. The compiled page also verified retained wagers, correct totals and unchanged 69×97 playing cards.
+- `git diff --check`: passed. No backend or production deployment changes were made.
+
+Available at `http://127.0.0.1:47832/blackjack`.
+
+## Blackjack betting drawer — 11 November 2026
+
+Replaced the centered betting lightbox with a drawer attached to the bottom edge, full width on phones and constrained on desktop, with no dark backdrop. It starts closed on initial entry to Play. A fixed Place your wager button opens it without scrolling; dismissal is respected across mode changes. It still opens after a completed round for re-betting and remembers the wager. Insurance, the header, balance panel, card sizes, player actions and coaching remain unchanged.
+
+- `npm run test:blackjack -- --reporter=line`: **119 passed**. Added an initial-closed/visible-opener check and updated the four viewport checks to verify that both wager drawers touch the bottom edge, fit all controls, and have a transparent backdrop. Keyboard, dismissal, insurance, gameplay and existing layout regressions pass.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `./scripts/dev.ps1 start`: optimized build and isolated development stack passed. Compiled-page checks at 390×844 and 1440×1000 in both light and dark themes confirmed no initial opening, a visible opener, bottom-attached drawers, retained wagers, 69×97 playing cards and no page errors. Initial and re-bet screenshots were inspected together.
+- `git diff --check`: passed. No production deployment or backend changes were made for this correction.
+
+Available at `http://127.0.0.1:47832/blackjack`.
+
+## Blackjack betting lightbox — 11 November 2026 (superseded)
+
+Moved the existing chip presets, custom wager, Deal and virtual-chip reset into a dismissible native dialog. It opens on entering Play and after the round's animation and settlement finish, retaining the previous wager. Escape/Close reveals the table without spending chips; Place your wager/Bet again reopens it. Hidden modes do not open a modal, and keyboard focus follows Deal into the next game decision. The restored header, available-chips panel, card sizes, compact action row, inline coaching and insurance behavior remain unchanged.
+
+Verification:
+
+- `npm run test:blackjack -- --reporter=line`: **118 passed**. New coverage checks betting and re-betting at 390×844, 375×667, 320×568 and 844×390, retained wagers, focus containment, dismissal/reopening without page scrolling or spending chips, rounds finishing in another mode, and resetting an exhausted bankroll. Existing layout, coaching, insurance, motion, engine, strategy and persistence checks pass. Two older tests were updated to close the new modal before using background controls. An initial viewport assertion measured the existing table's settlement reflow; a browser trace confirmed it occurred before the modal opened, and the check now isolates opening/closing the modal.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `./scripts/dev.ps1 start`: optimized frontend build and isolated development stack passed; all four services are healthy. Compiled-page checks at 390×844 and 1440×1000 in both light and dark themes returned HTTP 200 without page errors. Wager controls fit the viewport, playing cards remain 69×97, and coaching remains visible after dismissal. Screenshots were inspected in both themes, including the short-phone and landscape captures.
+- `git diff --check`: passed. No backend, game rules, storage or production deployment changes were made for this follow-up; unrelated work remains intact.
+
+Available at `http://127.0.0.1:47832/blackjack`. The dialog removes the need to scroll down to bet or re-bet while preserving the rest of the page's natural layout.
+
+## Blackjack layout correction — 11 November 2026
+
+Restored the original hero, mode tabs, Play heading, three-column available-chips panel, card sizes, table spacing and natural page flow after owner feedback. Removed the fixed-height stage, automatic mode-selection scroll, card compression, alternate seat layouts and detached coaching section. Player actions use one compact row on phones; coaching remains directly beneath them during card motion, dealer play and settlement. Insurance retains its dismissible lightbox, and the next wager now precedes the detailed result breakdown.
+
+Verification:
+
+- `npm --prefix apps/web run lint`: passed. `npm --prefix apps/web run typecheck`: passed after the browser server stopped. The initial parallel check raced Next.js regenerating its development types; no source TypeScript error remained.
+- `npm run test:blackjack -- --reporter=line`: **110 passed**, with one new five-action-row regression failing. After tightening only those buttons' mobile padding, `npm run test:blackjack -- --reporter=line --grep 'mobile play preserves|mobile coaching'`: **2 passed**. All **111 distinct Blackjack checks** passed across these runs. The added checks cover unchanged header geometry, all three balance columns, original 69×97 cards, all five actions on one row, visible coaching throughout a full hand, and wagers preceding the breakdown. Insurance, engine, strategy, motion, persistence, split-hand and offline checks also passed.
+- `./scripts/dev.ps1 start`: optimized frontend/API builds and the full isolated development stack passed. Compiled-page smoke checks returned HTTP 200 with no page errors at 390×844 and 1440×1000, confirming 69×97 cards. Mobile dark/light and desktop captures were inspected against the original presentation.
+- `git diff --check`: passed. The changes remain limited to Blackjack UI/tests and its documentation; prior unrelated work remains intact.
+
+Available at `http://127.0.0.1:47832/blackjack`. Production was not deployed. This correction preserves the original layout and reduces extra re-bet scrolling; it does not claim the whole page fits every phone viewport. The earlier fixed-height implementation and its verification are recorded below as superseded.
+
+## Mobile Blackjack table — 11 November 2026 (superseded)
+
+The owner rejected the fixed-height layout described below. Its compact header, smaller cards, relocated coaching and forced page scroll were subsequently removed; see the corrective entry above for the current behavior. These results record that earlier implementation only.
+
+Play now opens at a compact lab heading on mobile, with a dynamic-viewport table and the chip presets, custom wager, Deal/re-bet and player actions kept together. Short screens use adjacent dealer/player seats; landscape places betting beside the felt. Split turns remain visible inside the table. The existing green felt, cream cards, chips, typography and theme colors are retained. Round net is shown beside the next wager; full results and coaching follow the stage.
+
+Insurance now uses a native modal lightbox after the deal finishes. Focus begins on Decline, Tab/Shift+Tab stay inside, and Escape/Close leave the choice unresolved without spending chips. A visible button reopens it. A deal finishing in another mode does not open a hidden modal. Existing engine rules, virtual-chip accounting, animation, reduced motion and browser-local preferences are unchanged.
+
+Verification:
+
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `npm run test:e2e -- --reporter=line`: **163 passed**, including all **114 Blackjack tests**. Added checks verify all chip presets, the custom wager, Deal/re-bet and player actions stay fully inside 390×844, 375×667, 320×568 and 844×390 viewports without page scrolling; insurance focus/dismissal/reopening and mode switches during dealing; and active split-hand visibility on a short phone. Earlier runs exposed dialog focus handling and a hidden-panel test-clock selector; both were corrected before this full pass.
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore`: **289 passed, 5 optional PostgreSQL tests skipped**. `dotnet format RabbitHole.slnx --verify-no-changes --no-restore`: passed.
+- `python -m unittest discover -s tests/scripts -q`: **13 passed, 1 skipped**. `python -m unittest discover -s scripts/hosted -p 'test_*.py' -q`: **19 passed, 21 skipped**. The initial sandbox run could not write temporary fixtures; the permitted local run passed.
+- `./scripts/dev.ps1 start`: optimized frontend/API builds and the complete development stack passed. Compiled-page smoke checks at 390×844, 320×568, 844×390 and 1440×1000 returned HTTP 200, with no page errors or horizontal page overflow. Betting remained in the mobile viewport after settlement. Recent API/web logs had no error/failure/exception entries in the checked window.
+- Inspected desktop light, mobile dark/light, landscape and insurance-overlay captures. The detector flagged only the pre-existing coaching accent border, retained to preserve the requested aesthetic. `git diff --check`: passed.
+
+Available in development at `http://127.0.0.1:47832/blackjack`; production and hosted instances were not deployed. Verification used Chromium viewport emulation, not physical iOS/Android devices. Very long hands, extra split hands or enlarged text can still require scrolling within the table; detailed results and coaching are below the play surface. No backend, schema, provider, dependency or environment change was needed for this feature.
+
+## Original EPUB reader — 11 November 2026
+
+**Read EPUB** now opens the uploaded book in an embedded reader using its packaged XHTML, styles, images and fonts. Navigation follows the spine and saved section anchors, including several sections within a chapter file. Chapter selection, internal links, bounded zoom and optional **Dark pages** work without AI or an external viewer. Appearance and per-entry chapter/scroll position are remembered in this browser. Notes, explicit progress and read state remain attached to the named reading entry; **Extracted text** continues to support search, highlighting and quoted notes.
+
+The new authenticated index/resource endpoints read bounded ZIP entries without extracting files. Only supported manifest resources are served. XHTML/SVG allowlist sanitization, a script-free iframe sandbox and response CSP block active content and automatic external loads; explicit external reference clicks remain available. Original downloads retain their exact bytes. Encrypted, unsafe, missing or malformed resources offer an honest fallback. No database migration, environment setting or third-party EPUB dependency was added.
+
+Verification:
+
+- `dotnet build apps/api/RabbitHole.Api.csproj -c Release --no-restore`: passed. `dotnet format apps/api/RabbitHole.Api.csproj --verify-no-changes --no-restore`: passed.
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-build --logger 'console;verbosity=minimal'`: **289 passed, 5 optional PostgreSQL tests skipped**. New EPUB tests cover private chapter/style/image access, sanitization/CSP, manifest restrictions, unchanged state and original bytes, encrypted archives, unsafe paths and duplicate entries. The four EPUB tests also passed after expanding the shared fixture with two anchors in one XHTML file.
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed.
+- `npx playwright test tests/e2e/epub-viewer.spec.ts tests/e2e/journeys.spec.ts tests/e2e/state-regressions.spec.ts tests/e2e/public-catalog.spec.ts --reporter=line`: **23 passed**. Real EPUB uploads verify original CSS/images, links and selected section anchors, zoom/dark preference, scroll/chapter restoration, persisted notes/progress, anonymous denial, unchanged original bytes and fallback/retry. Intentional external CSS requests are rejected by CSP before receiving any network response; the normal journey has no uncaught page errors.
+- The preceding combined document run passed all **14 PDF/item-reader/document-section tests**. Its EPUB assertion was corrected to distinguish Chromium's CSP-rejected request events from network loads, and the library journey selector was scoped to its fixture book. The final 23-test run above passed both corrected flows; **37 distinct browser tests passed across these runs**.
+- `./scripts/dev.ps1 start`: optimized frontend/API builds and the complete development stack passed. The development gateway was restarted; health returned **200**, and an HTTP fetch of the actual served EPUB bundle returned **200** with its chapter controls and appearance key. API/web startup logs showed no error/failure/exception entries in the checked window.
+- Desktop original/dark and 390px phone captures were inspected. The Impeccable finish reviewer returned **ship**, with no material fixes; the changed-target detector returned `[]`. The documenter confirmed the existing system needs no changes. `git diff --check` passed.
+
+Available in development at `http://127.0.0.1:47832`; production and hosted instances were not updated. EPUB position is browser-local, separate from explicit progress. This is a scrolling original-format reader, not full fixed-layout spread or scripted-book support. Dark pages also alter image colors. Encrypted books are unsupported, and malformed XHTML can require extracted text or an external EPUB app. Browser automation exercised Chromium only.
+
+## Original PDF reader — 11 November 2026
+
+Library PDFs now open in a local embedded PDF.js viewer of the uploaded original, preserving page layout, artwork and typography. **Read PDF** opens the book's first reading entry; section links start at their actual page. The viewer offers page jump/previous/next, fit width, bounded zoom, rotation and optional **Dark pages**. The dark filter changes rendered image colors as well as paper/text; the control and caption explain this. Appearance and per-entry last page use browser storage and never award read/understood/progress state. Notes, explicit reading state and extracted text remain attached to the selected reading entry, with distinct navigation and labels even when the PDF viewer turns to another page.
+
+Text extraction remains available for search, sections, highlights, quoted notes and optional learning. **Extracted text** is a deliberate alternate view. No source text or uploaded bytes are rewritten, no database migration or new environment settings are required, and EPUB reading is preserved. Failed original-file loads offer retry and original-file links while extracted text stays usable. Password-protected PDFs use the original-file fallback; passwords are not collected by the embedded viewer. Only one page is rendered at a time. Worker, fonts, character maps and image decoders ship with the app, without a CDN or external document service. The Docker standalone image now includes the generated public PDF assets.
+
+- `npm --prefix apps/web run lint` and `npm --prefix apps/web run typecheck`: passed after the final reader changes.
+- `npm run test:e2e -- tests/e2e/pdf-viewer.spec.ts tests/e2e/item-reader.spec.ts tests/e2e/document-sections.spec.ts`: **14 passed**, including the final clarity fixes. Real PDF uploads cover original layouts, selectable text, an artwork-only document with no extracted text, actual section start pages, page/zoom controls, appearance and page restoration, saved notes across views/reload, explicit failure/retry, unchanged original bytes, HTTP range responses and anonymous file denial. The browser records no external requests or uncaught page errors in the normal viewer journey. Earlier test failures were an unscoped status selector and a resize assertion that did not allow a briefly unmounted canvas; both were corrected.
+- `npm run test:e2e -- tests/e2e/journeys.spec.ts tests/e2e/state-regressions.spec.ts tests/e2e/public-catalog.spec.ts`: **20 passed**. Covers real backend library/import/notes/progress flows, state reconciliation, public exclusion of uploads, authentication and CSRF.
+- `dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-restore`: **285 passed, 5 optional PostgreSQL cases skipped**. This change has no backend/schema changes; the separate PostgreSQL suite was not rerun.
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore`: passed. `python -m unittest discover -s tests/scripts -v`: **13 passed, 1 POSIX-only skip**. `python -m unittest discover -s scripts/hosted -p 'test_*.py' -v`: **19 passed, 21 platform/tool-dependent skips** on Windows.
+- `./scripts/dev.ps1 start`: optimized frontend build and full development stack startup passed, including final reader changes. The development gateway returned **200** for health and a packaged PDF font; the image contains the bundled worker. API/web logs had no error/failure/exception entries in the checked startup window. Initial sandbox-only attempts could not access local sockets/temp files, and a local standalone build hit `EPERM`; checks were rerun with normal local access and the complete production-mode frontend build passed in Docker.
+- Desktop original/dark and 390px phone captures were inspected. The finish reviewer scored both requested page-context and highlighting-copy fixes **resolved**, disposition **ship** for that fix list. The detector found only existing global-style warnings; the inherited design system was retained.
+
+Available in development at `http://127.0.0.1:47832`. Production and hosted deployment were not updated. Viewer page positions are local to this browser, not synced document progress. Original-PDF selections support copying; source-validated highlights/quotes use Extracted text. PDF annotation actions/forms are not enabled, and no OCR or DRM removal was added. Browser automation here ran Chromium; other browser engines were not exercised.
+
 ## Public and private content by source — 10 November 2026
 
 Clicking a source in the public catalog or item preview now lists all published, eligible content from that source at `/search?source=...`, without signing in. Saved/read/dismissed state and disabled subscriptions do not affect public inclusion. Shared imports have independent links for each source, including names containing commas and ampersands. The source heading, search filters, pagination and All sources exit retain a clear scope. Source-only views keep secondary filters collapsed so content appears sooner on phones.

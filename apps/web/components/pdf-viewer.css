@@ -1,0 +1,21 @@
+.pdf-viewer { min-width: 0; margin-block: 16px; }
+.pdf-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 10px 0; color: var(--ink); font-size: 12px; }
+.pdf-page-controls, .pdf-page-controls form, .pdf-page-controls label, .pdf-zoom-controls { display: flex; align-items: center; gap: 6px; }
+.pdf-toolbar .icon-button { width: 36px; height: 36px; flex-shrink: 0; }
+.pdf-page-controls input { width: 64px; min-height: 36px; padding: 4px; text-align: center; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; font-variant-numeric: tabular-nums; }
+.pdf-fit { justify-content: center; min-width: 62px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.pdf-dark-toggle[aria-pressed="true"] { color: var(--accent); background: var(--accentsoft); }
+.pdf-viewport { width: 100%; max-height: 78vh; min-height: 260px; overflow: auto; overscroll-behavior: contain; background: var(--paper2); border: 1px solid var(--line); scrollbar-color: var(--muted) var(--paper2); }
+.pdf-viewport .react-pdf__Document { width: max-content; min-width: 100%; padding: 12px; }
+.pdf-viewport .react-pdf__Page { width: max-content; margin-inline: auto; }
+.pdf-viewport[data-dark="true"] .react-pdf__Page__canvas { filter: invert(0.9) hue-rotate(180deg); }
+.pdf-viewport .react-pdf__Page__textContent { user-select: text; }
+.pdf-message { max-width: 65ch; padding: 24px; margin: 0; color: var(--ink); font-size: 14px; line-height: 1.6; }
+.pdf-message .action-row { margin-top: 16px; }
+.pdf-caption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+@media (max-width: 600px) {
+  .pdf-toolbar { justify-content: flex-start; gap: 8px; }
+  .pdf-toolbar .icon-button { width: 40px; height: 40px; }
+  .pdf-toolbar .pdf-dark-toggle { min-height: 40px; }
+  .pdf-zoom-controls { margin-left: auto; }
+}

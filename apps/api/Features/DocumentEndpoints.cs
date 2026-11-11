@@ -21,6 +21,7 @@ public static class DocumentEndpoints
 
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder routes)
     {
+        routes.MapEpubReaderEndpoints();
         routes.MapGet("/api/library/books", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok((await db.Documents.AsNoTracking().ToListAsync(ct)).OrderByDescending(d => d.CreatedAt).Select(PublicDocument)));
         routes.MapPost("/api/library/books/upload", Upload).DisableAntiforgery()

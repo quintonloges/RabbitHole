@@ -82,19 +82,7 @@ public static partial class DocumentParser
     public static ParsedDocument ParseEpub(string path)
     {
         using var archive = ZipFile.OpenRead(path);
-        if (archive.Entries.Count > 4000) throw new InvalidDataException("Too many archive entries.");
-        long expanded = 0;
-        var entries = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
-        foreach (var entry in archive.Entries)
-        {
-            var name = entry.FullName;
-            if (name.StartsWith('/') || name.Contains('\\') || name.Split('/').Any(x => x == "..") || name.Contains(':'))
-                throw new InvalidDataException("Unsafe archive entry.");
-            if (entry.Length > 15 * 1024 * 1024 || (expanded += entry.Length) > MaxExpandedBytes ||
-                entry.Length > 1024 * 1024 && entry.Length / Math.Max(1, entry.CompressedLength) > 150)
-                throw new InvalidDataException("Archive expansion limit exceeded.");
-            if (!entries.TryAdd(name, entry)) throw new InvalidDataException("Ambiguous archive paths.");
-        }
+        var entries = EpubReader.ValidateArchive(archive);
         string Read(string name)
         {
             if (!entries.TryGetValue(name, out var entry)) throw new InvalidDataException("Missing EPUB entry.");
@@ -238,7 +226,7 @@ public static partial class DocumentParser
 
     private sealed record EpubTocLabel(string Path, string? Fragment, string Title, int Depth);
     private sealed record EpubText(string Text, Dictionary<string, int> Anchors, List<(int Offset, string Title)> Headings);
-    private sealed record EpubReference(string Path, string? Fragment)
+    internal sealed record EpubReference(string Path, string? Fragment)
     {
         // Distinguish a literal '#' in an archive filename from a chapter fragment separator.
         // Ordinary existing locators stay unchanged; '%' must escape too to avoid a second alias.
@@ -290,7 +278,7 @@ public static partial class DocumentParser
 
     private static string Resolve(string parent, string relative) => ResolveEpubReference(parent, relative).Path;
 
-    private static EpubReference ResolveEpubReference(string parent, string relative)
+    internal static EpubReference ResolveEpubReference(string parent, string relative)
     {
         var root = new Uri("https://epub.invalid/");
         // parent is an already decoded ZIP entry name, not a URL. Re-encode its components
@@ -306,7 +294,7 @@ public static partial class DocumentParser
         return new(path, resolved.Fragment.Length > 1 ? Uri.UnescapeDataString(resolved.Fragment[1..]) : null);
     }
 
-    private static XDocument Xml(string content)
+    internal static XDocument Xml(string content)
     {
         // XHTML EPUBs commonly rely on HTML entities declared by an external DTD. Decode the
         // known character references locally, without retrieving that DTD or allowing its entities.

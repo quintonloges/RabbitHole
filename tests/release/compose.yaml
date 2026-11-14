@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rabbithole
+      POSTGRES_PASSWORD: fixture-ci-password
+      POSTGRES_DB: rabbithole_recommendation_test_release
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U rabbithole -d rabbithole_recommendation_test_release]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  checks:
+    build:
+      context: ../..
+      dockerfile: tests/release/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+  workflows:
+    image: rhysd/actionlint:1.7.12
+    working_dir: /work
+    volumes:
+      - ../../.github:/work/.github:ro
+    command: [.github/workflows/ci.yml, .github/workflows/deploy.yml]
+  caddy-public:
+    image: caddy:2-alpine
+    environment:
+      PUBLIC_HOST: rabbithole.quintonloges.me
+      ACME_EMAIL: fixture@example.org
+      PUBLIC_INDEXING_ENABLED: 'false'
+    volumes:
+      - ../../Caddyfile.hosted:/etc/caddy/Caddyfile:ro
+    command: [caddy, validate, --config, /etc/caddy/Caddyfile]
+  caddy-staging:
+    image: caddy:2-alpine
+    environment:
+      PUBLIC_HOST: rabbithole.quintonloges.me
+      STAGING_ORIGIN: https://rabbithole.quintonloges.me:47834
+    volumes:
+      - ../../Caddyfile.staging:/etc/caddy/Caddyfile:ro
+    command: [caddy, validate, --config, /etc/caddy/Caddyfile]

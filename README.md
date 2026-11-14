@@ -134,6 +134,8 @@ AI summaries, comparisons, reading aids and critique are labeled synthesis and c
 
 Requirements: .NET 10 SDK, Node.js 24, Python 3 for the source-pack checks, Docker for the production stack. The checked-in `global.json` selects a stable .NET 10.0 SDK even when newer major SDKs are installed. Package versions and the frontend lockfile are checked in.
 
+Before pushing a release, run `./scripts/check.ps1 -Release`. This needs Docker Desktop with Linux containers and runs the complete CI checks locally: workflow lint, Python and backend tests, formatting, browser-host compilation, PostgreSQL regressions, frontend lint/types/build, all browser tests, Linux backup/restore tests and both Caddy configurations. It builds the current working files into a disposable project with its own database, publishes no ports, and mounts no personal data. The first run downloads test dependencies. `./scripts/check.ps1` runs the host-native checks, including formatting and browsers; use `-Release` to include PostgreSQL and Linux-only gates. Individual checks remain available below.
+
 ```powershell
 python -m unittest discover -s tests/scripts -v
 dotnet restore RabbitHole.slnx

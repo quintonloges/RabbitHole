@@ -1,5 +1,26 @@
 # RabbitHole acceptance report
 
+## Complete local release preflight — 14 November 2026
+
+Added `./scripts/check.ps1 -Release` to run the CI checks locally in a disposable Linux Compose project. It includes workflow lint, Python tests, .NET tests/formatting, an explicit browser-host build, PostgreSQL migration/HTTP regressions, frontend lint/types/production build, the entire browser suite, real Linux backup/restore tests, shell/Python validation and both Caddy configurations. Its database uses temporary container storage, no host ports are published, and no personal volumes are mounted. The invocation cleans up its generated project and test image. Host-native `./scripts/check.ps1` now also includes formatting, browser-host compilation and the full browser suite.
+
+Corrected the daily-picks journey's ambiguous partial label selector: it now selects the numeric field whose accessible name begins with `Items per day`, preserving the existing persistence assertions while excluding the separate `Older items per day` field. GitHub's preceding run passed **178 browser tests**, failed this selector and skipped the five dependent serial journeys. No application behavior or test expectation was weakened.
+
+| Local command/check | Actual result |
+| --- | --- |
+| `npm run test:e2e -- tests/e2e/journeys.spec.ts --reporter=line` with `CI=true` | **6 passed (41.0 seconds)** against the normal isolated authenticated fixture API and Next frontend. |
+| `./scripts/check.ps1 -Release` | **Passed**, exit 0. Full log retained locally in ignored `.cache/release-check/local-preflight.log`. |
+| Python source/admin/helper tests in the Linux preflight | **28 passed**, no skips. |
+| Backend suite and separate PostgreSQL migration/endpoint checks | **405 passed** with five PostgreSQL-only skips in the first run; **8 PostgreSQL checks passed**, including those five cases, with no skips in the database run. |
+| Full-solution formatting and browser-host compilation | Passed; host build had no warnings or errors. |
+| Frontend lint, TypeScript and optimized production build | Passed. |
+| Full local Playwright suite | **184 passed (5.3 minutes)**, no failures or skipped journeys. |
+| Linux hosted-script tests | **40 passed (35.3 seconds)**, no skips; includes actual encrypted backup restoration and retention. |
+| Workflow lint, hosted shell/Python validation and public/staging Caddy configuration | Passed. |
+| Disposable project cleanup | Database container, test image and network removed successfully. |
+
+The existing seven moderate npm audit findings remain unchanged. The completed local preflight precedes the next push; GitHub validation and the owner's production environment approval remain required. No production deployment was performed.
+
 ## GitHub browser-test SDK selection — 14 November 2026
 
 GitHub's runner had .NET 11 installed alongside the requested .NET 10 SDK. Without `global.json`, the browser-test host selected SDK **11.0.100** and failed in `Microsoft.NET.Sdk.StaticWebAssets.JSModules.targets` with an unmatched Blazor hot-reload asset. Added `global.json` to select stable .NET 10.0 feature bands, following [Microsoft's SDK selection guidance](https://learn.microsoft.com/en-us/dotnet/core/tools/global-json). CI now builds the browser-test host explicitly and prints the selected SDK; Playwright preserves the host's standard output so future startup failures retain their compiler diagnostics.

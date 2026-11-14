@@ -8,7 +8,7 @@ test.describe.serial('A private curiosity engine with real backend state', () =>
 
   test('add a source, import genuine fixture responses, save/read and keep a stable edition', async ({ page, request }) => {
     await page.goto('/admin/settings');
-    await page.getByLabel('Items per day', { exact: false }).fill('5');
+    await page.getByRole('spinbutton', { name: /^Items per day\b/ }).fill('5');
     await page.getByLabel('Enable practice', { exact: true }).check();
     await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
     await expect.poll(async () => (await (await request.get('/api/settings')).json()).editionSize).toBe(5);

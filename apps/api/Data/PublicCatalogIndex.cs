@@ -61,14 +61,15 @@ public static class PublicCatalogIndex
         {
             // A one-time upgrade; ordinary reads never repair or rebuild the index.
             var ids = (await db.Items.IgnoreQueryFilters().Select(i => i.Id).ToListAsync(ct)).ToHashSet();
-            await PrepareAsync(db, ct, ids);
+            var sourceMembershipsOnly = await db.Settings.AnyAsync(s => s.Key == "public-catalog-index-v2", ct);
+            await PrepareAsync(db, ct, ids, sourceMembershipsOnly);
             db.Settings.Add(new AppSetting { Key = VersionKey, Value = "complete" });
             await db.SaveChangesAsync(ct);
         }
         await transaction.CommitAsync(ct);
     }
 
-    public static async Task PrepareAsync(AppDbContext db, CancellationToken ct, HashSet<Guid>? rebuild = null)
+    public static async Task PrepareAsync(AppDbContext db, CancellationToken ct, HashSet<Guid>? rebuild = null, bool sourceMembershipsOnly = false)
     {
         var changedItems = db.ChangeTracker.Entries<ContentItem>().Where(Changed).ToList();
         var changedSources = db.ChangeTracker.Entries<Source>().Where(Changed).ToList();
@@ -174,6 +175,24 @@ public static class PublicCatalogIndex
                 continue;
             }
             if (projection == null) { projection = new PublicCatalogEntry { Id = id }; db.PublicCatalogEntries.Add(projection); }
+            var sourceNames = names[id].ToList();
+            if (item.SourceId is Guid sourceId && directNames.TryGetValue(sourceId, out var name)) sourceNames.Add(name);
+            var labels = sourceNames.Select(n => ProviderAdapters.Plain(n, 200)).Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).ToList();
+            if (labels.Count == 0) labels.Add(ProviderAdapters.Plain(item.Provider, 40));
+            var sourceLabels = labels.ToDictionary(n => n.ToUpperInvariant(), n => n);
+            foreach (var old in projection.Sources.Where(s => !sourceLabels.ContainsKey(s.Key)).ToList())
+            { projection.Sources.Remove(old); db.PublicCatalogSources.Remove(old); }
+            foreach (var (key, label) in sourceLabels)
+            {
+                var sourceLabel = projection.Sources.FirstOrDefault(s => s.Key == key);
+                if (sourceLabel == null) { sourceLabel = new PublicCatalogSource { ItemId = id, Key = key }; projection.Sources.Add(sourceLabel); }
+                sourceLabel.Name = label;
+            }
+            // v2 already contains the complete read model. v3 only adds source
+            // memberships; rebuilding other columns can change legacy labels,
+            // search text and timestamp precision despite unchanged source data.
+            if (sourceMembershipsOnly && existing.ContainsKey(id)) continue;
             projection.IsPublic = item.IsPublic;
             projection.MergedIntoId = item.MergedIntoId;
             projection.Title = ProviderAdapters.Plain(item.Title, 400);
@@ -185,23 +204,9 @@ public static class PublicCatalogIndex
             projection.UpdatedAt = item.UpdatedAt;
             projection.Type = ProviderAdapters.Plain(item.Kind, 40);
             projection.Provider = ProviderAdapters.Plain(item.Provider, 40);
-            var sourceNames = names[id].ToList();
-            if (item.SourceId is Guid sourceId && directNames.TryGetValue(sourceId, out var name)) sourceNames.Add(name);
-            var labels = sourceNames.Select(n => ProviderAdapters.Plain(n, 200)).Where(n => !string.IsNullOrWhiteSpace(n))
-                .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).ToList();
-            if (labels.Count == 0) labels.Add(projection.Provider);
             var joined = string.Join(", ", labels);
             projection.SourceName = joined[..Math.Min(600, joined.Length)];
             projection.SourceKey = projection.SourceName.ToUpperInvariant();
-            var sourceLabels = labels.ToDictionary(n => n.ToUpperInvariant(), n => n);
-            foreach (var old in projection.Sources.Where(s => !sourceLabels.ContainsKey(s.Key)).ToList())
-            { projection.Sources.Remove(old); db.PublicCatalogSources.Remove(old); }
-            foreach (var (key, label) in sourceLabels)
-            {
-                var sourceLabel = projection.Sources.FirstOrDefault(s => s.Key == key);
-                if (sourceLabel == null) { sourceLabel = new PublicCatalogSource { ItemId = id, Key = key }; projection.Sources.Add(sourceLabel); }
-                sourceLabel.Name = label;
-            }
             projection.TypeKey = projection.Type.ToUpperInvariant();
             projection.Excerpt = item.Excerpt == null ? null : ProviderAdapters.Plain(item.Excerpt, 600);
             projection.ArchiveCandidate = ArchiveDiscovery.IsCandidate(projection.Type, projection.Title, projection.Excerpt, projection.Provider);

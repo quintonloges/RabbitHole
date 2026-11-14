@@ -2,6 +2,8 @@ $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $checkProject = 'rabbithole-release-check-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
 $checkCompose = @('compose', '--project-name', $checkProject, '--file', (Join-Path $root 'tests/release/compose.yaml'))
+$checkArtifacts = Join-Path $root ".cache/release-check/$checkProject/test-results"
+New-Item -ItemType Directory -Force -Path $checkArtifacts | Out-Null
 
 function Invoke-ReleaseCheck([string[]]$Arguments) {
     & docker @checkCompose @Arguments
@@ -16,7 +18,8 @@ try {
     Invoke-ReleaseCheck @('run', '--rm', '--no-deps', 'workflows')
     Invoke-ReleaseCheck @('build', 'checks')
     Invoke-ReleaseCheck @('up', '-d', '--wait', 'db')
-    Invoke-ReleaseCheck @('run', '--rm', 'checks')
+    # Keep browser screenshots/traces when the disposable test container is removed.
+    Invoke-ReleaseCheck @('run', '--rm', '--volume', "${checkArtifacts}:/src/test-results", 'checks')
     Invoke-ReleaseCheck @('run', '--rm', '--no-deps', 'caddy-public')
     Invoke-ReleaseCheck @('run', '--rm', '--no-deps', 'caddy-staging')
     Write-Host 'PASS: local release validation completed, including browser, PostgreSQL and Linux backup checks.'

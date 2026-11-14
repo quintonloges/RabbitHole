@@ -1,5 +1,25 @@
 # RabbitHole acceptance report
 
+## Preservation failure and local upgrade recovery — 14 November 2026
+
+The approved deployment of `2d43ff1` passed GitHub validation but stopped in maintenance when the post-migration manifest detected changes to `PublicCatalogEntries`. The other original tables and uploaded files matched the pre-upgrade backup. The v3 startup backfill rebuilt the entire v2 read model to add source memberships; this could normalize old aggregate source labels/search text and truncate timestamp ticks when reloading PostgreSQL timestamps.
+
+The v2-to-v3 upgrade now adds source memberships without rewriting existing catalog entries or topics. New entries, earlier index upgrades and ordinary source/item edits still use the full projection path. The strict preservation manifest is unchanged. Corrective deployments begun while maintenance is already active also retain the original rollback snapshot pair, while still making and comparing against a fresh backup of the current data.
+
+Local testing used **synthetic fixtures only**, as requested by the owner. No production database or uploaded documents were transferred to this computer. The fixture included public/hidden items, case-variant and blank source labels, a saved/read state, a private note, a document/upload and a rabbit-hole branch.
+
+| Local command/check | Actual result |
+| --- | --- |
+| Build API from deployed predecessor `14771a8`, populate an isolated PostgreSQL 17 fixture, then upgrade to the uncorrected `2d43ff1` API | Reproduced `Preservation comparison failed: PublicCatalogEntries` with the actual deployment manifest checker. |
+| `./scripts/rehearse-migration.ps1 -BackupFolder .cache/release-check/synthetic-upgrade/old-backup` | Passed: all **23 original tables and one uploaded file** retained through upgrade and restart; three public items, one private document item; anonymous private routes denied. |
+| `./scripts/rehearse-migration.ps1 -BackupFolder .cache/release-check/synthetic-upgrade/failed-backup` | Passed: all **24 existing tables and one uploaded file** retained when recovering an already migrated failed release, including restart and privacy checks. |
+| Final Linux backend suite, `dotnet format RabbitHole.slnx --verify-no-changes --no-restore`, separate PostgreSQL checks | **405 backend tests passed** (five PostgreSQL-only cases skipped there); **8 PostgreSQL checks passed** with no skips; formatting passed. The strengthened upgrade regression compares every existing catalog column, including sub-microsecond ticks, after migration, repeated backfill and application restart. |
+| Final Linux hosted-script suite | **40 passed**, no skips, including real encrypted backup/restoration and retention checks. Corrective-commit retries preserve the original rollback reference. |
+| `npm run test:e2e -- tests/e2e/state-regressions.spec.ts --repeat-each=3 --reporter=line` with `CI=true` | **21 passed (35.8 seconds)** after the first full local browser run passed 183 tests and timed out opening a practice prompt. Assertions and timeouts were unchanged. |
+| `./scripts/check.ps1 -Release` on the final code | **Passed**, exit 0: 28 Python checks, 405 backend tests plus 8 PostgreSQL checks, formatting, frontend lint/types/build, **184 browser tests (4.6 minutes)**, 40 hosted backup/recovery tests, shell/Python validation, workflow lint and both Caddy configurations. No browser retries or skips. Log: `.cache/release-check/preservation-final-preflight.log`. |
+
+The local release runner now retains browser failure screenshots and traces under `.cache/release-check/<generated-project>/test-results/` after container cleanup. Rehearsal containers, networks and data volumes were removed. Detailed logs and synthetic backups remain in ignored `.cache/release-check/`. Hosted launch still requires the owner's environment approval and the real server preservation, backup-restore and authenticated smoke gates; local fixture success does not substitute for those checks.
+
 ## Complete local release preflight — 14 November 2026
 
 Added `./scripts/check.ps1 -Release` to run the CI checks locally in a disposable Linux Compose project. It includes workflow lint, Python tests, .NET tests/formatting, an explicit browser-host build, PostgreSQL migration/HTTP regressions, frontend lint/types/production build, the entire browser suite, real Linux backup/restore tests, shell/Python validation and both Caddy configurations. Its database uses temporary container storage, no host ports are published, and no personal volumes are mounted. The invocation cleans up its generated project and test image. Host-native `./scripts/check.ps1` now also includes formatting, browser-host compilation and the full browser suite.

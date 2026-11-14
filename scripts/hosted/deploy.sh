@@ -22,6 +22,8 @@ export RH_RELEASE="$release"
 source scripts/hosted/common.sh
 operation_lock
 [[ ! -e "$CURRENT_LINK" || -L "$CURRENT_LINK" ]] || { echo 'Current release pointer must be a symlink, not a directory.' >&2; exit 1; }
+recovering=false
+[[ ! -f "$STATE_PATH/maintenance" ]] || recovering=true
 maintenance
 if docker volume inspect "${PROJECT_NAME}_database" >/dev/null 2>&1; then
   [[ -L "$CURRENT_LINK" ]] || { echo 'Existing database has no prior pinned release. Refusing upgrade without a known backup command.' >&2; exit 1; }
@@ -31,14 +33,16 @@ if docker volume inspect "${PROJECT_NAME}_database" >/dev/null 2>&1; then
   RH_RELEASE="$previous" bash "$previous/scripts/hosted/backup.sh" --keep-stopped
   # Invalidate prior verification before applying migrations to the preserved data.
   rm -f -- "$STATE_PATH/preservation-verified.json"
-  python3 - "$STATE_PATH" "$previous" "$release" <<'PY'
+  python3 - "$STATE_PATH" "$previous" "$release" "$recovering" <<'PY'
 import hashlib,json,pathlib,sys
 state=pathlib.Path(sys.argv[1]); record=json.loads((state/'last-backup.json').read_text())
 if record.get('manifestSha256')!=hashlib.sha256((state/'last-backup-manifest.json').read_bytes()).hexdigest():
     raise SystemExit('The pre-upgrade backup manifest does not match backup evidence.')
 # Retain the exact pre-migration pair across post-upgrade backups and reruns.
-# A retry of the same release must not replace it with an already migrated DB.
-if sys.argv[2]!=sys.argv[3]:
+# Retries, including a corrective commit while still in maintenance, must not
+# replace the original recovery point with an already migrated database.
+recovering=sys.argv[4]=='true' and (state/'rollback-backup.json').is_file()
+if sys.argv[2]!=sys.argv[3] and not recovering:
     record.update(previousRelease=sys.argv[2],upgradingTo=sys.argv[3])
     temporary=state/'rollback-backup.json.tmp'; temporary.write_text(json.dumps(record,indent=2))
     temporary.replace(state/'rollback-backup.json')

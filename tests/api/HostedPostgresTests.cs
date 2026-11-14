@@ -91,9 +91,12 @@ public class HostedPostgresTests
     {
         await using var fixture = await IsolatedPostgres.CreateAsync();
         var sourceId = Guid.NewGuid(); var retainedSourceId = Guid.NewGuid(); var visibleId = Guid.NewGuid(); var hiddenId = Guid.NewGuid();
-        var date = DateTimeOffset.UtcNow;
+        // PostgreSQL timestamps round to microseconds, while the public read model
+        // stores ticks. An ordinary pre-upgrade write can retain these extra ticks.
+        var date = new DateTimeOffset(2020, 1, 2, 3, 4, 5, TimeSpan.Zero).AddTicks(7);
         const string primary = "TEST FIXTURE Science, art & ideas";
         const string secondary = "TEST FIXTURE retained secondary";
+        string originalIndex;
         await using (var before = fixture.Open())
         {
             await before.GetService<IMigrator>().MigrateAsync("20261031130254_ArchiveDiscovery");
@@ -103,23 +106,38 @@ public class HostedPostgresTests
                 """);
             foreach (var id in new[] { visibleId, hiddenId })
             {
+                // Match the deployed v2 projection, including blank names and case
+                // variants. Adding memberships must not rewrite existing columns.
+                var legacyNames = id == visibleId ? new[] { primary, secondary, primary.ToLowerInvariant(), "" } : [primary];
+                var legacyName = string.Join(", ", legacyNames.Distinct().Order(StringComparer.Ordinal));
+                var title = "TEST FIXTURE legacy source item";
+                var url = "https://example.org/source-upgrade/" + id;
+                var search = string.Join(' ', new[] { title, null, null, legacyName, "article", "rss", url }).ToUpperInvariant();
                 await before.Database.ExecuteSqlInterpolatedAsync($"""
                     INSERT INTO "Items" ("Id","SourceId","Kind","Title","CanonicalUrl","Provider","TextProvenance","IngestedAt","UpdatedAt","TopicIds","ClassificationOrigin","IsPublic")
                     VALUES ({id},{sourceId},'article','TEST FIXTURE legacy source item',{"https://example.org/source-upgrade/" + id},'rss','metadata',{date},{date},'[]','manual',{id == visibleId})
                     """);
                 await before.Database.ExecuteSqlInterpolatedAsync($"""
-                    INSERT INTO "PublicCatalogEntries" ("Id","IsPublic","Title","CanonicalUrl","IngestedAt","UpdatedAt","Type","Provider","SourceName","SourceKey","TypeKey","SearchText")
-                    VALUES ({id},{id == visibleId},'TEST FIXTURE legacy source item',{"https://example.org/source-upgrade/" + id},{date.UtcTicks},{date.UtcTicks},'article','rss',{primary},{primary.ToUpperInvariant()},'ARTICLE','TEST FIXTURE')
+                    INSERT INTO "PublicCatalogEntries" ("Id","IsPublic","Title","CanonicalUrl","IngestedAt","UpdatedAt","Type","Provider","SourceName","SourceKey","TypeKey","SearchText","ArchiveCandidate","RotationKey")
+                    VALUES ({id},{id == visibleId},{title},{url},{date.UtcTicks},{date.UtcTicks},'article','rss',{legacyName},{legacyName.ToUpperInvariant()},'ARTICLE',{search},{ArchiveDiscovery.IsCandidate("article", title, null, "rss")},{ArchiveDiscovery.RotationKey(id.ToString())})
                     """);
             }
             await before.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO "ItemSources" ("Id","ItemId","SourceKey","Name","Kind","Url","TopicIds","LastSeenAt")
                 VALUES ({Guid.NewGuid()},{visibleId},{retainedSourceId},{secondary},'rss','https://example.org/retained','[]',{date})
                 """);
+            foreach (var name in new[] { primary.ToLowerInvariant(), "" })
+                await before.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO "ItemSources" ("Id","ItemId","SourceKey","Name","Kind","Url","TopicIds","LastSeenAt")
+                    VALUES ({Guid.NewGuid()},{visibleId},{Guid.NewGuid()},{name},'rss','https://example.org/legacy-label','[]',{date})
+                    """);
             before.Settings.Add(new AppSetting { Key = "public-catalog-index-v2", Value = "complete" });
             before.Settings.Add(new AppSetting { Key = PublicationUpgrade.VersionKey, Value = "1" });
+            before.Settings.Add(new AppSetting { Key = CatalogUpgrade.VersionKey, Value = "1" });
+            before.Settings.Add(new AppSetting { Key = RecommendationUpgrade.VersionKey, Value = "1" });
             before.States.Add(new ItemState { ItemId = hiddenId, Saved = true, Read = true });
             await before.SaveChangesAsync();
+            originalIndex = await IndexRows();
         }
         using var factory = new Factory(fixture); using var anonymous = factory.CreateAnonymousClient();
         foreach (var source in new[] { primary, secondary })
@@ -133,8 +151,21 @@ public class HostedPostgresTests
         Assert.False((await after.Items.SingleAsync(i => i.Id == hiddenId)).IsPublic);
         Assert.True((await after.States.SingleAsync()).Saved);
         Assert.Equal(3, await after.PublicCatalogSources.CountAsync());
+        Assert.Equal(originalIndex, await IndexRows());
         await PublicCatalogIndex.BackfillAsync(after);
         Assert.Equal(3, await after.PublicCatalogSources.CountAsync());
+        Assert.Equal(originalIndex, await IndexRows());
+        using var restarted = new Factory(fixture); using var client = restarted.CreateAnonymousClient();
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/healthz")).StatusCode);
+        Assert.Equal(originalIndex, await IndexRows());
+
+        async Task<string> IndexRows()
+        {
+            await using var connection = new NpgsqlConnection(fixture.ConnectionString);
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand("""SELECT json_agg(t ORDER BY t."Id")::text FROM "PublicCatalogEntries" t""", connection);
+            return (string)(await command.ExecuteScalarAsync())!;
+        }
     }
 
     [HostedPostgresFact]

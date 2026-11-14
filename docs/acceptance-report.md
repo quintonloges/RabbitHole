@@ -1,5 +1,14 @@
 # RabbitHole acceptance report
 
+## GitHub browser-test SDK selection — 14 November 2026
+
+GitHub's runner had .NET 11 installed alongside the requested .NET 10 SDK. Without `global.json`, the browser-test host selected SDK **11.0.100** and failed in `Microsoft.NET.Sdk.StaticWebAssets.JSModules.targets` with an unmatched Blazor hot-reload asset. Added `global.json` to select stable .NET 10.0 feature bands, following [Microsoft's SDK selection guidance](https://learn.microsoft.com/en-us/dotnet/core/tools/global-json). CI now builds the browser-test host explicitly and prints the selected SDK; Playwright preserves the host's standard output so future startup failures retain their compiler diagnostics.
+
+- GitHub validation of `41a9312`: **405 backend tests passed**, five PostgreSQL-only skips; the separate PostgreSQL migration/endpoint run then passed **8 tests** with no skips. Full formatting, frontend lint, TypeScript and the optimized production build passed before browser-host startup failed.
+- `dotnet build tests/host/RabbitHole.E2eHost.csproj` and its `-c Release` variant passed on the local .NET 10.0.300 SDK. Clean committed-source builds also passed in disposable Linux SDK 10.0.300 and 10.0.404 containers. An additional SDK-only container test attempt lacked Python and failed 28 helper tests; that diagnostic attempt is not claimed as a passing full-suite run.
+- `npx playwright test --list`: configuration loaded and discovered **184 tests in 17 files**. This was discovery, not browser execution.
+- Production remains gated on a successful complete GitHub validation and the owner's environment approval.
+
 ## GitHub release formatting correction — 14 November 2026
 
 The release validation for `c7b5073` passed its workflow, Python and backend checks, then stopped at the full-solution .NET formatting gate. Corrected four whitespace diagnostics in `YtDlpClient.cs`; application behavior is unchanged.

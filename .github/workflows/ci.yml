@@ -36,7 +36,9 @@ jobs:
       - run: dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release
       - run: dotnet format RabbitHole.slnx --verify-no-changes --no-restore
       - name: Build browser test host
-        run: dotnet build tests/host/RabbitHole.E2eHost.csproj
+        run: |
+          dotnet --version
+          dotnet build tests/host/RabbitHole.E2eHost.csproj
       - name: PostgreSQL migration and endpoint regressions
         run: dotnet test tests/api/RabbitHole.Api.Tests.csproj -c Release --no-build --filter 'FullyQualifiedName~RecommendationEndpointTests|FullyQualifiedName~HostedPostgresTests'
         env:

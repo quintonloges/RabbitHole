@@ -132,7 +132,7 @@ AI summaries, comparisons, reading aids and critique are labeled synthesis and c
 
 ## Development and checks
 
-Requirements: .NET 10 SDK, Node.js 24, Python 3 for the source-pack checks, Docker for the production stack. Package versions and the frontend lockfile are checked in.
+Requirements: .NET 10 SDK, Node.js 24, Python 3 for the source-pack checks, Docker for the production stack. The checked-in `global.json` selects a stable .NET 10.0 SDK even when newer major SDKs are installed. Package versions and the frontend lockfile are checked in.
 
 ```powershell
 python -m unittest discover -s tests/scripts -v

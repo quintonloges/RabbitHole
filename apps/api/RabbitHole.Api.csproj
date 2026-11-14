@@ -6,6 +6,7 @@
     <RootNamespace>RabbitHole</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="Ingestion/yt_dlp_archive.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="../../config/curated-source-pack.json" LogicalName="RabbitHole.curated-source-pack.json" />
     <PackageReference Include="PdfPig" Version="0.1.16" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13"><PrivateAssets>all</PrivateAssets></PackageReference>

@@ -35,7 +35,7 @@ public sealed class IngestionService(AppDbContext db, IRemoteFetcher fetcher, IC
         public void Dispose() => gate.Release();
     }
 
-    private static async Task PaceAcademicAsync(string provider, CancellationToken ct)
+    internal static async Task PaceAcademicAsync(string provider, CancellationToken ct)
     {
         await AcademicRateLock.WaitAsync(ct);
         try

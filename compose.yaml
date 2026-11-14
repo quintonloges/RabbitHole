@@ -32,6 +32,8 @@ services:
       ConnectionStrings__Default: Host=db;Database=rabbithole;Username=rabbithole;Password=${POSTGRES_PASSWORD:-rabbithole-local-only}
       Documents__Path: /data/uploads
       OpenAlex__ApiKey: ${OPENALEX_API_KEY:-}
+      YouTube__ApiKey: ${YOUTUBE_API_KEY:-}
+      YouTube__BackfillMode: ${YOUTUBE_BACKFILL_MODE:-yt-dlp}
       AI__BaseUrl: ${AI_BASE_URL:-}
       AI__Model: ${AI_MODEL:-}
       AI__ApiKey: ${AI_API_KEY:-}

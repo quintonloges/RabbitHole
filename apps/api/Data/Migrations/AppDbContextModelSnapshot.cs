@@ -486,6 +486,12 @@ namespace RabbitHole.Data.Migrations
                     b.Property<int>("Imported")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("refresh");
+
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uuid");
 
@@ -886,6 +892,49 @@ namespace RabbitHole.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("BackfillEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("BackfillFailureCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BackfillImportedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("BackfillLastAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("BackfillLastSuccessAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("BackfillLimit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(3);
+
+                    b.Property<string>("BackfillMessage")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("BackfillNextAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("BackfillStateJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BackfillStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("pending");
+
+                    b.Property<string>("BackfillUrl")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("");
+
                     b.Property<string>("ETag")
                         .HasColumnType("text");
 
@@ -955,6 +1004,8 @@ namespace RabbitHole.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BackfillNextAt");
 
                     b.HasIndex("NextSyncAt");
 

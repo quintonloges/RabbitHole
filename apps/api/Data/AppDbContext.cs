@@ -109,6 +109,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         }
         builder.Entity<Topic>().HasIndex(x => x.Name).IsUnique();
         builder.Entity<Source>().HasIndex(x => x.NextSyncAt);
+        builder.Entity<Source>().HasIndex(x => x.BackfillNextAt);
+        builder.Entity<Source>().Property(x => x.BackfillEnabled).HasDefaultValue(true);
+        builder.Entity<Source>().Property(x => x.BackfillLimit).HasDefaultValue(3);
+        builder.Entity<Source>().Property(x => x.BackfillUrl).HasDefaultValue("");
+        builder.Entity<Source>().Property(x => x.BackfillStatus).HasDefaultValue("pending");
+        builder.Entity<IngestionJob>().Property(x => x.Kind).HasDefaultValue("refresh");
         builder.Entity<ContentItem>().HasOne<Source>().WithMany().HasForeignKey(x => x.SourceId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<ContentItem>().HasOne<LibraryDocument>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ContentItem>().HasQueryFilter(x => x.MergedIntoId == null);

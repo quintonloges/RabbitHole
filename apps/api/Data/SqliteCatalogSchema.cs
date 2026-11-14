@@ -52,6 +52,19 @@ public static class SqliteCatalogSchema
         if (!sourceColumns.Contains("IdentityVersion"))
             await ExecuteAsync("ALTER TABLE \"Sources\" ADD COLUMN \"IdentityVersion\" INTEGER NOT NULL DEFAULT 0;");
 
+        foreach (var (column, definition) in new[]
+        {
+            ("BackfillEnabled", "INTEGER NOT NULL DEFAULT 1"), ("BackfillLimit", "INTEGER NOT NULL DEFAULT 3"),
+            ("BackfillUrl", "TEXT NOT NULL DEFAULT ''"), ("BackfillStateJson", "TEXT NULL"),
+            ("BackfillNextAt", "TEXT NULL"), ("BackfillLastAttemptAt", "TEXT NULL"), ("BackfillLastSuccessAt", "TEXT NULL"),
+            ("BackfillStatus", "TEXT NOT NULL DEFAULT 'pending'"), ("BackfillMessage", "TEXT NULL"),
+            ("BackfillImportedCount", "INTEGER NOT NULL DEFAULT 0"), ("BackfillFailureCount", "INTEGER NOT NULL DEFAULT 0")
+        })
+            if (!sourceColumns.Contains(column)) await ExecuteAsync($"ALTER TABLE \"Sources\" ADD COLUMN \"{column}\" {definition};");
+        if (!(await ColumnsAsync("Jobs")).Contains("Kind"))
+            await ExecuteAsync("ALTER TABLE \"Jobs\" ADD COLUMN \"Kind\" TEXT NOT NULL DEFAULT 'refresh';");
+        await ExecuteAsync("CREATE INDEX IF NOT EXISTS \"IX_Sources_BackfillNextAt\" ON \"Sources\" (\"BackfillNextAt\");");
+
         await ExecuteAsync("""
             CREATE TABLE IF NOT EXISTS "ItemIdentities" (
                 "Key" TEXT NOT NULL CONSTRAINT "PK_ItemIdentities" PRIMARY KEY,

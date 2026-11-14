@@ -1,8 +1,52 @@
 {
   "version": 1,
   "requiresExplicitApply": true,
-  "description": "Selected original articles, historical material, classic papers and official media players. URLs were researched on 17 October 2026. Import retrieves real provider metadata; missing publication dates remain unknown. No continuous monitor is implied.",
+  "description": "Selected original articles, historical material, classic papers and official media players. Initial URLs researched on 17 October 2026; AI creator videos and interviews added on 11 November 2026. Import retrieves real provider metadata; missing publication dates remain unknown. Recurring subscriptions are separate in curated-source-pack.json.",
   "items": [
+    {
+      "label": "They Hid a Censor Inside Qwen. One Line of Math Made It Uncensored",
+      "url": "https://www.youtube.com/watch?v=eT9G5cO-nY8",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Exact owner-requested video. Title and creator verified with official YouTube oEmbed on 11 November 2026; the title is the creator's framing. Retained separately because it is outside the current channel feed.",
+      "verifiedAuthor": "Dr. Josh C. Simmons"
+    },
+    {
+      "label": "The Demon Hidden Inside Qwen (I Pushed One Neuron)",
+      "url": "https://www.youtube.com/watch?v=Uvtg6AezSwo",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Related hands-on model-steering video by the requested creator, verified in the official channel Atom feed on 11 November 2026. The title is source text, not an app assertion.",
+      "verifiedAuthor": "Dr. Josh C. Simmons"
+    },
+    {
+      "label": "Ilya Sutskever – We're moving from the age of scaling to the age of research",
+      "url": "https://www.youtube.com/watch?v=aR20FWCCjAs",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Long-form Ilya Sutskever interview; official video linked from https://www.dwarkesh.com/p/ilya-sutskever-2 and verified on 11 November 2026."
+    },
+    {
+      "label": "Dario Amodei — “We are near the end of the exponential”",
+      "url": "https://www.youtube.com/watch?v=n1E9IZfvGMA",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Long-form discussion of scaling, continual learning and frontier AI; official video linked from https://www.dwarkesh.com/p/dario-amodei-2 and verified on 11 November 2026."
+    },
+    {
+      "label": "Demis Hassabis — Scaling, superhuman AIs, AlphaZero atop LLMs, AlphaFold",
+      "url": "https://www.youtube.com/watch?v=qTogNUV3CAI",
+      "topics": [
+        "Frontier AI"
+      ],
+      "reason": "Researcher interview on intelligence, reinforcement learning and AI for science; official video linked from https://www.dwarkesh.com/p/demis-hassabis, checked on 11 November 2026."
+    },
     {
       "label": "Facing Up to the Problem of Consciousness",
       "url": "https://consc.net/papers/facing.html",

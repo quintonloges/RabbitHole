@@ -14,7 +14,7 @@ public static class SourcePresets
             ?? throw new InvalidOperationException("The bundled source catalog is missing.");
         using var document = JsonDocument.Parse(stream);
         var presets = document.RootElement.GetProperty("sources").EnumerateArray()
-            .Where(source => source.GetProperty("enabledDefault").GetBoolean() && source.GetProperty("kind").GetString() is "rss" or "web-archive")
+            .Where(source => source.GetProperty("enabledDefault").GetBoolean() && source.GetProperty("kind").GetString() is "rss" or "youtube" or "web-archive")
             .Select(source => new SourcePreset(source.GetProperty("name").GetString()!, source.GetProperty("kind").GetString()!, source.GetProperty("url").GetString()!,
                 source.GetProperty("topics").EnumerateArray().Select(topic => topic.GetString()!).ToArray(),
                 source.GetProperty("intervalMinutes").GetInt32(), source.GetProperty("resultLimit").GetInt32(), source.GetProperty("reason").GetString()!, source.GetProperty("query").GetString()!))

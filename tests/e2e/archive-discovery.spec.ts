@@ -49,6 +49,27 @@ test('archive share persists and expanded source suggestions fill in topics and 
   await expect(page.getByLabel('Result limit', { exact: true })).toHaveValue('60');
   await expect(page.getByRole('combobox', { name: 'Refresh interval', exact: true })).toHaveValue('10080');
   await expect(page.getByRole('checkbox', { name: 'Frontier AI', exact: true })).toBeChecked();
+  for (const [name, url] of [['Sean Goedecke', 'https://www.seangoedecke.com/rss.xml'], ['Dwarkesh Podcast', 'https://www.dwarkesh.com/feed']]) {
+    await page.getByRole('button', { name, exact: true }).click();
+    await expect(page.getByLabel('Feed URL', { exact: true })).toHaveValue(url);
+    await expect(page.getByRole('combobox', { name: 'Type', exact: true })).toHaveValue('rss');
+  }
+  await page.getByRole('button', { name: 'Dr. Josh C. Simmons', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Type', exact: true })).toHaveValue('youtube');
+  await expect(page.getByLabel('Feed URL', { exact: true })).toHaveValue('https://www.youtube.com/channel/UC4sdJIrKWKxymZ5lwVSBzTw');
+  await expect(page.getByLabel('Result limit', { exact: true })).toHaveValue('15');
+  await expect(page.getByRole('checkbox', { name: 'Frontier AI', exact: true })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Software engineering', exact: true })).toBeChecked();
+  const sourceName = `TEST FIXTURE video preset ${randomUUID()}`;
+  await page.getByLabel('Source name', { exact: true }).fill(sourceName);
+  await page.getByRole('button', { name: 'Add source', exact: true }).click();
+  await expect(page.getByRole('heading', { name: sourceName, exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: sourceName, exact: true })).toBeVisible();
+  const sources = await (await request.get('/api/sources')).json();
+  expect(sources.find((source: { name: string }) => source.name === sourceName)).toMatchObject({
+    kind: 'youtube', url: 'https://www.youtube.com/channel/UC4sdJIrKWKxymZ5lwVSBzTw', intervalMinutes: 1440, resultLimit: 15,
+  });
   await request.patch('/api/settings', { data: { archiveShare: before.archiveShare } });
 });
 

@@ -39,6 +39,8 @@ services:
       Security__LoginAttemptsPerWindow: ${LOGIN_ATTEMPTS_PER_WINDOW:-5}
       Ingestion__Paused: ${INGESTION_PAUSED:-true}
       OpenAlex__ApiKey: ${OPENALEX_API_KEY:-}
+      YouTube__ApiKey: ${YOUTUBE_API_KEY:-}
+      YouTube__BackfillMode: ${YOUTUBE_BACKFILL_MODE:-yt-dlp}
       AI__BaseUrl: ${AI_BASE_URL:-}
       AI__Model: ${AI_MODEL:-}
       AI__ApiKey: ${AI_API_KEY:-}

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace RabbitHole.Domain;
 
 public class Topic
@@ -25,6 +27,18 @@ public class Source
     public bool Enabled { get; set; } = true;
     public int IntervalMinutes { get; set; } = 360;
     public int ResultLimit { get; set; } = 25;
+    public bool BackfillEnabled { get; set; } = true;
+    public int BackfillLimit { get; set; } = 3;
+    public string BackfillUrl { get; set; } = "";
+    [JsonIgnore]
+    public string? BackfillStateJson { get; set; }
+    public DateTimeOffset? BackfillNextAt { get; set; }
+    public DateTimeOffset? BackfillLastAttemptAt { get; set; }
+    public DateTimeOffset? BackfillLastSuccessAt { get; set; }
+    public string BackfillStatus { get; set; } = "pending";
+    public string? BackfillMessage { get; set; }
+    public int BackfillImportedCount { get; set; }
+    public int BackfillFailureCount { get; set; }
     public DateTimeOffset? LastSuccessAt { get; set; }
     public DateTimeOffset? LastAttemptAt { get; set; }
     public DateTimeOffset NextSyncAt { get; set; } = DateTimeOffset.UtcNow;
@@ -232,6 +246,7 @@ public class FeedEntry
 
 public class IngestionJob
 {
+    public string Kind { get; set; } = "refresh";
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid SourceId { get; set; }
     public string Status { get; set; } = "running";

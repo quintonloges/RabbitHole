@@ -43,7 +43,30 @@ public class FixtureFactory : WebApplicationFactory<global::Program>
         {
             services.RemoveAll<IRemoteFetcher>();
             services.AddSingleton<IRemoteFetcher, FixtureFetcher>();
+            services.RemoveAll<IYtDlpClient>();
+            services.AddSingleton<IYtDlpClient, FixtureYtDlpClient>();
         });
+    }
+}
+
+/// <summary>Deterministic metadata pages only; never launches yt-dlp or contacts YouTube.</summary>
+public sealed class FixtureYtDlpClient : IYtDlpClient
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> calls = new();
+    public Task<YtDlpPage> FetchAsync(string channelId, int start, int limit, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var attempt = calls.AddOrUpdate(channelId, 1, (_, count) => count + 1);
+        if (channelId == "UCaaaaaaaaaaaaaaaaaaaaaa" && attempt == 1)
+            throw new YtDlpException("TEST FIXTURE: yt-dlp could not reach YouTube. Check YouTube again to retry.");
+        var prefix = channelId == "UCaaaaaaaaaaaaaaaaaaaaaa" ? "ytcheck" : "ytgood";
+        var entries = Enumerable.Range(start, Math.Min(limit, Math.Max(0, 6 - start + 1))).Select(index =>
+            new YtDlpEntry(prefix + index.ToString("D" + (11 - prefix.Length)),
+                $"TEST FIXTURE: Older YouTube upload {index}", channelId, "TEST FIXTURE creator",
+                "Deterministic video metadata only. No video, audio, or captions are downloaded.",
+                null, index == 1 ? null : "20110102", "public", false, false, index)).ToArray();
+        var next = start + entries.Length;
+        return Task.FromResult(new YtDlpPage(1, "2026.11.11", channelId, start, next, next > 6, entries, []));
     }
 }
 
@@ -93,6 +116,15 @@ public class FixtureFetcher : IRemoteFetcher
             mime = "application/atom+xml";
             body = """
                 <feed xmlns="http://www.w3.org/2005/Atom"><entry><id>http://arxiv.org/abs/2401.00001v1</id><title>TEST FIXTURE: A robotics paper</title><author><name>Fixture scientist</name></author><published>2024-01-01T00:00:00Z</published><summary>Robotics and software engineering fixture abstract.</summary><link href="https://arxiv.org/abs/2401.00001" rel="alternate"/></entry></feed>
+                """;
+        }
+        else if (url.Host == "www.youtube.com" && url.AbsolutePath == "/feeds/videos.xml")
+        {
+            mime = "application/atom+xml";
+            var channelId = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(url.Query)["channel_id"].ToString();
+            var videoId = channelId == "UCaaaaaaaaaaaaaaaaaaaaaa" ? "ytrecent002" : "ytrecent001";
+            body = $"""
+                <feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015"><id>yt:channel:{channelId}</id><title>TEST FIXTURE recent videos</title><author><name>TEST FIXTURE creator</name></author><entry><id>yt:video:{videoId}</id><yt:videoId>{videoId}</yt:videoId><yt:channelId>{channelId}</yt:channelId><title>TEST FIXTURE: Recent YouTube upload</title><author><name>TEST FIXTURE creator</name></author><link rel="alternate" href="https://www.youtube.com/watch?v={videoId}"/><published>2026-01-01T00:00:00Z</published></entry></feed>
                 """;
         }
         else if (url.Host.EndsWith("youtube.com") && url.AbsolutePath == "/oembed")

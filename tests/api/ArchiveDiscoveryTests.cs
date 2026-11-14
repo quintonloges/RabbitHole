@@ -140,6 +140,12 @@ public class ArchiveDiscoveryTests
         var distill = Assert.Single(SourcePresets.All, p => p.Name == "Distill");
         Assert.Equal("https://distill.pub/rss.xml", distill.Url);
         Assert.Contains("Frontier AI", distill.Topics);
+        // Video subscriptions must reach Settings as YouTube sources, so imports
+        // use real video IDs and approved embeds rather than generic RSS articles.
+        var video = Assert.Single(SourcePresets.All, p => p.Name == "Dr. Josh C. Simmons");
+        Assert.Equal("youtube", video.Kind);
+        Assert.NotNull(ProviderAdapters.YoutubeChannelId(video.Url));
+        Assert.Contains("Frontier AI", video.Topics);
         Assert.Equal(SourcePresets.All.Count, SourcePresets.All.Select(p => (p.Kind, p.Url, p.Query)).Distinct().Count());
     }
 }

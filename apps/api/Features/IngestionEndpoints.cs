@@ -6,7 +6,8 @@ using RabbitHole.Ingestion;
 namespace RabbitHole.Features;
 
 public sealed record SourceInput(string? Name, string? Kind, string? Url, string? Query,
-    List<Guid>? TopicIds, int? IntervalMinutes, int? ResultLimit, bool? Enabled);
+    List<Guid>? TopicIds, int? IntervalMinutes, int? ResultLimit, bool? Enabled,
+    bool? BackfillEnabled = null, int? BackfillLimit = null, string? BackfillUrl = null);
 public sealed record UrlImportInput(string Url, string? Title, string? FeedUrl = null);
 public sealed record ResearchImportInput(string Provider, string ProviderId);
 
@@ -17,6 +18,9 @@ public static class IngestionEndpoints
         services.AddSingleton<IDnsLookup, SystemDnsLookup>();
         services.AddSingleton<IRemoteFetcher, SafeRemoteFetcher>();
         services.AddScoped<IngestionService>();
+        services.AddSingleton<IYtDlpClient, YtDlpClient>();
+        services.AddScoped<SourceBackfill>();
+        services.AddScoped<SourceBackfillService>();
         services.AddHostedService<IngestionWorker>();
         return services;
     }
@@ -28,7 +32,7 @@ public static class IngestionEndpoints
         {
             var path = context.HttpContext.Request.Path.Value ?? "";
             var remoteOperation = path is "/api/items/import-url" or "/api/research/import" or "/api/research/search" ||
-                path.StartsWith("/api/sources/", StringComparison.Ordinal) && (path.EndsWith("/refresh") || path.EndsWith("/test"));
+                path.StartsWith("/api/sources/", StringComparison.Ordinal) && (path.EndsWith("/refresh") || path.EndsWith("/test") || path.EndsWith("/backfill") || path.EndsWith("/backfill-check"));
             if (remoteOperation && await SettingsService.IsIngestionPausedAsync(
                 context.HttpContext.RequestServices.GetRequiredService<AppDbContext>(),
                 context.HttpContext.RequestServices.GetRequiredService<IConfiguration>(), context.HttpContext.RequestAborted))
@@ -79,7 +83,19 @@ public static class IngestionEndpoints
                 foreach (var link in db.ItemSources.Local.Where(x => x.SourceId == id)) link.SourceId = null;
                 source.IdentityVersion = checked(source.IdentityVersion + 1);
             }
+            var resetBackfill = replaceOrigin || input.BackfillUrl is not null && input.BackfillUrl.Trim() != source.BackfillUrl;
             Apply(source, input);
+            if (resetBackfill)
+            {
+                source.BackfillStateJson = null;
+                source.BackfillNextAt = null;
+                source.BackfillStatus = "pending";
+                source.BackfillMessage = null;
+                source.BackfillLastAttemptAt = null;
+                source.BackfillLastSuccessAt = null;
+                source.BackfillImportedCount = 0;
+                source.BackfillFailureCount = 0;
+            }
             if (source.TopicIds.Count > 0 && await db.Topics.CountAsync(x => source.TopicIds.Contains(x.Id), ct) != source.TopicIds.Count)
                 return Results.Problem("One or more topics do not exist.", statusCode: 400);
             source.NextSyncAt = DateTimeOffset.UtcNow;
@@ -146,6 +162,19 @@ public static class IngestionEndpoints
             if (source is null) return Results.NotFound();
             return Results.Ok(await ingestion.RefreshAsync(source, ct));
         });
+        group.MapPost("/sources/{id:guid}/backfill", async (Guid id, AppDbContext db, SourceBackfillService backfill, CancellationToken ct) =>
+        {
+            var source = await db.Sources.FindAsync([id], ct);
+            if (source is null) return Results.NotFound();
+            return Results.Ok(await backfill.RunAsync(source, ct, force: true));
+        });
+        group.MapPost("/sources/{id:guid}/backfill-check", async (Guid id, AppDbContext db, SourceBackfillService backfill, CancellationToken ct) =>
+        {
+            var source = await db.Sources.FindAsync([id], ct);
+            if (source is null) return Results.NotFound();
+            if (source.Kind != "youtube") return Results.Problem("This health check is for YouTube sources.", statusCode: 400);
+            return Results.Ok(await backfill.RunAsync(source, ct, force: true, checkOnly: true));
+        });
         group.MapGet("/jobs", async (AppDbContext db, CancellationToken ct) =>
             (await db.Jobs.ToListAsync(ct)).OrderByDescending(x => x.StartedAt).Take(100).ToArray());
         group.MapPost("/items/import-url", async (UrlImportInput input, IngestionService ingestion, CancellationToken ct) =>
@@ -180,6 +209,20 @@ public static class IngestionEndpoints
         if (string.IsNullOrWhiteSpace(name) || name.Length > 120) return "Source name must be 1–120 characters.";
         if (input.IntervalMinutes is < 15 or > 10080 || input.ResultLimit is < 1 or > 100)
             return "Interval must be 15–10080 minutes and result limit 1–100.";
+        if (input.BackfillLimit is < 1 or > 10) return "Archive batch limit must be 1-10 items.";
+        var archiveUrl = (input.BackfillUrl ?? existing?.BackfillUrl ?? "").Trim();
+        if (kind == "rss" && archiveUrl.Length > 2048) return "Archive URL must be at most 2048 characters.";
+        if (kind == "rss" && archiveUrl.Length > 0)
+        {
+            try
+            {
+                var archive = SafeRemoteFetcher.ValidateUrl(archiveUrl);
+                var origin = SafeRemoteFetcher.ValidateUrl(url ?? "");
+                if (!string.Equals(archive.Host, origin.Host, StringComparison.OrdinalIgnoreCase))
+                    return "Archive URL must use the same host as the source URL.";
+            }
+            catch (RemoteFetchException e) { return e.Message; }
+        }
         if ((input.TopicIds?.Count ?? 0) > 20) return "Too many topics selected.";
         if (kind is "rss" or "youtube")
         {
@@ -214,13 +257,18 @@ public static class IngestionEndpoints
         source.IntervalMinutes = input.IntervalMinutes ?? source.IntervalMinutes;
         source.ResultLimit = input.ResultLimit ?? source.ResultLimit;
         source.Enabled = input.Enabled ?? source.Enabled;
+        source.BackfillEnabled = input.BackfillEnabled ?? source.BackfillEnabled;
+        source.BackfillLimit = input.BackfillLimit ?? source.BackfillLimit;
+        if (source.Kind != "rss") source.BackfillUrl = "";
+        else if (input.BackfillUrl is not null) source.BackfillUrl = input.BackfillUrl.Trim();
     }
 }
 
-public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<IngestionWorker> logger) : BackgroundService
+public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<IngestionWorker> logger, IHostEnvironment environment) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (environment.IsEnvironment("Testing")) return;
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
         try
         {
@@ -238,6 +286,18 @@ public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<Ingesti
                         job.Status = "interrupted";
                         job.Error = "The previous refresh stopped before completion; retry is available.";
                         job.FinishedAt = DateTimeOffset.UtcNow;
+                        if (job.Kind is "backfill" or "backfill-check")
+                        {
+                            job.Error = "The previous archive check stopped before completion; retry is available.";
+                            var interruptedSource = await db.Sources.FindAsync([job.SourceId], stoppingToken);
+                            if (interruptedSource is { BackfillStatus: "running" } && interruptedSource.BackfillLastAttemptAt <= job.StartedAt)
+                            {
+                                interruptedSource.BackfillStatus = "interrupted";
+                                interruptedSource.BackfillMessage = job.Error;
+                                interruptedSource.BackfillFailureCount = Math.Min(interruptedSource.BackfillFailureCount + 1, 12);
+                                interruptedSource.BackfillNextAt = DateTimeOffset.UtcNow.AddDays(1);
+                            }
+                        }
                     }
                     if (stale.Count > 0) await db.SaveChangesAsync(stoppingToken);
                     var due = (await db.Sources.Where(x => x.Enabled).ToListAsync(stoppingToken))
@@ -254,6 +314,20 @@ public sealed class IngestionWorker(IServiceScopeFactory scopes, ILogger<Ingesti
                         try { await sourceScope.ServiceProvider.GetRequiredService<IngestionService>().RefreshAsync(source, stoppingToken); }
                         catch (Exception error) when (error is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
                         { logger.LogWarning("Source {SourceId} could not record refresh status: {Type}", source.Id, error.GetType().Name); }
+                    }
+                    var archiveDue = (await db.Sources.AsNoTracking().Where(x => x.Enabled && x.BackfillEnabled && x.Kind != "web-archive" && x.BackfillStatus != "scan-limit").ToListAsync(stoppingToken))
+                        .Where(x => x.BackfillNextAt is null || x.BackfillNextAt <= DateTimeOffset.UtcNow)
+                        .OrderBy(x => x.BackfillNextAt).Take(3).ToList();
+                    foreach (var dueSource in archiveDue)
+                    {
+                        using var sourceScope = scopes.CreateScope();
+                        var sourceDb = sourceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                        if (await SettingsService.IsIngestionPausedAsync(sourceDb, sourceScope.ServiceProvider.GetRequiredService<IConfiguration>(), stoppingToken)) break;
+                        var source = await sourceDb.Sources.FindAsync([dueSource.Id], stoppingToken);
+                        if (source is null) continue;
+                        try { await sourceScope.ServiceProvider.GetRequiredService<SourceBackfillService>().RunAsync(source, stoppingToken); }
+                        catch (Exception error) when (error is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
+                        { logger.LogWarning("Source {SourceId} could not record archive backfill status: {Type}", source.Id, error.GetType().Name); }
                     }
                 }
                 catch (Exception error) when (error is not OperationCanceledException)

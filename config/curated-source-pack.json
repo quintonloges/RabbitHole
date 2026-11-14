@@ -4,6 +4,244 @@
   "description": "Human-editable opt-in source pack. Never loaded automatically on startup. Existing subscriptions and user preferences are preserved by the installer.",
   "sources": [
     {
+      "name": "Morning Dew — Alvin Ashcraft",
+      "kind": "rss",
+      "url": "https://www.alvinashcraft.com/feeds/feed.xml",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "Owner-requested daily developer roundup, including Alvin Ashcraft's AI section and links to original authors.",
+      "intervalMinutes": 1440,
+      "resultLimit": 3,
+      "enabledDefault": true,
+      "importance": "owner-requested interest; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Publisher RSS fetched with the app's safe fetcher and parser: 20 real roundups with author, publication dates and feed-supplied text. Activation is separate."
+      },
+      "limitation": "Each item is the complete developer roundup, not only its AI section. Referenced articles are not automatically imported or treated as Alvin's original writing."
+    },
+    {
+      "name": "O'Reilly Radar",
+      "kind": "rss",
+      "url": "https://www.oreilly.com/radar/feed/",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "AI engineering, agents, evaluation and the effects of AI on software work; repeatedly linked in Morning Dew's AI section.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "owner-requested source discovery; no credibility score",
+      "discoveredVia": {
+        "curator": "Alvin Ashcraft's Morning Dew",
+        "section": "AI",
+        "issueUrl": "https://alvinashcraft.com/2026/11/12/dew-drop-november-12-2026-4791/",
+        "originalUrl": "https://www.oreilly.com/radar/where-are-the-killer-apps-of-ai/"
+      },
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Advertised RSS redirect resolved and parsed with the app's safe fetcher: 15 real entries. Activation is separate."
+      },
+      "limitation": "Radar also covers business, data and other technology. Feed-supplied text only; subscription books and courses are not imported."
+    },
+    {
+      "name": "JetBrains AI",
+      "kind": "rss",
+      "url": "https://blog.jetbrains.com/ai/feed/",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "AI coding tools, code retrieval and engineering field notes from the JetBrains AI section, linked by Morning Dew.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "owner-requested source discovery; no credibility score",
+      "discoveredVia": {
+        "curator": "Alvin Ashcraft's Morning Dew",
+        "section": "AI",
+        "issueUrl": "https://alvinashcraft.com/2026/11/11/dew-drop-november-11-2026-4790/",
+        "originalUrl": "https://blog.jetbrains.com/ai/2026/11/air-in-jetbrains-ides-ga/"
+      },
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Advertised AI-section RSS fetched with the app's safe fetcher and parser: 12 real entries. Activation is separate."
+      },
+      "limitation": "Includes product announcements and events as well as technical articles. This is the AI-section feed, not every JetBrains product blog."
+    },
+    {
+      "name": "Bart Wullems",
+      "kind": "rss",
+      "url": "https://bartwullems.blogspot.com/feeds/posts/default",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "Practitioner notes on AI agents, Copilot, MCP and software development; repeatedly linked in Morning Dew's AI section.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "owner-requested source discovery; no credibility score",
+      "discoveredVia": {
+        "curator": "Alvin Ashcraft's Morning Dew",
+        "section": "AI",
+        "issueUrl": "https://alvinashcraft.com/2026/11/12/dew-drop-november-12-2026-4791/",
+        "originalUrl": "https://bartwullems.blogspot.com/2026/11/let-your-agents-cleanup-after-they.html"
+      },
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Advertised Atom feed fetched with the app's safe fetcher and parser: 25 real entries. Activation is separate."
+      },
+      "limitation": "The author's full blog also includes .NET, databases, cloud and architecture; it is not filtered to AI."
+    },
+    {
+      "name": "Model Context Protocol Blog",
+      "kind": "rss",
+      "url": "https://blog.modelcontextprotocol.io/index.xml",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "Protocol maintainers' updates on MCP tools, interoperability and implementation, surfaced through Morning Dew's AI section.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "owner-requested source discovery; no credibility score",
+      "discoveredVia": {
+        "curator": "Alvin Ashcraft's Morning Dew",
+        "section": "AI",
+        "issueUrl": "https://alvinashcraft.com/2026/11/12/dew-drop-november-12-2026-4791/",
+        "originalUrl": "https://blog.modelcontextprotocol.io/posts/mcp-release-cycle/"
+      },
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Advertised RSS fetched with the app's safe fetcher and parser: 29 real entries. Activation is separate."
+      },
+      "limitation": "The feed supplies dates and descriptions but omits per-entry author fields. Authors are not inferred; original pages retain their bylines."
+    },
+    {
+      "name": "Microsoft Foundry Blog",
+      "kind": "rss",
+      "url": "https://devblogs.microsoft.com/foundry/feed/",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "Practical AI agents, model evaluation, local models and deployment tooling; linked in Morning Dew's AI section.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "importance": "owner-requested source discovery; no credibility score",
+      "discoveredVia": {
+        "curator": "Alvin Ashcraft's Morning Dew",
+        "section": "AI",
+        "issueUrl": "https://alvinashcraft.com/2026/11/12/dew-drop-november-12-2026-4791/",
+        "originalUrl": "https://devblogs.microsoft.com/foundry/content-understanding-adds-gpt-5-6-gpt-6-and-gpt-6-1-choose-the-right-model-for-your-workload/"
+      },
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Publisher-linked RSS fetched with the app's safe fetcher and parser: 10 real entries. Activation is separate."
+      },
+      "limitation": "Vendor-specific engineering and product announcements. Reading the feed needs no key; using the described Azure services may require an account."
+    },
+    {
+      "name": "The New Stack",
+      "kind": "rss",
+      "url": "https://thenewstack.io/blog/feed/",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "Reporting and practitioner articles on AI development, agents and software infrastructure, repeatedly linked by Morning Dew.",
+      "intervalMinutes": 1440,
+      "resultLimit": 8,
+      "enabledDefault": true,
+      "importance": "owner-requested source discovery; no credibility score",
+      "discoveredVia": {
+        "curator": "Alvin Ashcraft's Morning Dew",
+        "section": "AI",
+        "issueUrl": "https://alvinashcraft.com/2026/11/10/dew-drop-november-10-2026-4789/",
+        "originalUrl": "https://thenewstack.io/cursor-antigravity-voice-agents/"
+      },
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Advertised RSS fetched with the app's safe fetcher and parser: 26 real entries. Activation is separate."
+      },
+      "limitation": "The full publication feed includes cloud, infrastructure and other software topics, not only AI. Its finite recent window may omit older posts."
+    },
+    {
+      "name": "InfoQ — AI, ML & Data Engineering",
+      "kind": "rss",
+      "url": "https://feed.infoq.com/ai-ml-data-eng/",
+      "query": "",
+      "topics": ["Frontier AI", "Software engineering"],
+      "reason": "Topic-specific coverage of agent architecture, memory, context and production AI systems from a publisher linked by Morning Dew.",
+      "intervalMinutes": 1440,
+      "resultLimit": 8,
+      "enabledDefault": true,
+      "importance": "owner-requested source discovery; no credibility score",
+      "discoveredVia": {
+        "curator": "Alvin Ashcraft's Morning Dew",
+        "section": "AI",
+        "issueUrl": "https://alvinashcraft.com/2026/11/12/dew-drop-november-12-2026-4791/",
+        "originalUrl": "https://www.infoq.com/news/2026/11/github-agentic-workflows-ga/"
+      },
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Publisher-linked AI, ML and Data Engineering RSS fetched with the app's safe fetcher and parser: 15 real entries. Activation is separate."
+      },
+      "limitation": "This topic feed also includes data engineering and databases. Imports use supplied metadata and excerpts; original articles remain on InfoQ."
+    },
+    {
+      "name": "Sean Goedecke",
+      "kind": "rss",
+      "url": "https://www.seangoedecke.com/rss.xml",
+      "query": "",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Owner-requested practitioner essays on AI, software engineering, agents and working in large technology companies.",
+      "intervalMinutes": 1440,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "owner-requested interest; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-11",
+        "status": "Advertised RSS fetched with the app's safe fetcher and parser: 30 real entries with feed-supplied text. Activation is separate."
+      },
+      "limitation": "Feed-supplied text and original links only. The current feed omits a per-entry author field; the subscription identifies the publisher."
+    },
+    {
+      "name": "Dr. Josh C. Simmons",
+      "kind": "youtube",
+      "url": "https://www.youtube.com/channel/UC4sdJIrKWKxymZ5lwVSBzTw",
+      "query": "",
+      "topics": [
+        "Frontier AI",
+        "Software engineering"
+      ],
+      "reason": "Owner-requested hands-on AI videos: model internals, open-weight experiments, refusal directions and activation steering, alongside the creator's cybersecurity work.",
+      "intervalMinutes": 1440,
+      "resultLimit": 15,
+      "enabledDefault": true,
+      "importance": "owner-requested interest; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-11",
+        "status": "Channel feed advertised by @drjoshcsimmons verified with the app's safe fetcher and parser: 15 real videos. Requested Qwen video title and creator separately verified with official YouTube oEmbed. Activation is separate."
+      },
+      "limitation": "Recent channel uploads include cybersecurity, livestreams and Shorts as well as AI experiments. The feed is finite; older selected videos are in the reading pack. Original embeds only; no transcript or media downloads."
+    },
+    {
+      "name": "Dwarkesh Podcast",
+      "kind": "rss",
+      "url": "https://www.dwarkesh.com/feed",
+      "query": "",
+      "topics": [
+        "Frontier AI",
+        "Unexpected finds"
+      ],
+      "reason": "Long-form conversations with AI researchers and builders, including Ilya Sutskever, Dario Amodei and Demis Hassabis, plus interdisciplinary interviews and essays.",
+      "intervalMinutes": 1440,
+      "resultLimit": 10,
+      "enabledDefault": true,
+      "importance": "owner-requested interest; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-11",
+        "status": "Publisher RSS verified with the app's safe fetcher and parser: 20 real entries within the app's RSS size limit. Selected interview videos also verified with official YouTube oEmbed. Activation is separate."
+      },
+      "limitation": "The feed also includes history, economics and other subjects; it is not an AI-only guest filter. Older interviews are selected separately in the reading pack."
+    },
+    {
       "name": "Google Research",
       "kind": "rss",
       "url": "https://research.google/blog/rss/",

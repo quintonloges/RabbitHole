@@ -27,6 +27,11 @@ public class CatalogUpgradeTests
             items.HasIndex(i => i.Doi).IsUnique(); items.HasIndex(i => i.ArxivId).IsUnique();
             builder.Entity<Source>().Ignore(s => s.ResearchCursor).Ignore(s => s.ResearchFromDate)
                 .Ignore(s => s.ResearchWindowStartedAt).Ignore(s => s.ResearchCheckpointAt).Ignore(s => s.IdentityVersion);
+            builder.Entity<Source>().Ignore(s => s.BackfillEnabled).Ignore(s => s.BackfillLimit).Ignore(s => s.BackfillUrl)
+                .Ignore(s => s.BackfillStateJson).Ignore(s => s.BackfillNextAt).Ignore(s => s.BackfillLastAttemptAt)
+                .Ignore(s => s.BackfillLastSuccessAt).Ignore(s => s.BackfillStatus).Ignore(s => s.BackfillMessage)
+                .Ignore(s => s.BackfillImportedCount).Ignore(s => s.BackfillFailureCount);
+            builder.Entity<IngestionJob>().Ignore(j => j.Kind);
         }
     }
 
@@ -121,6 +126,9 @@ public class CatalogUpgradeTests
         Assert.Equal(0, sourceAfter.IdentityVersion);
         Assert.All(await db.ItemSources.ToListAsync(), x => Assert.Equal(0, x.SourceVersion));
         Assert.Null(sourceAfter.ResearchCursor); Assert.Null(sourceAfter.ResearchCheckpointAt);
+        Assert.True(sourceAfter.BackfillEnabled); Assert.Equal(3, sourceAfter.BackfillLimit);
+        Assert.Equal("pending", sourceAfter.BackfillStatus); Assert.Null(sourceAfter.BackfillNextAt);
+        Assert.Null(sourceAfter.BackfillStateJson);
         sourceAfter.ResearchCursor = "TEST FIXTURE cursor"; sourceAfter.ResearchFromDate = DateTimeOffset.UtcNow;
         sourceAfter.ResearchWindowStartedAt = DateTimeOffset.UtcNow; sourceAfter.ResearchCheckpointAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();

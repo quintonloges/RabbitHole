@@ -32,7 +32,8 @@ public sealed class YtDlpClient : IYtDlpClient
     private readonly string helperPath;
     private readonly TimeSpan timeout;
     public YtDlpClient(IConfiguration config) : this(config,
-        Path.Combine(AppContext.BaseDirectory, "Ingestion", "yt_dlp_archive.py"), TimeSpan.FromSeconds(75)) { }
+        Path.Combine(AppContext.BaseDirectory, "Ingestion", "yt_dlp_archive.py"), TimeSpan.FromSeconds(75))
+    { }
     internal YtDlpClient(IConfiguration config, string helperPath, TimeSpan? timeout = null)
     {
         this.config = config; this.helperPath = Path.GetFullPath(helperPath);
@@ -55,8 +56,11 @@ public sealed class YtDlpClient : IYtDlpClient
             if (string.IsNullOrWhiteSpace(executable)) executable = OperatingSystem.IsWindows() ? "python" : "python3";
             var info = new ProcessStartInfo(executable)
             {
-                UseShellExecute = false, CreateNoWindow = true,
-                RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = true
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                RedirectStandardInput = true
             };
             // Preserve OS/runtime lookup only. Never forward application keys, proxies or Python overrides.
             var inherited = info.Environment.ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);

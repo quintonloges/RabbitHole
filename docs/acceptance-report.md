@@ -1,5 +1,13 @@
 # RabbitHole acceptance report
 
+## GitHub release formatting correction — 14 November 2026
+
+The release validation for `c7b5073` passed its workflow, Python and backend checks, then stopped at the full-solution .NET formatting gate. Corrected four whitespace diagnostics in `YtDlpClient.cs`; application behavior is unchanged.
+
+- `dotnet format RabbitHole.slnx --verify-no-changes --no-restore --verbosity minimal`: reproduced the four diagnostics before correction and passed afterward.
+- `dotnet format whitespace RabbitHole.slnx --no-restore --include apps/api/Ingestion/YtDlpClient.cs`: applied the scoped correction.
+- The failed GitHub run skipped deployment. The correction must pass the complete GitHub validation workflow before the owner approves production.
+
 ## Archive review regressions fixed — 14 November 2026
 
 Fixed the three reviewed archive issues. RSS traversal reserves descendant capacity within its 32-page queue, rotates blocked indexes and recovers older full queues by rediscovering their roots while skipping known items. YouTube diagnostics now use the configured adapter, preserve the exact import cursor and import nothing; API credentials, page-token and configuration failures cannot be concealed by a working yt-dlp installation. RSS feeds, robots and archive pages accept same-publisher HTTP-to-HTTPS upgrades while retaining host/port/path restrictions and rejecting HTTPS response downgrades.

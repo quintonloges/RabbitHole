@@ -18,6 +18,10 @@ on:
         type: boolean
         default: false
         description: Verify and activate missing curated sources after launch; preserve existing subscriptions
+      source_pack_group:
+        type: string
+        default: ''
+        description: Optional source group to activate (requires apply_source_pack); blank selects the whole pack
 permissions:
   contents: read
 concurrency:
@@ -89,6 +93,7 @@ jobs:
           DEPLOY_ENVIRONMENT: ${{ inputs.environment || 'production' }}
           DEPLOY_ADMIN_PASSWORD: ${{ secrets.DEPLOY_ADMIN_PASSWORD }}
           APPLY_SOURCE_PACK: ${{ inputs.apply_source_pack || false }}
+          SOURCE_PACK_GROUP: ${{ inputs.source_pack_group }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
@@ -113,6 +118,10 @@ jobs:
           if [[ "$DEPLOY_ENVIRONMENT" == production ]]; then
             source_option=''
             [[ "$APPLY_SOURCE_PACK" != true ]] || source_option='--apply-source-pack'
+            if [[ -n "$SOURCE_PACK_GROUP" ]]; then
+              [[ "$APPLY_SOURCE_PACK" == true && "$SOURCE_PACK_GROUP" =~ ^[a-z0-9][a-z0-9-]{0,79}$ ]] || { echo 'Invalid source group or source activation is disabled.' >&2; exit 1; }
+              source_option+=" $SOURCE_PACK_GROUP"
+            fi
             # Secret travels only on encrypted stdin, never argv, release files or logs.
             printf '%s' "$DEPLOY_ADMIN_PASSWORD" | "${SSH[@]}" "RH_CONFIG=$RH_CONFIG bash $release/scripts/hosted/release.sh $release $source_option"
           else

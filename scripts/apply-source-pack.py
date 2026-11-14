@@ -42,6 +42,7 @@ def main():
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--refresh', action='store_true')
     parser.add_argument('--only', help='Only a named source; exact match')
+    parser.add_argument('--group', help='Only enabled choices in this curated group; existing settings remain unchanged.')
     parser.add_argument('--report', default='data/curation/source-pack-run.json')
     parser.add_argument('--password-file', help='Explicit private temporary password file for approved automated releases.')
     args = parser.parse_args()
@@ -53,6 +54,8 @@ def main():
         use_password_file(args.base, args.password_file)
     try:
         return apply_pack(args)
+    except ValueError as error:
+        parser.error(str(error))
     finally:
         if args.password_file:
             logout(args.base)
@@ -60,12 +63,15 @@ def main():
 
 def apply_pack(args):
     pack = json.loads(Path(args.pack).read_text(encoding='utf-8-sig'))
+    choices = [s for s in pack['sources'] if s['enabledDefault']
+               and (not args.group or s.get('group') == args.group)
+               and (not args.only or s['name'] == args.only)]
+    if args.group and not choices:
+        raise ValueError('No enabled sources match the requested group/selection; nothing was changed.')
     topics = {t['name']: t['id'] for t in request(args.base, '/topics')}
     sources = {identity(s): s for s in request(args.base, '/sources')}
     results = []
-    for selected in pack['sources']:
-        if not selected['enabledDefault'] or (args.only and args.only != selected['name']):
-            continue
+    for selected in choices:
         existing = sources.get(identity(selected))
         report = {'name': selected['name'], 'at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
         try:

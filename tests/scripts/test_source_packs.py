@@ -121,6 +121,25 @@ class SourcePackTests(unittest.TestCase):
                        'enabledDefault': True, 'enabled': False, 'topics': [],
                        'intervalMinutes': 1440, 'resultLimit': 8}
 
+    def test_group_applies_only_requested_choices_and_preserves_other_subscriptions(self):
+        selected = dict(self.source, group='curiosity-expansion-2026-11')
+        unrelated = dict(self.source, name='TEST FIXTURE unrelated AI', url='https://example.net/feed')
+        code, report, calls, _ = run_pack(source_pack, {'sources': [unrelated, selected]},
+            self.request_with_job('completed'), '--apply', '--group', selected['group'])
+        self.assertEqual(0, code)
+        self.assertEqual([selected['name']], [row['name'] for row in report])
+        self.assertEqual('preserved existing settings', report[0]['action'])
+        self.assertEqual(2, len(calls))
+
+    def test_unknown_group_fails_before_authentication_or_mutation(self):
+        with (patch('sys.argv', [source_pack.__file__, '--apply', '--group', 'missing']),
+              patch.object(Path, 'read_text', return_value=json.dumps({'sources': [self.source]})),
+              patch.object(source_pack, 'request') as request,
+              contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error):
+            source_pack.main()
+        self.assertEqual(2, error.exception.code)
+        request.assert_not_called()
+
     def request_with_job(self, status):
         def request(base, path, method='GET', body=None):
             if method == 'GET' and path == '/topics':

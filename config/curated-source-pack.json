@@ -1389,6 +1389,239 @@
       "resultLimit": 3,
       "enabledDefault": true,
       "limitation": "Hacker News Search index only, not the entire web. At most two index requests and three original metadata lookups per refresh. Submission dates are never publication dates; unknown original dates remain unknown. Some queries or days can have no new eligible links."
+    },
+    {
+      "name": "DJ TechTools",
+      "kind": "rss",
+      "url": "https://djtechtools.com/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "DJ practice, performance, equipment and music-library workflows.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 8 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 8
+      },
+      "limitation": "The general feed also contains gear announcements. Its advertised technique-specific feed returned 404; no topic-only feed is promised."
+    },
+    {
+      "name": "GetDarker",
+      "kind": "rss",
+      "url": "https://getdarker.com/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Dubstep and soundsystem history through original mix and radio-show pages.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 50 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 50
+      },
+      "limitation": "An infrequently updated archive, not a daily release feed. Feed dates describe the publisher page, not necessarily the recording date in its title. Original players remain on the publisher site."
+    },
+    {
+      "name": "UKF",
+      "kind": "rss",
+      "url": "https://ukf.com/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Bass-music artist interviews, releases and scene discovery.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 10 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 10
+      },
+      "limitation": "Covers drum and bass and other bass music as well as dubstep; not a riddim-only subscription."
+    },
+    {
+      "name": "The Pro Audio Files",
+      "kind": "rss",
+      "url": "https://theproaudiofiles.com/feed/",
+      "query": "",
+      "topics": [
+        "Music discovery"
+      ],
+      "reason": "Practical mixing, recording and production tutorials from audio practitioners.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 15 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 15
+      },
+      "limitation": "The verified feed currently exposes older material, most recently from 2023. It also includes plugin recommendations; paid courses are not imported."
+    },
+    {
+      "name": "SHWEP",
+      "kind": "rss",
+      "url": "https://shwep.net/podcast/feed/",
+      "query": "",
+      "topics": [
+        "Speculative history & mysteries",
+        "Consciousness & philosophy"
+      ],
+      "reason": "The Secret History of Western Esotericism: conversations on magic, Hermeticism, Gnosticism and the history of ideas.",
+      "intervalMinutes": 1440,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 100 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 100
+      },
+      "limitation": "The public podcast feed supplies episode metadata and show notes. Members-only material is not fetched; audio is not downloaded."
+    },
+    {
+      "name": "Rune Soup",
+      "kind": "rss",
+      "url": "https://runesoup.com/feed/",
+      "query": "",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Practitioner conversations and essays on magic, animism, divination and esoteric traditions.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 24 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 24
+      },
+      "limitation": "The advertised website feed currently exposes older posts, most recently from 2024. It is an archive source, not a promise of current podcast coverage; paid material is not fetched."
+    },
+    {
+      "name": "Glitch Bottle",
+      "kind": "rss",
+      "url": "https://www.glitchbottle.com/podcast?format=rss",
+      "query": "",
+      "topics": [
+        "Speculative history & mysteries"
+      ],
+      "reason": "Long-form conversations with practitioners and authors on ceremonial magic, folklore and occult history.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 20 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 20
+      },
+      "limitation": "The advertised website feed exposes an older episode-page archive, most recently from 2023. Entries retain their supplied page dates and article type; original audio/video players stay on the publisher site."
+    },
+    {
+      "name": "Mindfield Bulletin",
+      "kind": "rss",
+      "url": "https://mindfieldbulletin.org/feed/",
+      "query": "",
+      "topics": [
+        "Parapsychology"
+      ],
+      "reason": "Multi-author research, cultural and historical writing from the Parapsychological Association bulletin.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 10 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 10
+      },
+      "limitation": "Includes open-access and premium article notices. Only supplied feed text/metadata is imported; subscription content is not fetched."
+    },
+    {
+      "name": "JSTOR Daily",
+      "kind": "rss",
+      "url": "https://daily.jstor.org/feed/",
+      "query": "",
+      "topics": [
+        "Unexpected finds"
+      ],
+      "reason": "Humanities, history, anthropology and science stories with links into original scholarship.",
+      "intervalMinutes": 1440,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 10 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 10
+      },
+      "limitation": "The general publication includes a broad range of subjects. Feed-supplied text and original links only; no automatic retrieval of linked papers."
+    },
+    {
+      "name": "The Marginalian",
+      "kind": "rss",
+      "url": "https://feeds.feedburner.com/brainpickings/rss",
+      "query": "",
+      "topics": [
+        "Consciousness & philosophy",
+        "Unexpected finds"
+      ],
+      "reason": "Maria Popova essays connecting literature, art, philosophy, science and the experience of being human.",
+      "intervalMinutes": 1440,
+      "resultLimit": 5,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 20 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 20
+      },
+      "limitation": "Uses the publisher-advertised FeedBurner feed. Regular imports work; deeper archive checks currently fail because the host serves robots.txt as XML. Only supplied text is imported; linked books are not automatically imported."
+    },
+    {
+      "name": "Philosophy Bites",
+      "kind": "rss",
+      "url": "https://rss.libsyn.com/shows/18828/destinations/14010.xml",
+      "query": "",
+      "topics": [
+        "Consciousness & philosophy"
+      ],
+      "reason": "Short interviews with philosophers across ethics, aesthetics, mind and the history of philosophy.",
+      "intervalMinutes": 10080,
+      "resultLimit": 6,
+      "enabledDefault": true,
+      "group": "curiosity-expansion-2026-11",
+      "importance": "owner-requested breadth; no credibility score",
+      "lastVerification": {
+        "at": "2026-11-14",
+        "status": "Verified with RabbitHole safe fetcher and RSS/Atom parser: 100 real records within the existing 1.5 MB limit. Activation checked separately.",
+        "records": 100
+      },
+      "limitation": "The publisher feed redirects to Libsyn. Regular imports work; deeper archive checks currently return HTTP 403. Missing per-episode authors remain unknown. Metadata and original episode links only; audio is not downloaded."
     }
   ]
 }

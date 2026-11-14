@@ -1,5 +1,24 @@
 # RabbitHole acceptance report
 
+## Broader sources and Discover balance — 14 November 2026
+
+Added eleven verified feeds: four music, three esoteric, one parapsychology and three philosophy/humanities choices. Public Daily mix now balances topic exposure and uses a rolling publisher budget; private selections retain interest weights, serendipity and subscription spread. No database migration or new environment variable is required. The hosted release can activate only `curiosity-expansion-2026-11` after normal production approval and launch.
+
+| Check | Observed result |
+| --- | --- |
+| Live safe-fetcher/parser verification, followed by authenticated `python scripts/apply-source-pack.py --apply --group curiosity-expansion-2026-11 --password-file .local/dev/admin-password.txt --report data/curation/curiosity-expansion-local-activation.json` | All **11** source tests and initial imports succeeded; **63** items imported and subscriptions enabled. First scheduled archive passes added **24**, making **87** new records. All regular source refreshes are healthy. |
+| Repeat installer with `--apply --refresh --group curiosity-expansion-2026-11` | All 11 refresh jobs completed with **zero new records**, preserving subscriptions and settings. |
+| `./scripts/dev.ps1 start` | Development rebuilt and all four services became healthy. Source IDs, enabled states and topic preferences survived rebuilds. Final source-picker notes include the verified archive limitations. |
+| Same-catalog comparison on 373 public items | First 24 mixed picks changed from **8 to 20 publisher hosts**; largest publisher count **7 to 2**; AI/software union **13 to 7**; music **1 to 3**; all **8 topics** represented. These are observed selection counts, not hard-coded topic quotas. |
+| Real public API pagination with `page`/`pageSize` | All **373 distinct items** returned across 100-item pages; first 63 IDs exactly matched 7-item pages; page after the end was empty. A measured 24-item response took **13 ms** locally; this is a smoke measurement, not a load benchmark. |
+| Normal authenticated fresh edition and browser inspection | **25 private picks**, unchanged topic preferences, all 11 source names visible in Settings. Public and private Discover inspected at desktop size and 390 × 844; no captured browser console errors. |
+| `dotnet test tests/api/RabbitHole.Api.Tests.csproj --no-restore` | **408 passed**, five PostgreSQL-only tests skipped in this host run. Existing same-host subscription regressions exposed during initial runs were fixed by retaining both subscription limits and their selection penalty alongside the publisher budget. |
+| `./scripts/check-release.ps1` | **Passed**, exit 0: **30 Python checks**, **408 backend tests** plus **8 PostgreSQL checks**, formatting, backend build, frontend lint/typecheck/production build, **184 Playwright tests (4.9 minutes)**, **42 hosted-script tests**, shell/Python validation, workflow lint and both Caddy configurations. Browser suite had no retries or skips. Log: `.cache/source-balance/release-check-passed.log`. |
+
+Normal imports remain usable where deeper archives are unavailable: The Marginalian's feed host returns an unsupported XML robots representation, and Philosophy Bites' archive check returns HTTP 403. Their separate archive failures are visible and retryable. Several other additions deliberately expose older archives; original dates are preserved. The source guide and picker record these limits. Unavailable YouTube feeds and oversized podcast feeds were excluded without relaxing network safeguards. Full source evidence and local snapshots are in ignored `data/curation/curiosity-expansion-*.json` and `.cache/source-balance/`.
+
+The original personal-production instance and volumes were not changed. Hosted release preparation requires successful GitHub validation and the owner's production environment approval; actual server backup, restoration, privacy and source activation outcomes must be verified after that approval.
+
 ## Preservation failure and local upgrade recovery — 14 November 2026
 
 The approved deployment of `2d43ff1` passed GitHub validation but stopped in maintenance when the post-migration manifest detected changes to `PublicCatalogEntries`. The other original tables and uploaded files matched the pre-upgrade backup. The v3 startup backfill rebuilt the entire v2 read model to add source memberships; this could normalize old aggregate source labels/search text and truncate timestamp ticks when reloading PostgreSQL timestamps.

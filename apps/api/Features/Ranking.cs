@@ -97,8 +97,9 @@ public sealed class Ranking(AppDbContext db)
             candidates.Add(new(item, rationale, score, outside, archive));
         }
         var chosen = new List<Recommendation>();
-        var sourceCounts = new Dictionary<string, int>();
-        var topicCounts = new Dictionary<Guid, int>();
+        var balance = new DiscoveryBalance(topics.ToDictionary(t => t.Id,
+            t => Math.Max(0.25, Interest(t))));
+        var sourceBalance = new DiscoveryBalance();
         var kindCounts = new Dictionary<string, int>();
         var outsideTarget = Math.Min(candidates.Count(c => c.Outside), (int)Math.Ceiling(count * settings.Serendipity));
         var outsideSelected = 0;
@@ -113,11 +114,15 @@ public sealed class Ranking(AppDbContext db)
             if (eligible.Count == 0) eligible = candidates;
             var archiveSlot = archiveSelected < archiveTarget &&
                 (Math.Floor((chosen.Count + 1) * settings.ArchiveShare) > archiveSelected || remaining <= archiveTarget - archiveSelected);
+            eligible = balance.SpreadPublishers(eligible, c => DiscoveryBalance.Publisher(c.Item.CanonicalUrl, SourceKey(c.Item), c.Item.Author));
+            // Within a publisher (including a single-host catalog), retain the
+            // spread across distinct subscriptions as well.
+            eligible = sourceBalance.SpreadPublishers(eligible, c => SourceKey(c.Item));
             var stream = eligible.Where(c => c.Archive == archiveSlot).ToList();
             if (stream.Count > 0) eligible = stream;
-            var underCap = eligible.Where(c => sourceCounts.GetValueOrDefault(SourceKey(c.Item)) < Math.Max(2, (int)Math.Ceiling(count * 0.15))).ToList();
-            if (underCap.Count > 0) eligible = underCap;
-            double Diversity(DailyCandidate c) => -0.35 * sourceCounts.GetValueOrDefault(SourceKey(c.Item)) - c.Item.TopicIds.Sum(id => topicCounts.GetValueOrDefault(id) * 0.2)
+            double Diversity(DailyCandidate c) => -0.35 * balance.PublisherCount(DiscoveryBalance.Publisher(c.Item.CanonicalUrl, SourceKey(c.Item), c.Item.Author))
+                - 0.35 * sourceBalance.PublisherCount(SourceKey(c.Item))
+                - 1.2 * balance.TopicLoad(c.Item.TopicIds)
                 - 0.08 * kindCounts.GetValueOrDefault(c.Item.Kind) - (chosen.Any(x => SimilarTitles(x.Item, c.Item)) ? 1.5 : 0);
             double Rotation(DailyCandidate c) => archiveSlot && c.Archive ? StableHash(seed + ":archive:" + c.Item.Id) / (double)uint.MaxValue * 2 : 0;
             var next = eligible.OrderByDescending(c => c.Score + Diversity(c) + Rotation(c)).ThenBy(c => StableHash(seed + c.Item.Id)).ThenBy(c => c.Item.Id).First();
@@ -129,15 +134,14 @@ public sealed class Ranking(AppDbContext db)
                 Signals = [.. next.Rationale.Signals,
                 new("archive-slot", fromArchive ? 1 : 0, "Older publications with lasting-format cues, or topic-matched older web discoveries; announcements are not given archive slots"),
                 new("archive-rotation", Rotation(next), "Seeded variation among relevant archive candidates"),
-                new("diversity", Diversity(next), "Source, topic, format and near-duplicate balance"),
+                new("diversity", Diversity(next), "Publisher spread and topic balance weighted by your interests; multi-topic items share one slot, with format and near-duplicate adjustments"),
                 new("serendipity-slot", next.Outside ? 1 : 0, "Outside strongest lasting topics; contributes to the configured serendipity share"),
                 new("selected-score", next.Score + Diversity(next) + Rotation(next), "Score at selection, after diversity and archive rotation")]
             }));
             if (next.Archive) archiveSelected++;
             if (next.Outside) outsideSelected++;
-            var key = SourceKey(next.Item);
-            sourceCounts[key] = sourceCounts.GetValueOrDefault(key) + 1;
-            foreach (var id in next.Item.TopicIds) topicCounts[id] = topicCounts.GetValueOrDefault(id) + 1;
+            balance.Add(DiscoveryBalance.Publisher(next.Item.CanonicalUrl, SourceKey(next.Item), next.Item.Author), next.Item.TopicIds);
+            sourceBalance.Add(SourceKey(next.Item), []);
             kindCounts[next.Item.Kind] = kindCounts.GetValueOrDefault(next.Item.Kind) + 1;
         }
         return chosen;

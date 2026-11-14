@@ -3,7 +3,12 @@
 set -euo pipefail
 umask 077
 export PYTHONUNBUFFERED=1
-[[ $# == 1 || ($# == 2 && "$2" == --apply-source-pack) ]] || { echo 'Usage: release.sh RELEASE [--apply-source-pack] < private-password' >&2; exit 1; }
+[[ $# == 1 || ($# -ge 2 && $# -le 3 && "$2" == --apply-source-pack) ]] || { echo 'Usage: release.sh RELEASE [--apply-source-pack [GROUP]] < private-password' >&2; exit 1; }
+source_args=()
+if [[ $# == 3 ]]; then
+  [[ "$3" =~ ^[a-z0-9][a-z0-9-]{0,79}$ ]] || { echo 'Invalid source group.' >&2; exit 1; }
+  source_args=(--group "$3")
+fi
 release=$(cd "$1" && pwd)
 release_id=${release##*/}
 [[ "$release" =~ ^/srv/rabbithole/releases/[a-f0-9]{40}$ ]] || { echo 'Invalid release directory.' >&2; exit 1; }
@@ -43,6 +48,6 @@ echo 'Release stage: authenticated privacy checks and public HTTPS launch.'
 bash "$release/scripts/hosted/launch.sh" --password-file "$credential_dir/password"
 if [[ ${2:-} == --apply-source-pack ]]; then
   echo 'Release stage: verifying and activating the requested additional sources.'
-  python3 "$release/scripts/apply-source-pack.py" --base "https://$PUBLIC_HOST/api" --pack "$release/config/curated-source-pack.json" --apply --password-file "$credential_dir/password" --report "$STATE_PATH/source-pack-$release_id.json"
+  python3 "$release/scripts/apply-source-pack.py" --base "https://$PUBLIC_HOST/api" --pack "$release/config/curated-source-pack.json" --apply "${source_args[@]}" --password-file "$credential_dir/password" --report "$STATE_PATH/source-pack-$release_id.json"
 fi
 echo 'Approved release completed: backup, migration, restoration, authenticated privacy checks and public HTTPS launch passed.'

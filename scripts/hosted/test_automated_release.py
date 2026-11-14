@@ -59,8 +59,10 @@ with open(os.environ['FIXTURE_LOG'],'a') as f:
 if password!='TEST FIXTURE password' or os.environ.get('FAIL_STAGE')=='preflight': raise SystemExit(9)
 ''')
         shutil.copyfile(SCRIPTS.parent / 'admin_client.py', self.release / 'scripts/admin_client.py')
-        self.release.joinpath('scripts/apply-source-pack.py').write_text('''import os
+        self.release.joinpath('scripts/apply-source-pack.py').write_text('''import os,sys
 with open(os.environ['FIXTURE_LOG'],'a') as f: f.write('sources\\n')
+if '--group' in sys.argv:
+    with open(os.environ['FIXTURE_LOG'],'a') as f: f.write('group='+sys.argv[sys.argv.index('--group')+1]+'\\n')
 if os.environ.get('FAIL_STAGE')=='sources': raise SystemExit(9)
 ''')
         self.binary('systemctl', 'echo "timer-$1" >>"$FIXTURE_LOG"\n[[ "${FAIL_STAGE:-}" != timer ]]')
@@ -74,9 +76,9 @@ if os.environ.get('FAIL_STAGE')=='sources': raise SystemExit(9)
         path = self.root / 'bin' / name
         path.write_text('#!/usr/bin/env bash\nset -euo pipefail\n' + body + '\n'); path.chmod(0o700)
 
-    def run_release(self, fail=None, password='TEST FIXTURE password', sources=False):
+    def run_release(self, fail=None, password='TEST FIXTURE password', sources=False, group=None):
         env = dict(self.environment, FAIL_STAGE=fail or '')
-        result = subprocess.run(['bash', str(self.hosted / 'release.sh'), str(self.release), *(['--apply-source-pack'] if sources else [])],
+        result = subprocess.run(['bash', str(self.hosted / 'release.sh'), str(self.release), *(['--apply-source-pack'] if sources else []), *([group] if group is not None else [])],
                                 input=password, capture_output=True, text=True, env=env)
         self.assertNotIn(password, result.stdout + result.stderr)
         self.assertEqual([], list((self.root / 'temp').glob('rabbithole-release.*')), 'Temporary credential was retained')
@@ -87,6 +89,16 @@ if os.environ.get('FAIL_STAGE')=='sources': raise SystemExit(9)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(['lock', 'preflight', 'timer-is-enabled', 'timer-is-active', 'deploy', 'backup', 'restore-test', 'launch', 'sources'], calls)
         self.assertFalse((self.root / 'state/maintenance').exists())
+
+    def test_source_group_is_forwarded_only_after_launch(self):
+        result, calls = self.run_release(sources=True, group='curiosity-expansion-2026-11')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(['launch', 'sources', 'group=curiosity-expansion-2026-11'], calls[-3:])
+
+    def test_invalid_source_group_stops_before_credentials_or_server_changes(self):
+        result, calls = self.run_release(sources=True, group='bad;echo-injected')
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual([], calls)
 
     def test_wrong_password_leaves_current_site_untouched(self):
         result, calls = self.run_release(password='WRONG FIXTURE password')

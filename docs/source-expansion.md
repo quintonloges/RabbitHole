@@ -1,5 +1,42 @@
 # Source expansion and older web discovery
 
+## Music, esotericism and a broader daily mix — 14 November 2026
+
+Added eleven publisher-advertised feeds after live verification with RabbitHole's safe fetcher and RSS parser, within the unchanged 1.5 MB limit. Four focus on music, three on esoteric subjects, one on parapsychology and three on philosophy or broader humanities. Counts below describe the actual feed, before import limits; they can change.
+
+| Source | Parsed entries | Coverage and limitations |
+| --- | ---: | --- |
+| [DJ TechTools](https://djtechtools.com/feed/) | 8 | DJ workflow, performance and gear. The advertised techniques-only feed returned 404, so this is the general feed. |
+| [GetDarker](https://getdarker.com/feed/) | 50 | Dubstep history, radio and mixes. Latest feed post was in 2025; older recording dates in titles are not substituted for page publication dates. |
+| [UKF](https://ukf.com/feed/) | 10 | Bass music interviews and discoveries, including drum and bass; not a riddim-only feed. |
+| [The Pro Audio Files](https://theproaudiofiles.com/feed/) | 15 | Production, mixing and sound-design tutorials. An older archive, with latest feed publication in 2023. |
+| [SHWEP](https://shwep.net/podcast/feed/) | 100 | Scholarly history of western esotericism and philosophy; public episode metadata and show notes. |
+| [Rune Soup](https://runesoup.com/feed/) | 24 | Practitioner writing on magic, animism and divination. This blog feed's latest publication was in 2024; it is not the current podcast feed. |
+| [Glitch Bottle](https://www.glitchbottle.com/podcast?format=rss) | 20 | Occult practitioner interviews. This episode-page archive ends in 2023 and lacks audio enclosures; original players remain on the publisher site. |
+| [Mindfield Bulletin](https://mindfieldbulletin.org/feed/) | 10 | Parapsychological Association bulletin, essays and research discussion; some entries announce premium material. |
+| [JSTOR Daily](https://daily.jstor.org/feed/) | 10 | History, anthropology, humanities and unexpected science connections. Linked scholarship is not automatically imported. |
+| [The Marginalian](https://feeds.feedburner.com/brainpickings/rss) | 20 | Philosophy, literature, art and the history of ideas. |
+| [Philosophy Bites](https://rss.libsyn.com/shows/18828/destinations/14010.xml) | 100 | Original philosopher interviews; missing entry authors remain unknown. |
+
+SHWEP and Philosophy Bites reached the parser's 100-entry cap. No audio, transcripts, paid content or third-party captions are downloaded. Archive freshness and source assertions remain attributed to the publishers. The new choices use recent limits of 5–6 and daily or weekly refreshes according to publication cadence; their source tags remain editable.
+
+**Local activation:** all eleven passed source tests and initial imports through the normal administrator cookie/CSRF APIs on development (`127.0.0.1:47832`), adding **63 items**. The first scheduled archive passes added **24 more**. Regular refreshes are healthy for all eleven. Deeper archive discovery is separately limited for The Marginalian (the feed host's robots response has an unsupported XML MIME type) and Philosophy Bites (HTTP 403); those failures remain visible and retryable without blocking ordinary feed imports. Personal production is unchanged. Hosted activation is prepared as a separate, owner-approved release.
+
+INFEKT, Bunting, ESOTERICA and New Thinking Allowed were researched from their actual channel pages, but their advertised YouTube feeds returned HTTP 404 through the app and were not activated. Weird Studies and New Thinking Allowed's podcast feeds exceeded the existing feed-size limit. No guessed URLs, fabricated entries or relaxed fetch limits substitute for unavailable integrations.
+
+**Discover balance:** public Daily mix now shares exposure across topics and normally permits at most two entries per publisher in a rolling 24 picks. Multiple feeds on one website share the publisher budget; independent media creators remain separate. Multi-topic entries share one exposure slot. Sparse or explicitly filtered catalogs relax the publisher budget to keep real items accessible. Archive picks still aim for every fourth position when compatible candidates exist. Ordering remains deterministic within a UTC day, with complete pagination independent of page size. Newest added and Search keep their existing ordering.
+
+Private selections use the same publisher spread while preserving interest weights, pinned topics, serendipity, read/dismiss exclusions and existing saved state. Topic exposure is weighted by the owner's interests; distinct subscriptions also retain their own spread. Existing daily editions stay stable until **New selection** is requested.
+
+To install only this expansion, use the explicit group (the plan is read-only):
+
+```powershell
+python scripts/apply-source-pack.py --group curiosity-expansion-2026-11
+python scripts/apply-source-pack.py --group curiosity-expansion-2026-11 --apply
+```
+
+For the hosted workflow, select **Verify and activate missing curated sources** and set `source_pack_group` to `curiosity-expansion-2026-11`. This preserves existing subscriptions and selects only these eleven choices, leaving earlier local-only packs outside the activation request. Tests/imports run again on the server after the approved release launches; unavailable sources remain disabled with a failure report.
+
 ## Morning Dew and its AI sources — 14 November 2026
 
 Reviewed the **AI** sections in the ten [Morning Dew](https://www.alvinashcraft.com/feeds/feed.xml) editions dated 2–13 November 2026: 231 outbound links. The local source pack now includes Alvin Ashcraft's roundup and seven publishers it links to. Each upstream source records a concrete Morning Dew issue and original article in `discoveredVia`; the full roundup remains attributed to Alvin. This is a reviewed selection of subscriptions, not automatic following of every outbound link.
